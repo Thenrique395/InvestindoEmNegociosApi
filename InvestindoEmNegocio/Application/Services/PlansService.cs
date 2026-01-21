@@ -3,15 +3,18 @@ using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Application.Services;
 
 public class PlansService(
     IMoneyPlanRepository planRepository,
     IMoneyInstallmentRepository installmentRepository,
-    IMoneyPaymentRepository paymentRepository)
+    IMoneyPaymentRepository paymentRepository,
+    ILogger<PlansService> logger)
     : IPlansService
 {
+    private readonly ILogger<PlansService> _logger = logger;
     public async Task<PlanResponse> CreateAsync(Guid userId, CreatePlanRequest request, CancellationToken cancellationToken = default)
     {
         ValidateSchedule(request);
@@ -32,6 +35,7 @@ public class PlansService(
         await planRepository.AddAsync(plan, cancellationToken);
         await GenerateInstallmentsAsync(plan, cancellationToken);
         await planRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Plan created {UserId} {PlanId} {Schedule}", userId, plan.Id, plan.Schedule);
 
         return ToResponse(plan);
     }
@@ -79,6 +83,7 @@ public class PlansService(
 
         await GenerateInstallmentsAsync(plan, cancellationToken);
         await planRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Plan updated {UserId} {PlanId} {Schedule}", userId, plan.Id, plan.Schedule);
 
         return ToResponse(plan);
     }
@@ -90,6 +95,7 @@ public class PlansService(
 
         planRepository.Remove(plan);
         await planRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Plan deleted {UserId} {PlanId}", userId, plan.Id);
         return true;
     }
 

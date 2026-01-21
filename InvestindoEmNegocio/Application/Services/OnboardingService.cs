@@ -2,11 +2,13 @@ using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Application.Services;
 
-public class OnboardingService(IUserOnboardingRepository repository) : IOnboardingService
+public class OnboardingService(IUserOnboardingRepository repository, ILogger<OnboardingService> logger) : IOnboardingService
 {
+    private readonly ILogger<OnboardingService> _logger = logger;
     public async Task<OnboardingStatusDto> GetStatusAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var onboarding = await repository.GetByUserAsync(userId, cancellationToken);
@@ -30,6 +32,7 @@ public class OnboardingService(IUserOnboardingRepository repository) : IOnboardi
 
 
         await repository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Onboarding updated {UserId} {Step} {Completed}", userId, onboarding.Step, onboarding.Completed);
         return new OnboardingStatusDto(onboarding.Step, onboarding.Completed);
     }
 }

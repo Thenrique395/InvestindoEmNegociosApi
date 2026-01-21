@@ -25,6 +25,7 @@ public class InvestDbContext : DbContext
     public DbSet<InvestmentMovement> InvestmentMovements => Set<InvestmentMovement>();
     public DbSet<UserOnboarding> UserOnboardings => Set<UserOnboarding>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

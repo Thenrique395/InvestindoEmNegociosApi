@@ -5,6 +5,8 @@ using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Repositories;
 using InvestindoEmNegocio.Infrastructure.Auth;
 using InvestindoEmNegocio.Infrastructure.Data;
+using InvestindoEmNegocio.Infrastructure.Logging;
+using InvestindoEmNegocio.Infrastructure.Swagger;
 using InvestindoEmNegocio.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -13,12 +15,125 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using Serilog;
+using Serilog.Formatting.Compact;
+using System.Security.Claims;
+using Microsoft.OpenApi.Models;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Exporter;
+using Serilog.Sinks.OpenTelemetry;
 
 var builder = WebApplication.CreateBuilder(args);
 const string CorsPolicy = "AllowFrontend";
 
+var envPath = Path.Combine(builder.Environment.ContentRootPath, ".env");
+if (File.Exists(envPath))
+{
+    DotNetEnv.Env.Load(envPath);
+}
+
+var otelServiceName = Environment.GetEnvironmentVariable("OTEL_SERVICE_NAME") ?? "InvestindoEmNegocio";
+var otlpEndpointValue = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT");
+var otlpProtocolValue = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_PROTOCOL");
+if (string.IsNullOrWhiteSpace(otlpEndpointValue))
+{
+    Console.WriteLine("OTEL_EXPORTER_OTLP_ENDPOINT não definido. OTEL não enviará dados.");
+}
+
+static OtlpExportProtocol ResolveOtlpProtocol(string? protocolValue)
+{
+    if (string.IsNullOrWhiteSpace(protocolValue))
+    {
+        return OtlpExportProtocol.Grpc;
+    }
+
+    return protocolValue.Trim().ToLowerInvariant() switch
+    {
+        "http/protobuf" => OtlpExportProtocol.HttpProtobuf,
+        "grpc" => OtlpExportProtocol.Grpc,
+        _ => OtlpExportProtocol.Grpc
+    };
+}
+
+static Uri? ResolveOtlpEndpoint(string? endpointValue)
+{
+    if (string.IsNullOrWhiteSpace(endpointValue))
+    {
+        return null;
+    }
+
+    return Uri.TryCreate(endpointValue, UriKind.Absolute, out var endpoint)
+        ? endpoint
+        : null;
+}
+
+var otlpEndpoint = ResolveOtlpEndpoint(otlpEndpointValue);
+var otlpProtocol = ResolveOtlpProtocol(otlpProtocolValue);
+var otelResource = ResourceBuilder.CreateDefault()
+    .AddService(otelServiceName);
+
+builder.Host.UseSerilog((context, services, configuration) =>
+{
+    configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext()
+        .Enrich.WithProperty("Application", "InvestindoEmNegocio")
+        .WriteTo.Console(new RenderedCompactJsonFormatter());
+
+    if (otlpEndpoint is not null)
+    {
+        configuration.WriteTo.OpenTelemetry(options =>
+        {
+            options.Endpoint = otlpEndpoint.ToString();
+            options.Protocol = otlpProtocol == OtlpExportProtocol.Grpc
+                ? OtlpProtocol.Grpc
+                : OtlpProtocol.HttpProtobuf;
+            options.ResourceAttributes = new Dictionary<string, object>
+            {
+                ["service.name"] = otelServiceName
+            };
+        });
+    }
+});
+
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.OperationFilter<FileUploadOperationFilter>();
+    options.MapType<IFormFile>(() => new OpenApiSchema { Type = "string", Format = "binary" });
+});
+
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracerProviderBuilder => tracerProviderBuilder
+        .SetResourceBuilder(otelResource)
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddOtlpExporter(options =>
+        {
+            if (otlpEndpoint is not null)
+            {
+                options.Endpoint = otlpEndpoint;
+            }
+
+            options.Protocol = otlpProtocol;
+        }))
+    .WithMetrics(metricProviderBuilder => metricProviderBuilder
+        .SetResourceBuilder(otelResource)
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddRuntimeInstrumentation()
+        .AddOtlpExporter(options =>
+        {
+            if (otlpEndpoint is not null)
+            {
+                options.Endpoint = otlpEndpoint;
+            }
+
+            options.Protocol = otlpProtocol;
+        }));
 builder.Services.AddControllers()
     .AddJsonOptions(opts =>
     {
@@ -84,8 +199,10 @@ builder.Services.AddScoped<IInvestmentGoalRepository, InvestmentGoalRepository>(
 builder.Services.AddScoped<IInvestmentPositionRepository, InvestmentPositionRepository>();
 builder.Services.AddScoped<IUserOnboardingRepository, UserOnboardingRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IInvestmentsService, InvestmentsService>();
 builder.Services.AddScoped<IOnboardingService, OnboardingService>();
@@ -131,6 +248,9 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+Log.Information("OTEL config loaded. Endpoint: {OtelEndpoint}, Protocol: {OtelProtocol}, ServiceName: {OtelServiceName}",
+    otlpEndpoint?.ToString() ?? "<not-set>", otlpProtocol, otelServiceName);
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -139,6 +259,21 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseSerilogRequestLogging(options =>
+{
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        diagnosticContext.Set("CorrelationId", httpContext.TraceIdentifier);
+        var userId = httpContext.User?.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? httpContext.User?.FindFirstValue(ClaimTypes.Name);
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            diagnosticContext.Set("UserId", userId);
+        }
+    };
+});
 
 app.UseRouting();
 

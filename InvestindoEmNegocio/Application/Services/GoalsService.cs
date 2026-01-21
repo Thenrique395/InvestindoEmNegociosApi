@@ -3,11 +3,13 @@ using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Application.Services;
 
-public class GoalsService(IGoalRepository goalRepository) : IGoalsService
+public class GoalsService(IGoalRepository goalRepository, ILogger<GoalsService> logger) : IGoalsService
 {
+    private readonly ILogger<GoalsService> _logger = logger;
     public async Task<IReadOnlyList<GoalResponse>> ListAsync(Guid userId, int? year, GoalStatus? status, CancellationToken cancellationToken = default)
     {
         var data = await goalRepository.ListByUserAsync(userId, year, status, cancellationToken);
@@ -26,6 +28,7 @@ public class GoalsService(IGoalRepository goalRepository) : IGoalsService
         var goal = new Goal(userId, request.Title.Trim(), request.TargetAmount, request.Year, request.Description, GoalStatus.Planned, request.CurrentAmount, request.ExpectedMonthly, request.TargetDate);
         await goalRepository.AddAsync(goal, cancellationToken);
         await goalRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Goal created {UserId} {GoalId}", userId, goal.Id);
         return ToResponse(goal);
     }
 
@@ -37,6 +40,7 @@ public class GoalsService(IGoalRepository goalRepository) : IGoalsService
 
         goal.Update(request.Title.Trim(), request.TargetAmount, request.Year, request.Description, request.Status, request.CurrentAmount, request.ExpectedMonthly, request.TargetDate);
         await goalRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Goal updated {UserId} {GoalId}", userId, goal.Id);
         return ToResponse(goal);
     }
 
@@ -47,6 +51,7 @@ public class GoalsService(IGoalRepository goalRepository) : IGoalsService
 
         goalRepository.Remove(goal);
         await goalRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Goal deleted {UserId} {GoalId}", userId, goal.Id);
         return true;
     }
 

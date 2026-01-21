@@ -4,6 +4,7 @@ using InvestindoEmNegocio.Domain.Repositories;
 using System.Security.Cryptography;
 using System.Text;
 using InvestindoEmNegocio.Domain.Entities;
+using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Application.Services;
 
@@ -12,9 +13,11 @@ using BCryptNet = BCrypt.Net.BCrypt;
 public class AuthService(
     IUserRepository userRepository,
     IRefreshTokenRepository refreshTokenRepository,
-    IJwtTokenGenerator jwtTokenGenerator)
+    IJwtTokenGenerator jwtTokenGenerator,
+    ILogger<AuthService> logger)
     : IAuthService
 {
+    private readonly ILogger<AuthService> _logger = logger;
     private const int BcryptWorkFactor = 12;
     private const int MaxFailedLoginAttempts = 5;
     private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
@@ -33,6 +36,8 @@ public class AuthService(
         await userRepository.AddAsync(user, cancellationToken);
         await userRepository.SaveChangesAsync(cancellationToken);
 
+        _logger.LogInformation("User registered {UserId}", user.Id);
+
         var access = jwtTokenGenerator.Generate(user);
         var refresh = await IssueRefreshTokenAsync(user, cancellationToken);
         return new AuthResponse(user.Id, user.Name, user.Email, access.Token, refresh.Token, access.ExpiresAt);
@@ -50,6 +55,7 @@ public class AuthService(
 
         if (user.IsLocked(now))
         {
+            _logger.LogWarning("Login blocked due to lockout {UserId}", user.Id);
             throw new InvalidOperationException("Conta bloqueada temporariamente. Tente novamente mais tarde.");
         }
 
@@ -57,6 +63,7 @@ public class AuthService(
         {
             user.RegisterFailedLogin(now, MaxFailedLoginAttempts, LockoutDuration);
             await userRepository.SaveChangesAsync(cancellationToken);
+            _logger.LogWarning("Invalid login attempt {UserId}", user.Id);
             throw new UnauthorizedAccessException("Credenciais inválidas.");
         }
 
@@ -68,6 +75,8 @@ public class AuthService(
         user.UpdateLastLogin(now);
         // Como o UpdateLastLogin já atualiza UpdatedAt, apenas persistimos
         await userRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("User logged in {UserId}", user.Id);
 
         var access = jwtTokenGenerator.Generate(user);
         var refresh = await IssueRefreshTokenAsync(user, cancellationToken);
@@ -85,6 +94,7 @@ public class AuthService(
         var newHash = BCryptNet.HashPassword(request.NewPassword, BcryptWorkFactor);
         user.ChangePassword(newHash);
         await userRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Password changed {UserId}", user.Id);
     }
 
     public async Task<AuthResponse> RefreshAsync(RefreshTokenRequest request, CancellationToken cancellationToken = default)
@@ -109,6 +119,8 @@ public class AuthService(
         stored.Revoke(now, HashToken(refresh.Token));
         await refreshTokenRepository.SaveChangesAsync(cancellationToken);
 
+        _logger.LogInformation("Refresh token rotated {UserId}", user.Id);
+
         return new AuthResponse(user.Id, user.Name, user.Email, access.Token, refresh.Token, access.ExpiresAt);
     }
 
@@ -124,6 +136,7 @@ public class AuthService(
 
         stored.Revoke(now);
         await refreshTokenRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("User logged out {UserId}", stored.UserId);
     }
 
     private async Task<(string Token, DateTime ExpiresAt)> IssueRefreshTokenAsync(User user, CancellationToken cancellationToken)

@@ -2,15 +2,18 @@ using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Application.Services;
 
 public class CardsService(
     ICardRepository cardRepository,
     ICardBrandRepository brandRepository,
-    IMoneyInstallmentRepository installmentRepository)
+    IMoneyInstallmentRepository installmentRepository,
+    ILogger<CardsService> logger)
     : ICardsService
 {
+    private readonly ILogger<CardsService> _logger = logger;
     public async Task<IReadOnlyList<CardResponse>> ListAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var data = await cardRepository.ListByUserAsync(userId, cancellationToken);
@@ -34,6 +37,7 @@ public class CardsService(
             request.DueDay);
         await cardRepository.AddAsync(card, cancellationToken);
         await cardRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Card created {UserId} {CardId}", userId, card.Id);
         return MapToResponse(card);
     }
 
@@ -55,6 +59,7 @@ public class CardsService(
             request.StatementCloseDay,
             request.DueDay);
         await cardRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Card updated {UserId} {CardId}", userId, card.Id);
         return MapToResponse(card);
     }
 
@@ -65,6 +70,7 @@ public class CardsService(
 
         cardRepository.Remove(card);
         await cardRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Card deleted {UserId} {CardId}", userId, card.Id);
         return true;
     }
 

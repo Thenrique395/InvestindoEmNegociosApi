@@ -3,6 +3,7 @@ using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Application.Services;
 
@@ -10,12 +11,15 @@ public class InvestmentsService : IInvestmentsService
 {
     private readonly IInvestmentGoalRepository _goalRepository;
     private readonly IInvestmentPositionRepository _positionRepository;
+    private readonly ILogger<InvestmentsService> _logger;
 
     public InvestmentsService(IInvestmentGoalRepository goalRepository,
-        IInvestmentPositionRepository positionRepository)
+        IInvestmentPositionRepository positionRepository,
+        ILogger<InvestmentsService> logger)
     {
         _goalRepository = goalRepository;
         _positionRepository = positionRepository;
+        _logger = logger;
     }
 
     public async Task<InvestmentGoalDto?> GetGoalAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -33,11 +37,13 @@ public class InvestmentsService : IInvestmentsService
             var goal = new InvestmentGoal(userId, request.TargetAmount);
             await _goalRepository.AddAsync(goal, cancellationToken);
             await _goalRepository.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("Investment goal created {UserId} {GoalId}", userId, goal.Id);
             return new InvestmentGoalDto(goal.Id, goal.TargetAmount);
         }
 
         existing.SetTargetAmount(request.TargetAmount);
         await _goalRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Investment goal updated {UserId} {GoalId}", userId, existing.Id);
         return new InvestmentGoalDto(existing.Id, existing.TargetAmount);
     }
 
@@ -72,6 +78,7 @@ public class InvestmentsService : IInvestmentsService
 
         await _positionRepository.AddAsync(position, cancellationToken);
         await _positionRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Investment position created {UserId} {PositionId}", userId, position.Id);
         return Map(position);
     }
 
@@ -93,6 +100,7 @@ public class InvestmentsService : IInvestmentsService
             request.Note);
 
         await _positionRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Investment position updated {UserId} {PositionId}", userId, position.Id);
         return Map(position);
     }
 
@@ -102,6 +110,7 @@ public class InvestmentsService : IInvestmentsService
         if (position is null) return false;
         _positionRepository.Remove(position);
         await _positionRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Investment position deleted {UserId} {PositionId}", userId, position.Id);
         return true;
     }
 
@@ -139,6 +148,7 @@ public class InvestmentsService : IInvestmentsService
         position.ApplyMovement(movement);
 
         await _positionRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Investment movement added {UserId} {PositionId} {MovementId} {Type}", userId, position.Id, movement.Id, movement.Type);
         return Map(movement);
     }
 

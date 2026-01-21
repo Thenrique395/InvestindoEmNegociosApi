@@ -4,13 +4,14 @@ using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Linq;
 
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class CategoriesController(ICategoriesService categoriesService) : ControllerBase
+public class CategoriesController(ICategoriesService categoriesService, IAuditService auditService) : ControllerBase
 {
     [HttpGet]
     // Lista categorias padrão (UserId nulo) + do usuário. Pode filtrar por tipo (receita/despesa).
@@ -69,6 +70,7 @@ public class CategoriesController(ICategoriesService categoriesService) : Contro
         var userId = GetUserId();
         var removed = await categoriesService.DeleteAsync(userId, id, cancellationToken);
         if (!removed) return NotFound();
+        await auditService.LogAsync(userId, "DELETE", "Category", id.ToString(), GetIpAddress(), GetUserAgent(), null, cancellationToken);
         return NoContent();
     }
 
@@ -76,5 +78,21 @@ public class CategoriesController(ICategoriesService categoriesService) : Contro
     {
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
         return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Usuário não autenticado.");
+    }
+
+    private string? GetIpAddress()
+    {
+        var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(forwarded))
+        {
+            return forwarded.Split(',')[0].Trim();
+        }
+
+        return HttpContext.Connection.RemoteIpAddress?.ToString();
+    }
+
+    private string? GetUserAgent()
+    {
+        return Request.Headers["User-Agent"].ToString();
     }
 }

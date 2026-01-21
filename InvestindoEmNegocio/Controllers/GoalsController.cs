@@ -4,13 +4,14 @@ using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Linq;
 
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class GoalsController(IGoalsService goalsService) : ControllerBase
+public class GoalsController(IGoalsService goalsService, IAuditService auditService) : ControllerBase
 {
     [HttpGet]
     // Lista metas do usuário, opcionalmente filtrando por ano ou status.
@@ -71,6 +72,7 @@ public class GoalsController(IGoalsService goalsService) : ControllerBase
         var userId = GetUserId();
         var removed = await goalsService.DeleteAsync(userId, id, cancellationToken);
         if (!removed) return NotFound();
+        await auditService.LogAsync(userId, "DELETE", "Goal", id.ToString(), GetIpAddress(), GetUserAgent(), null, cancellationToken);
         return NoContent();
     }
 
@@ -78,5 +80,21 @@ public class GoalsController(IGoalsService goalsService) : ControllerBase
     {
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
         return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Usuário não autenticado.");
+    }
+
+    private string? GetIpAddress()
+    {
+        var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(forwarded))
+        {
+            return forwarded.Split(',')[0].Trim();
+        }
+
+        return HttpContext.Connection.RemoteIpAddress?.ToString();
+    }
+
+    private string? GetUserAgent()
+    {
+        return Request.Headers["User-Agent"].ToString();
     }
 }

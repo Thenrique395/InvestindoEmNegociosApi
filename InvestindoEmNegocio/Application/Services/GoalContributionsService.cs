@@ -3,14 +3,17 @@ using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Application.Services;
 
 public class GoalContributionsService(
     IGoalRepository goalRepository,
-    IGoalContributionRepository goalContributionRepository)
+    IGoalContributionRepository goalContributionRepository,
+    ILogger<GoalContributionsService> logger)
     : IGoalContributionsService
 {
+    private readonly ILogger<GoalContributionsService> _logger = logger;
     public async Task<IReadOnlyList<GoalContributionResponse>?> ListAsync(Guid userId, Guid goalId, CancellationToken cancellationToken = default)
     {
         var exists = await goalRepository.ExistsAsync(goalId, userId, cancellationToken);
@@ -42,6 +45,7 @@ public class GoalContributionsService(
             goal.SetAmountAndStatus(novoAcumulado, GoalStatus.InProgress);
 
         await goalContributionRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Goal contribution created {UserId} {GoalId} {ContributionId}", userId, goalId, contrib.Id);
         return ToResponse(contrib);
     }
 

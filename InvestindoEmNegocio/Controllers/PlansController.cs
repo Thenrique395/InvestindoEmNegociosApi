@@ -4,6 +4,7 @@ using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Linq;
 
 namespace InvestindoEmNegocio.Controllers;
 
@@ -13,7 +14,13 @@ namespace InvestindoEmNegocio.Controllers;
 public class PlansController : ControllerBase
 {
     private readonly IPlansService _plansService;
-    public PlansController(IPlansService plansService) => _plansService = plansService;
+    private readonly IAuditService _auditService;
+
+    public PlansController(IPlansService plansService, IAuditService auditService)
+    {
+        _plansService = plansService;
+        _auditService = auditService;
+    }
 
     [HttpPost]
     // Cria um plano de receita/despesa e gera parcelas conforme o tipo (à vista, parcelado ou recorrente).
@@ -78,6 +85,7 @@ public class PlansController : ControllerBase
         var userId = GetUserId();
         var removed = await _plansService.DeleteAsync(userId, id, cancellationToken);
         if (!removed) return NotFound();
+        await _auditService.LogAsync(userId, "DELETE", "Plan", id.ToString(), GetIpAddress(), GetUserAgent(), null, cancellationToken);
         return NoContent();
     }
 
@@ -87,5 +95,21 @@ public class PlansController : ControllerBase
         return Guid.TryParse(claim, out var id)
             ? id
             : throw new UnauthorizedAccessException("Usuário não autenticado.");
+    }
+
+    private string? GetIpAddress()
+    {
+        var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(forwarded))
+        {
+            return forwarded.Split(',')[0].Trim();
+        }
+
+        return HttpContext.Connection.RemoteIpAddress?.ToString();
+    }
+
+    private string? GetUserAgent()
+    {
+        return Request.Headers["User-Agent"].ToString();
     }
 }

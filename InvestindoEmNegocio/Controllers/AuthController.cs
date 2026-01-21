@@ -4,13 +4,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
+using System.Linq;
 
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [EnableRateLimiting("auth")]
-public class AuthController(IAuthService authService) : ControllerBase
+public class AuthController(IAuthService authService, IAuditService auditService) : ControllerBase
 {
     [HttpPost("register")]
     [AllowAnonymous]
@@ -40,6 +41,7 @@ public class AuthController(IAuthService authService) : ControllerBase
         try
         {
             await authService.ChangePasswordAsync(userId, request, cancellationToken);
+            await auditService.LogAsync(userId, "CHANGE_PASSWORD", "User", userId.ToString(), GetIpAddress(), GetUserAgent(), null, cancellationToken);
             return NoContent();
         }
         catch (UnauthorizedAccessException ex)
@@ -85,6 +87,7 @@ public class AuthController(IAuthService authService) : ControllerBase
         try
         {
             var response = await authService.LoginAsync(request, cancellationToken);
+            await auditService.LogAsync(response.UserId, "LOGIN", "User", response.UserId.ToString(), GetIpAddress(), GetUserAgent(), null, cancellationToken);
             return Ok(response);
         }
         catch (InvalidOperationException ex)
@@ -109,5 +112,21 @@ public class AuthController(IAuthService authService) : ControllerBase
             Detail = detail,
             Status = statusCode
         };
+    }
+
+    private string? GetIpAddress()
+    {
+        var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(forwarded))
+        {
+            return forwarded.Split(',')[0].Trim();
+        }
+
+        return HttpContext.Connection.RemoteIpAddress?.ToString();
+    }
+
+    private string? GetUserAgent()
+    {
+        return Request.Headers["User-Agent"].ToString();
     }
 }

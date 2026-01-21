@@ -3,13 +3,14 @@ using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Linq;
 
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class CardsController(ICardsService cardsService) : ControllerBase
+public class CardsController(ICardsService cardsService, IAuditService auditService) : ControllerBase
 {
     [HttpGet]
     // Lista cartões do usuário autenticado.
@@ -60,6 +61,7 @@ public class CardsController(ICardsService cardsService) : ControllerBase
         var userId = GetUserId();
         var removed = await cardsService.DeleteAsync(userId, id, cancellationToken);
         if (!removed) return NotFound();
+        await auditService.LogAsync(userId, "DELETE", "Card", id.ToString(), GetIpAddress(), GetUserAgent(), null, cancellationToken);
         return NoContent();
     }
 
@@ -76,5 +78,21 @@ public class CardsController(ICardsService cardsService) : ControllerBase
     {
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
         return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Usuário não autenticado.");
+    }
+
+    private string? GetIpAddress()
+    {
+        var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(forwarded))
+        {
+            return forwarded.Split(',')[0].Trim();
+        }
+
+        return HttpContext.Connection.RemoteIpAddress?.ToString();
+    }
+
+    private string? GetUserAgent()
+    {
+        return Request.Headers["User-Agent"].ToString();
     }
 }

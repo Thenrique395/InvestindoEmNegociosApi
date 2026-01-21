@@ -40,9 +40,11 @@ public class ProfileController(IProfileService profileService, IWebHostEnvironme
 
     [HttpPost("avatar")]
     [RequestSizeLimit(2 * 1024 * 1024)]
+    [Consumes("multipart/form-data")]
     // Faz upload da foto de perfil e atualiza o AvatarUrl.
-    public async Task<ActionResult<UserProfileDto>> UploadAvatar([FromForm] IFormFile avatar, CancellationToken cancellationToken)
+    public async Task<ActionResult<UserProfileDto>> UploadAvatar([FromForm] UploadAvatarRequest request, CancellationToken cancellationToken)
     {
+        var avatar = request.Avatar;
         if (avatar is null || avatar.Length == 0)
         {
             return BadRequest(new ProblemDetails { Title = "Arquivo inválido", Detail = "Envie uma imagem válida.", Status = StatusCodes.Status400BadRequest });

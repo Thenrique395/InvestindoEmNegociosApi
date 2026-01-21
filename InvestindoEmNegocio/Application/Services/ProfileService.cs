@@ -4,11 +4,13 @@ using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Repositories;
 using System.Text.RegularExpressions;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Application.Services;
 
-public class ProfileService(IUserProfileRepository profileRepository) : IProfileService
+public class ProfileService(IUserProfileRepository profileRepository, ILogger<ProfileService> logger) : IProfileService
 {
+    private readonly ILogger<ProfileService> _logger = logger;
     public async Task<UserProfileDto?> GetAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var profile = await profileRepository.GetByUserIdAsync(userId, cancellationToken);
@@ -25,12 +27,14 @@ public class ProfileService(IUserProfileRepository profileRepository) : IProfile
                 request.AvatarUrl, request.City, request.State, request.Country, request.Language);
             await profileRepository.AddAsync(profile, cancellationToken);
             await profileRepository.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("User profile created {UserId}", userId);
             return Map(profile);
         }
 
         existing.SetData(request.FullName, request.Document, request.Phone, request.BirthDate, request.AvatarUrl,
             request.City, request.State, request.Country, request.Language);
         await profileRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("User profile updated {UserId}", userId);
         return Map(existing);
     }
 
@@ -53,6 +57,7 @@ public class ProfileService(IUserProfileRepository profileRepository) : IProfile
             existing.Language,
             existing.Currency);
         await profileRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("User avatar updated {UserId}", userId);
         return Map(existing);
     }
 

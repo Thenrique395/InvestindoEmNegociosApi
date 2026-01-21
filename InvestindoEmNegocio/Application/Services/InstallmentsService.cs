@@ -3,14 +3,17 @@ using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Application.Services;
 
 public class InstallmentsService(
     IMoneyInstallmentRepository installmentRepository,
-    IMoneyPaymentRepository paymentRepository)
+    IMoneyPaymentRepository paymentRepository,
+    ILogger<InstallmentsService> logger)
     : IInstallmentsService
 {
+    private readonly ILogger<InstallmentsService> _logger = logger;
     public async Task<IReadOnlyList<InstallmentResponse>> ListAsync(Guid userId, InstallmentStatus? status, DateOnly? from, DateOnly? to, MoneyType? type, CancellationToken cancellationToken = default)
     {
         var data = await installmentRepository.ListByUserAsync(userId, status, from, to, type, cancellationToken);
@@ -28,6 +31,7 @@ public class InstallmentsService(
 
         await UpdateInstallmentStatusAsync(installment, cancellationToken);
         await installmentRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Installment paid {UserId} {InstallmentId}", userId, installmentId);
         return true;
     }
 
@@ -48,6 +52,7 @@ public class InstallmentsService(
         installment.GetType().GetProperty("UpdatedAt")?.SetValue(installment, DateTime.UtcNow);
 
         await installmentRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Installment anticipated {UserId} {InstallmentId} {DueDate}", userId, installmentId, request.DueDate);
         return true;
     }
 
@@ -61,6 +66,7 @@ public class InstallmentsService(
         paymentRepository.RemoveRange(payments);
         installmentRepository.Remove(installment);
         await installmentRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Installment deleted {UserId} {InstallmentId}", userId, installmentId);
         return true;
     }
 

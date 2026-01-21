@@ -3,13 +3,14 @@ using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Linq;
 
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class InvestmentsController(IInvestmentsService investmentsService) : ControllerBase
+public class InvestmentsController(IInvestmentsService investmentsService, IAuditService auditService) : ControllerBase
 {
     [HttpGet("goal")]
     public async Task<ActionResult<InvestmentGoalDto>> GetGoal(CancellationToken cancellationToken)
@@ -82,6 +83,7 @@ public class InvestmentsController(IInvestmentsService investmentsService) : Con
         var userId = GetUserId();
         var removed = await investmentsService.DeletePositionAsync(userId, id, cancellationToken);
         if (!removed) return NotFound();
+        await auditService.LogAsync(userId, "DELETE", "InvestmentPosition", id.ToString(), GetIpAddress(), GetUserAgent(), null, cancellationToken);
         return NoContent();
     }
 
@@ -106,5 +108,21 @@ public class InvestmentsController(IInvestmentsService investmentsService) : Con
         return Guid.TryParse(claim, out var id)
             ? id
             : throw new UnauthorizedAccessException("Usuário não autenticado.");
+    }
+
+    private string? GetIpAddress()
+    {
+        var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(forwarded))
+        {
+            return forwarded.Split(',')[0].Trim();
+        }
+
+        return HttpContext.Connection.RemoteIpAddress?.ToString();
+    }
+
+    private string? GetUserAgent()
+    {
+        return Request.Headers["User-Agent"].ToString();
     }
 }

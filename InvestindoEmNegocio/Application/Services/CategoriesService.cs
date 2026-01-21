@@ -3,11 +3,13 @@ using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Application.Services;
 
-public class CategoriesService(ICategoryRepository categoryRepository) : ICategoriesService
+public class CategoriesService(ICategoryRepository categoryRepository, ILogger<CategoriesService> logger) : ICategoriesService
 {
+    private readonly ILogger<CategoriesService> _logger = logger;
     public async Task<IReadOnlyList<CategoryResponse>> ListAsync(Guid userId, MoneyType? appliesTo, CancellationToken cancellationToken = default)
     {
         var data = await categoryRepository.ListForUserAsync(userId, appliesTo, cancellationToken);
@@ -25,6 +27,7 @@ public class CategoriesService(ICategoryRepository categoryRepository) : ICatego
         var category = new Category(userId, name, request.AppliesTo);
         await categoryRepository.AddAsync(category, cancellationToken);
         await categoryRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Category created {UserId} {CategoryId}", userId, category.Id);
         return ToResponse(category);
     }
 
@@ -43,6 +46,7 @@ public class CategoriesService(ICategoryRepository categoryRepository) : ICatego
         category.GetType().GetProperty("AppliesTo")?.SetValue(category, request.AppliesTo);
 
         await categoryRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Category updated {UserId} {CategoryId}", userId, category.Id);
         return ToResponse(category);
     }
 
@@ -53,6 +57,7 @@ public class CategoriesService(ICategoryRepository categoryRepository) : ICatego
 
         categoryRepository.Remove(category);
         await categoryRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Category deleted {UserId} {CategoryId}", userId, category.Id);
         return true;
     }
 
