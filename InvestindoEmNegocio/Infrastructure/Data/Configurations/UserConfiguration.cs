@@ -36,6 +36,12 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(u => u.LastLoginAt);
 
+        builder.Property(u => u.FailedLoginAttempts)
+            .IsRequired()
+            .HasDefaultValue(0);
+
+        builder.Property(u => u.LockoutUntil);
+
         builder.HasIndex(u => u.Email)
             .IsUnique();
     }

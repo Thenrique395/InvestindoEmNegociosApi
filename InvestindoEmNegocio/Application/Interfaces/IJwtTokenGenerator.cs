@@ -4,5 +4,7 @@ namespace InvestindoEmNegocio.Application.Interfaces;
 
 public interface IJwtTokenGenerator
 {
-    string Generate(User user);
+    TokenResult Generate(User user);
 }
+
+public record TokenResult(string Token, DateTime ExpiresAt);

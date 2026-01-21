@@ -9,17 +9,14 @@ namespace InvestindoEmNegocio.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class CardsController : ControllerBase
+public class CardsController(ICardsService cardsService) : ControllerBase
 {
-    private readonly ICardsService _cardsService;
-    public CardsController(ICardsService cardsService) => _cardsService = cardsService;
-
     [HttpGet]
     // Lista cartões do usuário autenticado.
     public async Task<IActionResult> List(CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var data = await _cardsService.ListAsync(userId, cancellationToken);
+        var data = await cardsService.ListAsync(userId, cancellationToken);
         return Ok(data);
     }
 
@@ -30,7 +27,7 @@ public class CardsController : ControllerBase
         try
         {
             var userId = GetUserId();
-            var card = await _cardsService.CreateAsync(userId, request, cancellationToken);
+            var card = await cardsService.CreateAsync(userId, request, cancellationToken);
             return CreatedAtAction(nameof(List), card);
         }
         catch (ArgumentException ex)
@@ -46,7 +43,7 @@ public class CardsController : ControllerBase
         try
         {
             var userId = GetUserId();
-            var updated = await _cardsService.UpdateAsync(userId, id, request, cancellationToken);
+            var updated = await cardsService.UpdateAsync(userId, id, request, cancellationToken);
             if (updated is null) return NotFound();
             return Ok(updated);
         }
@@ -61,7 +58,7 @@ public class CardsController : ControllerBase
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var removed = await _cardsService.DeleteAsync(userId, id, cancellationToken);
+        var removed = await cardsService.DeleteAsync(userId, id, cancellationToken);
         if (!removed) return NotFound();
         return NoContent();
     }
@@ -71,7 +68,7 @@ public class CardsController : ControllerBase
     public async Task<IActionResult> GetTotalDebt(CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var total = await _cardsService.GetTotalDebtAsync(userId, cancellationToken);
+        var total = await cardsService.GetTotalDebtAsync(userId, cancellationToken);
         return Ok(new { total });
     }
 

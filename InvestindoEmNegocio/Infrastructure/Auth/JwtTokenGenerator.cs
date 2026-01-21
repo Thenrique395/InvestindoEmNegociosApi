@@ -17,7 +17,7 @@ public class JwtTokenGenerator : IJwtTokenGenerator
         _options = options.Value;
     }
 
-    public string Generate(User user)
+    public TokenResult Generate(User user)
     {
         if (string.IsNullOrWhiteSpace(_options.SecretKey))
         {
@@ -37,14 +37,15 @@ public class JwtTokenGenerator : IJwtTokenGenerator
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
+        var expiresAt = DateTime.UtcNow.AddMinutes(_options.ExpiresMinutes);
         var token = new JwtSecurityToken(
             issuer: _options.Issuer,
             audience: _options.Audience,
             claims: claims,
             notBefore: DateTime.UtcNow,
-            expires: DateTime.UtcNow.AddMinutes(_options.ExpiresMinutes),
+            expires: expiresAt,
             signingCredentials: signingCredentials);
 
-        return new JwtSecurityTokenHandler().WriteToken(token);
+        return new TokenResult(new JwtSecurityTokenHandler().WriteToken(token), expiresAt);
     }
 }

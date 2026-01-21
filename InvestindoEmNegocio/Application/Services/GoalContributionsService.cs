@@ -6,23 +6,17 @@ using InvestindoEmNegocio.Domain.Repositories;
 
 namespace InvestindoEmNegocio.Application.Services;
 
-public class GoalContributionsService : IGoalContributionsService
+public class GoalContributionsService(
+    IGoalRepository goalRepository,
+    IGoalContributionRepository goalContributionRepository)
+    : IGoalContributionsService
 {
-    private readonly IGoalRepository _goalRepository;
-    private readonly IGoalContributionRepository _goalContributionRepository;
-
-    public GoalContributionsService(IGoalRepository goalRepository, IGoalContributionRepository goalContributionRepository)
-    {
-        _goalRepository = goalRepository;
-        _goalContributionRepository = goalContributionRepository;
-    }
-
     public async Task<IReadOnlyList<GoalContributionResponse>?> ListAsync(Guid userId, Guid goalId, CancellationToken cancellationToken = default)
     {
-        var exists = await _goalRepository.ExistsAsync(goalId, userId, cancellationToken);
+        var exists = await goalRepository.ExistsAsync(goalId, userId, cancellationToken);
         if (!exists) return null;
 
-        var items = await _goalContributionRepository.ListByGoalAsync(goalId, userId, cancellationToken);
+        var items = await goalContributionRepository.ListByGoalAsync(goalId, userId, cancellationToken);
         return items.Select(ToResponse).ToList();
     }
 
@@ -30,7 +24,7 @@ public class GoalContributionsService : IGoalContributionsService
     {
         if (request.Amount <= 0) throw new ArgumentException("Valor deve ser maior que zero.");
 
-        var goal = await _goalRepository.GetByIdAsync(goalId, userId, cancellationToken);
+        var goal = await goalRepository.GetByIdAsync(goalId, userId, cancellationToken);
         if (goal is null) return null;
         if (goal.Status == GoalStatus.Canceled) throw new InvalidOperationException("Meta cancelada não aceita aportes.");
 
@@ -39,7 +33,7 @@ public class GoalContributionsService : IGoalContributionsService
         if (request.Amount > restante) throw new InvalidOperationException("Valor do aporte excede o restante da meta.");
 
         var contrib = new GoalContribution(goalId, userId, request.Amount, request.Date, request.Note);
-        await _goalContributionRepository.AddAsync(contrib, cancellationToken);
+        await goalContributionRepository.AddAsync(contrib, cancellationToken);
 
         var novoAcumulado = goal.CurrentAmount + request.Amount;
         if (novoAcumulado >= goal.TargetAmount)
@@ -47,7 +41,7 @@ public class GoalContributionsService : IGoalContributionsService
         else
             goal.SetAmountAndStatus(novoAcumulado, GoalStatus.InProgress);
 
-        await _goalContributionRepository.SaveChangesAsync(cancellationToken);
+        await goalContributionRepository.SaveChangesAsync(cancellationToken);
         return ToResponse(contrib);
     }
 

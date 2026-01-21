@@ -10,6 +10,8 @@ public class User
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; private set; }
+    public int FailedLoginAttempts { get; private set; }
+    public DateTime? LockoutUntil { get; private set; }
 
     // Required by EF Core
     private User()
@@ -30,6 +32,29 @@ public class User
     {
         LastLoginAt = lastLoginAtUtc;
         UpdatedAt = lastLoginAtUtc;
+    }
+
+    public bool IsLocked(DateTime nowUtc)
+    {
+        return LockoutUntil.HasValue && LockoutUntil.Value > nowUtc;
+    }
+
+    public void RegisterFailedLogin(DateTime nowUtc, int maxAttempts, TimeSpan lockoutDuration)
+    {
+        FailedLoginAttempts += 1;
+        if (FailedLoginAttempts >= maxAttempts)
+        {
+            LockoutUntil = nowUtc.Add(lockoutDuration);
+            FailedLoginAttempts = 0;
+        }
+        UpdatedAt = nowUtc;
+    }
+
+    public void ResetFailedLogins(DateTime nowUtc)
+    {
+        FailedLoginAttempts = 0;
+        LockoutUntil = null;
+        UpdatedAt = nowUtc;
     }
 
     public void ChangePassword(string newPasswordHash)

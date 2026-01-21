@@ -2,12 +2,14 @@ using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting("auth")]
 public class AuthController(IAuthService authService) : ControllerBase
 {
     [HttpPost("register")]
@@ -46,6 +48,29 @@ public class AuthController(IAuthService authService) : ControllerBase
         }
     }
 
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    public async Task<ActionResult<AuthResponse>> Refresh([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await authService.RefreshAsync(request, cancellationToken);
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(CreateProblem("Token inválido", ex.Message, StatusCodes.Status401Unauthorized));
+        }
+    }
+
+    [HttpPost("logout")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
+    {
+        await authService.LogoutAsync(request, cancellationToken);
+        return NoContent();
+    }
+
     private Guid GetUserId()
     {
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
@@ -61,6 +86,10 @@ public class AuthController(IAuthService authService) : ControllerBase
         {
             var response = await authService.LoginAsync(request, cancellationToken);
             return Ok(response);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return StatusCode(StatusCodes.Status423Locked, CreateProblem("Conta bloqueada", ex.Message, StatusCodes.Status423Locked));
         }
         catch (ArgumentException ex)
         {

@@ -6,18 +6,11 @@ using InvestindoEmNegocio.Domain.Repositories;
 
 namespace InvestindoEmNegocio.Application.Services;
 
-public class CategoriesService : ICategoriesService
+public class CategoriesService(ICategoryRepository categoryRepository) : ICategoriesService
 {
-    private readonly ICategoryRepository _categoryRepository;
-
-    public CategoriesService(ICategoryRepository categoryRepository)
-    {
-        _categoryRepository = categoryRepository;
-    }
-
     public async Task<IReadOnlyList<CategoryResponse>> ListAsync(Guid userId, MoneyType? appliesTo, CancellationToken cancellationToken = default)
     {
-        var data = await _categoryRepository.ListForUserAsync(userId, appliesTo, cancellationToken);
+        var data = await categoryRepository.ListForUserAsync(userId, appliesTo, cancellationToken);
         return data.Select(ToResponse).ToList();
     }
 
@@ -26,12 +19,12 @@ public class CategoriesService : ICategoriesService
         Validate(request);
         var name = request.Name.Trim();
 
-        var exists = await _categoryRepository.NameExistsAsync(userId, name, null, cancellationToken);
+        var exists = await categoryRepository.NameExistsAsync(userId, name, null, cancellationToken);
         if (exists) throw new InvalidOperationException("Categoria já existe para o usuário.");
 
         var category = new Category(userId, name, request.AppliesTo);
-        await _categoryRepository.AddAsync(category, cancellationToken);
-        await _categoryRepository.SaveChangesAsync(cancellationToken);
+        await categoryRepository.AddAsync(category, cancellationToken);
+        await categoryRepository.SaveChangesAsync(cancellationToken);
         return ToResponse(category);
     }
 
@@ -40,26 +33,26 @@ public class CategoriesService : ICategoriesService
         Validate(request);
         var name = request.Name.Trim();
 
-        var category = await _categoryRepository.GetByIdForUserAsync(id, userId, cancellationToken);
+        var category = await categoryRepository.GetByIdForUserAsync(id, userId, cancellationToken);
         if (category is null) return null;
 
-        var exists = await _categoryRepository.NameExistsAsync(userId, name, id, cancellationToken);
+        var exists = await categoryRepository.NameExistsAsync(userId, name, id, cancellationToken);
         if (exists) throw new InvalidOperationException("Categoria já existe para o usuário.");
 
         category.GetType().GetProperty("Name")?.SetValue(category, name);
         category.GetType().GetProperty("AppliesTo")?.SetValue(category, request.AppliesTo);
 
-        await _categoryRepository.SaveChangesAsync(cancellationToken);
+        await categoryRepository.SaveChangesAsync(cancellationToken);
         return ToResponse(category);
     }
 
     public async Task<bool> DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken = default)
     {
-        var category = await _categoryRepository.GetByIdForUserAsync(id, userId, cancellationToken);
+        var category = await categoryRepository.GetByIdForUserAsync(id, userId, cancellationToken);
         if (category is null) return false;
 
-        _categoryRepository.Remove(category);
-        await _categoryRepository.SaveChangesAsync(cancellationToken);
+        categoryRepository.Remove(category);
+        await categoryRepository.SaveChangesAsync(cancellationToken);
         return true;
     }
 

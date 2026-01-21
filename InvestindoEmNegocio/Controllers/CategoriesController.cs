@@ -12,14 +12,12 @@ namespace InvestindoEmNegocio.Controllers;
 [Authorize]
 public class CategoriesController(ICategoriesService categoriesService) : ControllerBase
 {
-    private readonly ICategoriesService _categoriesService = categoriesService;
-
     [HttpGet]
     // Lista categorias padrão (UserId nulo) + do usuário. Pode filtrar por tipo (receita/despesa).
     public async Task<IActionResult> List([FromQuery] MoneyType? appliesTo, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var data = await _categoriesService.ListAsync(userId, appliesTo, cancellationToken);
+        var data = await categoriesService.ListAsync(userId, appliesTo, cancellationToken);
         return Ok(data);
     }
 
@@ -30,7 +28,7 @@ public class CategoriesController(ICategoriesService categoriesService) : Contro
         var userId = GetUserId();
         try
         {
-            var created = await _categoriesService.CreateAsync(userId, request, cancellationToken);
+            var created = await categoriesService.CreateAsync(userId, request, cancellationToken);
             return Ok(created);
         }
         catch (ArgumentException ex)
@@ -50,7 +48,7 @@ public class CategoriesController(ICategoriesService categoriesService) : Contro
         var userId = GetUserId();
         try
         {
-            var updated = await _categoriesService.UpdateAsync(userId, id, request, cancellationToken);
+            var updated = await categoriesService.UpdateAsync(userId, id, request, cancellationToken);
             if (updated is null) return NotFound();
             return Ok(updated);
         }
@@ -69,7 +67,7 @@ public class CategoriesController(ICategoriesService categoriesService) : Contro
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var removed = await _categoriesService.DeleteAsync(userId, id, cancellationToken);
+        var removed = await categoriesService.DeleteAsync(userId, id, cancellationToken);
         if (!removed) return NotFound();
         return NoContent();
     }
