@@ -1,0 +1,8 @@
+<Project>
+  <!-- Redirect intermediate outputs to a clean folder outside the locked obj -->
+  <PropertyGroup>
+    <BaseIntermediateOutputPath>/tmp/invest-obj/</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>/tmp/invest-obj/</MSBuildProjectExtensionsPath>
+    <OutputPath>/tmp/invest-bin/</OutputPath>
+  </PropertyGroup>
+</Project>

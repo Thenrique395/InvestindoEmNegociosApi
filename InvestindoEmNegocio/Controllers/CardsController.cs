@@ -1,0 +1,83 @@
+using System.Security.Claims;
+using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace InvestindoEmNegocio.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public class CardsController : ControllerBase
+{
+    private readonly ICardsService _cardsService;
+    public CardsController(ICardsService cardsService) => _cardsService = cardsService;
+
+    [HttpGet]
+    // Lista cartões do usuário autenticado.
+    public async Task<IActionResult> List(CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        var data = await _cardsService.ListAsync(userId, cancellationToken);
+        return Ok(data);
+    }
+
+    [HttpPost]
+    // Cria um novo cartão (armazenamos apenas last4 + marca + nome do titular).
+    public async Task<IActionResult> Create([FromBody] CardRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var card = await _cardsService.CreateAsync(userId, request, cancellationToken);
+            return CreatedAtAction(nameof(List), card);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ProblemDetails { Title = "Cartão inválido", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+        }
+    }
+
+    [HttpPut("{id:guid}")]
+    // Atualiza dados do cartão do usuário.
+    public async Task<IActionResult> Update(Guid id, [FromBody] CardRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var updated = await _cardsService.UpdateAsync(userId, id, request, cancellationToken);
+            if (updated is null) return NotFound();
+            return Ok(updated);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ProblemDetails { Title = "Cartão inválido", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+        }
+    }
+
+    [HttpDelete("{id:guid}")]
+    // Remove cartão do usuário.
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        var removed = await _cardsService.DeleteAsync(userId, id, cancellationToken);
+        if (!removed) return NotFound();
+        return NoContent();
+    }
+
+    [HttpGet("debt/total")]
+    // Retorna o total da dívida em cartões do usuário.
+    public async Task<IActionResult> GetTotalDebt(CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        var total = await _cardsService.GetTotalDebtAsync(userId, cancellationToken);
+        return Ok(new { total });
+    }
+
+    private Guid GetUserId()
+    {
+        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
+        return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Usuário não autenticado.");
+    }
+}
