@@ -2,6 +2,7 @@ using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Enums;
+using InvestindoEmNegocio.Infrastructure.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
@@ -10,16 +11,33 @@ namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Route("api/v1/[controller]")]
 [Authorize]
 public class InstallmentsController(IInstallmentsService installmentsService, IAuditService auditService) : ControllerBase
 {
     [HttpGet]
     // Lista parcelas do usuário com filtros opcionais por status, vencimento e tipo (receita/despesa).
-    public async Task<IActionResult> List([FromQuery] InstallmentStatus? status, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] MoneyType? type, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> List([FromQuery] InstallmentStatus? status, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] MoneyType? type, [FromQuery] ListQuery query, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
         var data = await installmentsService.ListAsync(userId, status, from, to, type, cancellationToken);
-        return Ok(data);
+        var (items, total, page, pageSize, isPaged) = ListQueryHelper.Apply(
+            data,
+            query,
+            new Dictionary<string, Func<InstallmentResponse, object?>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["dueDate"] = x => x.DueDate,
+                ["amount"] = x => x.Amount,
+                ["installmentNo"] = x => x.InstallmentNo,
+                ["status"] = x => x.Status
+            });
+
+        if (isPaged)
+        {
+            ListQueryHelper.WritePaginationHeaders(Response, total, page, pageSize);
+        }
+
+        return Ok(items);
     }
 
     [HttpPost("{id:guid}/payments")]

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
+using InvestindoEmNegocio.Infrastructure.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,16 +9,32 @@ namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
 [Route("api/goals/{goalId:guid}/contributions")]
+[Route("api/v1/goals/{goalId:guid}/contributions")]
 [Authorize]
 public class GoalContributionsController(IGoalContributionsService contributionsService) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> List(Guid goalId, CancellationToken cancellationToken)
+    public async Task<IActionResult> List(Guid goalId, [FromQuery] ListQuery query, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
         var items = await contributionsService.ListAsync(userId, goalId, cancellationToken);
         if (items is null) return NotFound();
-        return Ok(items);
+        var (pagedItems, total, page, pageSize, isPaged) = ListQueryHelper.Apply(
+            items,
+            query,
+            new Dictionary<string, Func<GoalContributionResponse, object?>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["date"] = x => x.Date,
+                ["amount"] = x => x.Amount,
+                ["createdAt"] = x => x.CreatedAt
+            });
+
+        if (isPaged)
+        {
+            ListQueryHelper.WritePaginationHeaders(Response, total, page, pageSize);
+        }
+
+        return Ok(pagedItems);
     }
 
     [HttpPost]

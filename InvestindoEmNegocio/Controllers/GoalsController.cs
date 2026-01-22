@@ -2,6 +2,7 @@ using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Enums;
+using InvestindoEmNegocio.Infrastructure.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
@@ -10,16 +11,37 @@ namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Route("api/v1/[controller]")]
 [Authorize]
 public class GoalsController(IGoalsService goalsService, IAuditService auditService) : ControllerBase
 {
     [HttpGet]
     // Lista metas do usuário, opcionalmente filtrando por ano ou status.
-    public async Task<IActionResult> List([FromQuery] int? year, [FromQuery] GoalStatus? status, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> List([FromQuery] int? year, [FromQuery] GoalStatus? status, [FromQuery] ListQuery query, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
         var data = await goalsService.ListAsync(userId, year, status, cancellationToken);
-        return Ok(data);
+        var (items, total, page, pageSize, isPaged) = ListQueryHelper.Apply(
+            data,
+            query,
+            new Dictionary<string, Func<GoalResponse, object?>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["createdAt"] = x => x.CreatedAt,
+                ["updatedAt"] = x => x.UpdatedAt,
+                ["title"] = x => x.Title,
+                ["targetAmount"] = x => x.TargetAmount,
+                ["currentAmount"] = x => x.CurrentAmount,
+                ["year"] = x => x.Year,
+                ["status"] = x => x.Status,
+                ["targetDate"] = x => x.TargetDate
+            });
+
+        if (isPaged)
+        {
+            ListQueryHelper.WritePaginationHeaders(Response, total, page, pageSize);
+        }
+
+        return Ok(items);
     }
 
     [HttpGet("{id:guid}")]

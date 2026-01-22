@@ -2,6 +2,7 @@ using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Enums;
+using InvestindoEmNegocio.Infrastructure.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
@@ -10,6 +11,7 @@ namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Route("api/v1/[controller]")]
 [Authorize]
 public class PlansController : ControllerBase
 {
@@ -42,11 +44,29 @@ public class PlansController : ControllerBase
 
     [HttpGet]
     // Lista planos do usuário, com filtro opcional por tipo (receita ou despesa).
-    public async Task<IActionResult> List([FromQuery] MoneyType? type, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> List([FromQuery] MoneyType? type, [FromQuery] ListQuery query, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
         var data = await _plansService.ListAsync(userId, type, cancellationToken);
-        return Ok(data);
+        var (items, total, page, pageSize, isPaged) = ListQueryHelper.Apply(
+            data,
+            query,
+            new Dictionary<string, Func<PlanResponse, object?>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["startDate"] = x => x.StartDate,
+                ["amount"] = x => x.Amount,
+                ["title"] = x => x.Title,
+                ["type"] = x => x.Type,
+                ["schedule"] = x => x.Schedule,
+                ["status"] = x => x.Status
+            });
+
+        if (isPaged)
+        {
+            ListQueryHelper.WritePaginationHeaders(Response, total, page, pageSize);
+        }
+
+        return Ok(items);
     }
 
     [HttpGet("{id:guid}")]

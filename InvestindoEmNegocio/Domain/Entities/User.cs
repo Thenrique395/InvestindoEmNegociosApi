@@ -1,3 +1,5 @@
+using InvestindoEmNegocio.Domain.Enums;
+
 namespace InvestindoEmNegocio.Domain.Entities;
 
 public class User
@@ -6,6 +8,7 @@ public class User
     public string Name { get; private set; }
     public string Email { get; private set; }
     public string PasswordHash { get; private set; }
+    public UserRole Role { get; private set; } = UserRole.Basic;
     public bool IsActive { get; private set; } = true;
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
@@ -26,6 +29,12 @@ public class User
         Name = name;
         Email = email;
         PasswordHash = passwordHash;
+    }
+
+    public void SetRole(UserRole role)
+    {
+        Role = role;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void UpdateLastLogin(DateTime lastLoginAtUtc)

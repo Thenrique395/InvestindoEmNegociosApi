@@ -42,8 +42,7 @@ public class CategoriesService(ICategoryRepository categoryRepository, ILogger<C
         var exists = await categoryRepository.NameExistsAsync(userId, name, id, cancellationToken);
         if (exists) throw new InvalidOperationException("Categoria já existe para o usuário.");
 
-        category.GetType().GetProperty("Name")?.SetValue(category, name);
-        category.GetType().GetProperty("AppliesTo")?.SetValue(category, request.AppliesTo);
+        category.Update(name, request.AppliesTo);
 
         await categoryRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Category updated {UserId} {CategoryId}", userId, category.Id);

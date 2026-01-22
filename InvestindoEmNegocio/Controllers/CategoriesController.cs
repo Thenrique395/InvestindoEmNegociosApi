@@ -2,6 +2,7 @@ using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Enums;
+using InvestindoEmNegocio.Infrastructure.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
@@ -10,16 +11,32 @@ namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Route("api/v1/[controller]")]
 [Authorize]
 public class CategoriesController(ICategoriesService categoriesService, IAuditService auditService) : ControllerBase
 {
     [HttpGet]
     // Lista categorias padrão (UserId nulo) + do usuário. Pode filtrar por tipo (receita/despesa).
-    public async Task<IActionResult> List([FromQuery] MoneyType? appliesTo, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> List([FromQuery] MoneyType? appliesTo, [FromQuery] ListQuery query, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
         var data = await categoriesService.ListAsync(userId, appliesTo, cancellationToken);
-        return Ok(data);
+        var (items, total, page, pageSize, isPaged) = ListQueryHelper.Apply(
+            data,
+            query,
+            new Dictionary<string, Func<CategoryResponse, object?>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["name"] = x => x.Name,
+                ["appliesTo"] = x => x.AppliesTo,
+                ["isDefault"] = x => x.IsDefault
+            });
+
+        if (isPaged)
+        {
+            ListQueryHelper.WritePaginationHeaders(Response, total, page, pageSize);
+        }
+
+        return Ok(items);
     }
 
     [HttpPost]

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
+using InvestindoEmNegocio.Infrastructure.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
@@ -9,16 +10,36 @@ namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Route("api/v1/[controller]")]
 [Authorize]
 public class CardsController(ICardsService cardsService, IAuditService auditService) : ControllerBase
 {
     [HttpGet]
     // Lista cartões do usuário autenticado.
-    public async Task<IActionResult> List(CancellationToken cancellationToken)
+    public async Task<IActionResult> List([FromQuery] ListQuery query, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
         var data = await cardsService.ListAsync(userId, cancellationToken);
-        return Ok(data);
+        var (items, total, page, pageSize, isPaged) = ListQueryHelper.Apply(
+            data,
+            query,
+            new Dictionary<string, Func<CardResponse, object?>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["createdAt"] = x => x.CreatedAt,
+                ["updatedAt"] = x => x.UpdatedAt,
+                ["nickname"] = x => x.Nickname,
+                ["holderName"] = x => x.HolderName,
+                ["creditLimit"] = x => x.CreditLimit,
+                ["statementCloseDay"] = x => x.StatementCloseDay,
+                ["dueDay"] = x => x.DueDay
+            });
+
+        if (isPaged)
+        {
+            ListQueryHelper.WritePaginationHeaders(Response, total, page, pageSize);
+        }
+
+        return Ok(items);
     }
 
     [HttpPost]

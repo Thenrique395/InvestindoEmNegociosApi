@@ -19,6 +19,10 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
         builder.Property(c => c.AppliesTo)
             .HasConversion<string?>();
 
+        builder.Property(c => c.IsActive)
+            .IsRequired()
+            .HasDefaultValue(true);
+
         builder.Property(c => c.CreatedAt).IsRequired();
 
         // Unicidade por usuário + nome (case-insensitive não suportado aqui; delegamos ao banco via collation se necessário)

@@ -9,6 +9,7 @@ namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Route("api/v1/[controller]")]
 [Authorize]
 public class ProfileController(IProfileService profileService, IWebHostEnvironment env) : ControllerBase
 {

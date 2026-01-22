@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
+using InvestindoEmNegocio.Infrastructure.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
@@ -9,6 +10,7 @@ namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Route("api/v1/[controller]")]
 [Authorize]
 public class InvestmentsController(IInvestmentsService investmentsService, IAuditService auditService) : ControllerBase
 {
@@ -30,11 +32,30 @@ public class InvestmentsController(IInvestmentsService investmentsService, IAudi
     }
 
     [HttpGet("positions")]
-    public async Task<IActionResult> ListPositions(CancellationToken cancellationToken)
+    public async Task<IActionResult> ListPositions([FromQuery] ListQuery query, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
         var data = await investmentsService.ListPositionsAsync(userId, cancellationToken);
-        return Ok(data);
+        var (items, total, page, pageSize, isPaged) = ListQueryHelper.Apply(
+            data,
+            query,
+            new Dictionary<string, Func<InvestmentPositionDto, object?>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["asset"] = x => x.Asset,
+                ["type"] = x => x.Type,
+                ["quantity"] = x => x.Quantity,
+                ["avgPrice"] = x => x.AvgPrice,
+                ["openedAt"] = x => x.OpenedAt,
+                ["account"] = x => x.Account,
+                ["category"] = x => x.Category
+            });
+
+        if (isPaged)
+        {
+            ListQueryHelper.WritePaginationHeaders(Response, total, page, pageSize);
+        }
+
+        return Ok(items);
     }
 
     [HttpGet("positions/{id:guid}")]

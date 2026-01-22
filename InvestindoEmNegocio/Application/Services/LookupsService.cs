@@ -9,7 +9,7 @@ public class LookupsService(IPaymentMethodRepository paymentMethodRepository, IC
 {
     public async Task<IReadOnlyList<PaymentMethod>> GetPaymentMethodsAsync(CancellationToken cancellationToken = default)
     {
-        return await paymentMethodRepository.ListAsync(cancellationToken);
+        return await paymentMethodRepository.ListActiveAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<CardBrand>> GetCardBrandsAsync(CancellationToken cancellationToken = default)

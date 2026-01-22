@@ -26,6 +26,8 @@ using OpenTelemetry.Exporter;
 using Serilog.Sinks.OpenTelemetry;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 const string CorsPolicy = "AllowFrontend";
@@ -35,6 +37,32 @@ if (File.Exists(envPath))
 {
     DotNetEnv.Env.Load(envPath);
 }
+
+static void EnsureEnvFromConfig(IConfiguration config, string envKey, string configKey)
+{
+    if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(envKey)))
+    {
+        return;
+    }
+
+    var value = config[configKey];
+    if (!string.IsNullOrWhiteSpace(value))
+    {
+        Environment.SetEnvironmentVariable(envKey, value);
+    }
+}
+
+EnsureEnvFromConfig(builder.Configuration, "ConnectionStrings__Default", "ConnectionStrings:Default");
+EnsureEnvFromConfig(builder.Configuration, "Jwt__Issuer", "Jwt:Issuer");
+EnsureEnvFromConfig(builder.Configuration, "Jwt__Audience", "Jwt:Audience");
+EnsureEnvFromConfig(builder.Configuration, "Jwt__SecretKey", "Jwt:SecretKey");
+EnsureEnvFromConfig(builder.Configuration, "Jwt__ExpiresMinutes", "Jwt:ExpiresMinutes");
+EnsureEnvFromConfig(builder.Configuration, "OTEL_SERVICE_NAME", "OTEL_SERVICE_NAME");
+EnsureEnvFromConfig(builder.Configuration, "OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_EXPORTER_OTLP_ENDPOINT");
+EnsureEnvFromConfig(builder.Configuration, "OTEL_EXPORTER_OTLP_PROTOCOL", "OTEL_EXPORTER_OTLP_PROTOCOL");
+EnsureEnvFromConfig(builder.Configuration, "OTEL_TRACES_EXPORTER", "OTEL_TRACES_EXPORTER");
+EnsureEnvFromConfig(builder.Configuration, "OTEL_METRICS_EXPORTER", "OTEL_METRICS_EXPORTER");
+EnsureEnvFromConfig(builder.Configuration, "OTEL_LOGS_EXPORTER", "OTEL_LOGS_EXPORTER");
 
 var otelServiceName = Environment.GetEnvironmentVariable("OTEL_SERVICE_NAME") ?? "InvestindoEmNegocio";
 var otlpEndpointValue = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT");
@@ -165,6 +193,17 @@ builder.Services.AddControllers()
         // Aceita enums como string (case-insensitive) e bloqueia inteiros
         opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false));
     });
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = context =>
+    {
+        context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+        if (builder.Environment.IsDevelopment() && context.Exception is not null)
+        {
+            context.ProblemDetails.Extensions["exception"] = context.Exception.GetType().Name;
+        }
+    };
+});
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.AddCors(options =>
@@ -177,7 +216,13 @@ builder.Services.AddCors(options =>
                 "http://192.168.1.87:4200",
                 "http://localhost:4000",
                 "http://127.0.0.1:4000",
-                "http://192.168.1.87:4000"
+                "http://192.168.1.87:4000",
+                "https://localhost:4200",
+                "https://127.0.0.1:4200",
+                "https://192.168.1.87:4200",
+                "https://localhost:4000",
+                "https://127.0.0.1:4000",
+                "https://192.168.1.87:4000"
             )
             .AllowAnyHeader()
             .AllowAnyMethod()
@@ -280,11 +325,35 @@ var app = builder.Build();
 Log.Information("OTEL config loaded. Endpoint: {OtelEndpoint}, Protocol: {OtelProtocol}, ServiceName: {OtelServiceName}",
     otlpEndpoint?.ToString() ?? "<not-set>", otlpProtocol, otelServiceName);
 
-if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI();
+
+app.UseExceptionHandler(exceptionApp =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    exceptionApp.Run(async context =>
+    {
+        var exceptionHandler = context.Features.Get<IExceptionHandlerFeature>();
+        var problemDetails = new ProblemDetails
+        {
+            Status = StatusCodes.Status500InternalServerError,
+            Title = "Erro interno do servidor.",
+            Detail = app.Environment.IsDevelopment()
+                ? exceptionHandler?.Error.Message
+                : null,
+            Instance = context.Request.Path
+        };
+
+        problemDetails.Extensions["traceId"] = context.TraceIdentifier;
+        if (app.Environment.IsDevelopment() && exceptionHandler?.Error is not null)
+        {
+            problemDetails.Extensions["exception"] = exceptionHandler.Error.GetType().Name;
+        }
+
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "application/problem+json";
+        await context.Response.WriteAsJsonAsync(problemDetails);
+    });
+});
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
@@ -317,6 +386,14 @@ app.MapHealthChecks("/health", new HealthCheckOptions
     Predicate = _ => true
 }).AllowAnonymous();
 app.MapHealthChecks("/health/db", new HealthCheckOptions
+{
+    Predicate = check => check.Name == "db"
+}).AllowAnonymous();
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = check => check.Name == "self"
+}).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {
     Predicate = check => check.Name == "db"
 }).AllowAnonymous();

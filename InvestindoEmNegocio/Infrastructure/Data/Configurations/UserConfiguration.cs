@@ -1,4 +1,5 @@
 using InvestindoEmNegocio.Domain.Entities;
+using InvestindoEmNegocio.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -23,6 +24,11 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.PasswordHash)
             .IsRequired()
             .HasMaxLength(500);
+
+        builder.Property(u => u.Role)
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .HasDefaultValue(UserRole.Basic);
 
         builder.Property(u => u.IsActive)
             .IsRequired()

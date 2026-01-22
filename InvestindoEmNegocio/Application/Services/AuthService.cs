@@ -40,7 +40,7 @@ public class AuthService(
 
         var access = jwtTokenGenerator.Generate(user);
         var refresh = await IssueRefreshTokenAsync(user, cancellationToken);
-        return new AuthResponse(user.Id, user.Name, user.Email, access.Token, refresh.Token, access.ExpiresAt);
+        return new AuthResponse(user.Id, user.Name, user.Email, user.Role.ToString(), access.Token, refresh.Token, access.ExpiresAt);
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
@@ -80,7 +80,7 @@ public class AuthService(
 
         var access = jwtTokenGenerator.Generate(user);
         var refresh = await IssueRefreshTokenAsync(user, cancellationToken);
-        return new AuthResponse(user.Id, user.Name, user.Email, access.Token, refresh.Token, access.ExpiresAt);
+        return new AuthResponse(user.Id, user.Name, user.Email, user.Role.ToString(), access.Token, refresh.Token, access.ExpiresAt);
     }
 
     public async Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request, CancellationToken cancellationToken = default)
@@ -121,7 +121,7 @@ public class AuthService(
 
         _logger.LogInformation("Refresh token rotated {UserId}", user.Id);
 
-        return new AuthResponse(user.Id, user.Name, user.Email, access.Token, refresh.Token, access.ExpiresAt);
+        return new AuthResponse(user.Id, user.Name, user.Email, user.Role.ToString(), access.Token, refresh.Token, access.ExpiresAt);
     }
 
     public async Task LogoutAsync(RefreshTokenRequest request, CancellationToken cancellationToken = default)

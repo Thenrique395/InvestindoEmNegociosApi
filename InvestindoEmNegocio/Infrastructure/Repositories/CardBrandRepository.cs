@@ -26,4 +26,21 @@ public class CardBrandRepository : ICardBrandRepository
             .OrderBy(b => b.Id)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<List<CardBrand>> ListAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.CardBrands.AsNoTracking()
+            .OrderBy(b => b.Id)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<CardBrand?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+    {
+        return await _context.CardBrands.FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
+    }
+
+    public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        await _context.SaveChangesAsync(cancellationToken);
+    }
 }

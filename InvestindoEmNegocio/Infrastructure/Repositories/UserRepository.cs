@@ -24,6 +24,13 @@ public class UserRepository : IUserRepository
         return await _context.Users.FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<User>> ListAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Users.AsNoTracking()
+            .OrderBy(u => u.Name)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<bool> EmailExistsAsync(string email, CancellationToken cancellationToken = default)
     {
         return await _context.Users.AsNoTracking().AnyAsync(u => u.Email == email, cancellationToken);
