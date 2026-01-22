@@ -1,3 +1,4 @@
+using System;
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
@@ -15,6 +16,31 @@ namespace InvestindoEmNegocio.Controllers;
 [Authorize]
 public class GoalsController(IGoalsService goalsService, IAuditService auditService) : ControllerBase
 {
+    [HttpGet("income")]
+    public async Task<IActionResult> GetIncomeGoal([FromQuery] int? year, CancellationToken cancellationToken = default)
+    {
+        var userId = GetUserId();
+        var targetYear = year ?? DateTime.UtcNow.Year;
+        var goal = await goalsService.GetIncomeGoalAsync(userId, targetYear, cancellationToken);
+        if (goal is null) return NoContent();
+        return Ok(goal);
+    }
+
+    [HttpPut("income")]
+    public async Task<IActionResult> UpsertIncomeGoal([FromBody] UpsertIncomeGoalRequest request, CancellationToken cancellationToken = default)
+    {
+        var userId = GetUserId();
+        try
+        {
+            var goal = await goalsService.UpsertIncomeGoalAsync(userId, request, cancellationToken);
+            return Ok(goal);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ProblemDetails { Title = "Meta inválida", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+        }
+    }
+
     [HttpGet]
     // Lista metas do usuário, opcionalmente filtrando por ano ou status.
     public async Task<IActionResult> List([FromQuery] int? year, [FromQuery] GoalStatus? status, [FromQuery] ListQuery query, CancellationToken cancellationToken = default)

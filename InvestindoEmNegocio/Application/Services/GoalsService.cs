@@ -1,3 +1,4 @@
+using System;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
@@ -10,6 +11,7 @@ namespace InvestindoEmNegocio.Application.Services;
 public class GoalsService(IGoalRepository goalRepository, ILogger<GoalsService> logger) : IGoalsService
 {
     private readonly ILogger<GoalsService> _logger = logger;
+    private const string IncomeGoalTitle = "Meta de Receita";
     public async Task<IReadOnlyList<GoalResponse>> ListAsync(Guid userId, int? year, GoalStatus? status, CancellationToken cancellationToken = default)
     {
         var data = await goalRepository.ListByUserAsync(userId, year, status, cancellationToken);
@@ -20,6 +22,54 @@ public class GoalsService(IGoalRepository goalRepository, ILogger<GoalsService> 
     {
         var goal = await goalRepository.GetByIdAsync(id, userId, cancellationToken);
         return goal is null ? null : ToResponse(goal);
+    }
+
+    public async Task<GoalResponse?> GetIncomeGoalAsync(Guid userId, int year, CancellationToken cancellationToken = default)
+    {
+        var data = await goalRepository.ListByUserAsync(userId, year, null, cancellationToken);
+        var goal = data.FirstOrDefault(g => string.Equals(g.Title, IncomeGoalTitle, StringComparison.OrdinalIgnoreCase));
+        return goal is null ? null : ToResponse(goal);
+    }
+
+    public async Task<GoalResponse> UpsertIncomeGoalAsync(Guid userId, UpsertIncomeGoalRequest request, CancellationToken cancellationToken = default)
+    {
+        if (request.ExpectedMonthly <= 0) throw new ArgumentException("Valor mensal deve ser maior que zero.");
+        if (request.Year < 2000 || request.Year > 2100) throw new ArgumentException("Ano inválido.");
+
+        var data = await goalRepository.ListByUserAsync(userId, request.Year, null, cancellationToken);
+        var existing = data.FirstOrDefault(g => string.Equals(g.Title, IncomeGoalTitle, StringComparison.OrdinalIgnoreCase));
+        var targetAmount = request.ExpectedMonthly * 12;
+
+        if (existing is null)
+        {
+            var goal = new Goal(
+                userId,
+                IncomeGoalTitle,
+                targetAmount,
+                request.Year,
+                "Meta mensal de receita",
+                GoalStatus.Planned,
+                0,
+                request.ExpectedMonthly,
+                null);
+            await goalRepository.AddAsync(goal, cancellationToken);
+            await goalRepository.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("Income goal created {UserId} {GoalId}", userId, goal.Id);
+            return ToResponse(goal);
+        }
+
+        existing.Update(
+            IncomeGoalTitle,
+            targetAmount,
+            request.Year,
+            existing.Description,
+            existing.Status,
+            existing.CurrentAmount,
+            request.ExpectedMonthly,
+            existing.TargetDate);
+        await goalRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Income goal updated {UserId} {GoalId}", userId, existing.Id);
+        return ToResponse(existing);
     }
 
     public async Task<GoalResponse> CreateAsync(Guid userId, CreateGoalRequest request, CancellationToken cancellationToken = default)

@@ -135,16 +135,41 @@ public class PlansService(
 
     private static void ValidateSchedule(CreatePlanRequest request)
     {
-        throw request.Schedule switch
+        switch (request.Schedule)
         {
-            ScheduleType.OneTime when request.InstallmentsCount != 1 => new ArgumentException(
-                "ONE_TIME requer installmentsCount = 1."),
-            ScheduleType.Installments when (request.InstallmentsCount is null || request.InstallmentsCount < 2) =>
-                new ArgumentException("INSTALLMENTS requer installmentsCount >= 2."),
-            ScheduleType.Recurring when request.Frequency is null => new ArgumentException(
-                "RECURRING requer frequency."),
-            _ => new ArgumentOutOfRangeException()
-        };
+            case ScheduleType.OneTime:
+                if (request.InstallmentsCount != 1)
+                {
+                    throw new ArgumentException("ONE_TIME requer installmentsCount = 1.");
+                }
+                if (request.Frequency is not null)
+                {
+                    throw new ArgumentException("ONE_TIME não aceita frequency.");
+                }
+                break;
+            case ScheduleType.Installments:
+                if (request.InstallmentsCount is null || request.InstallmentsCount < 2)
+                {
+                    throw new ArgumentException("INSTALLMENTS requer installmentsCount >= 2.");
+                }
+                if (request.Frequency is not null)
+                {
+                    throw new ArgumentException("INSTALLMENTS não aceita frequency.");
+                }
+                break;
+            case ScheduleType.Recurring:
+                if (request.Frequency is null)
+                {
+                    throw new ArgumentException("RECURRING requer frequency.");
+                }
+                if (request.InstallmentsCount is not null)
+                {
+                    throw new ArgumentException("RECURRING não aceita installmentsCount.");
+                }
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(request.Schedule), request.Schedule, "Schedule inválido.");
+        }
     }
 
     private static PlanResponse ToResponse(MoneyPlan p) =>

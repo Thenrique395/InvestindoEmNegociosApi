@@ -7,7 +7,15 @@ public record IncomeSummaryResponse(
     decimal Total,
     decimal TotalRecurring,
     decimal TotalOneTime,
-    IReadOnlyList<IncomeItemResponse> Items);
+    IReadOnlyList<IncomeItemResponse> Items,
+    IncomeMonthSummary? PreviousMonth,
+    IReadOnlyList<IncomeMonthSummary> History);
+
+public record IncomeMonthSummary(
+    string Month,
+    decimal Total,
+    decimal TotalRecurring,
+    decimal TotalOneTime);
 
 public record IncomeItemResponse(
     Guid Id,

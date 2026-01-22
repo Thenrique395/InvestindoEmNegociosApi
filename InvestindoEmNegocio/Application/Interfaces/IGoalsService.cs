@@ -7,6 +7,8 @@ public interface IGoalsService
 {
     Task<IReadOnlyList<GoalResponse>> ListAsync(Guid userId, int? year, GoalStatus? status, CancellationToken cancellationToken = default);
     Task<GoalResponse?> GetByIdAsync(Guid userId, Guid id, CancellationToken cancellationToken = default);
+    Task<GoalResponse?> GetIncomeGoalAsync(Guid userId, int year, CancellationToken cancellationToken = default);
+    Task<GoalResponse> UpsertIncomeGoalAsync(Guid userId, UpsertIncomeGoalRequest request, CancellationToken cancellationToken = default);
     Task<GoalResponse> CreateAsync(Guid userId, CreateGoalRequest request, CancellationToken cancellationToken = default);
     Task<GoalResponse?> UpdateAsync(Guid userId, Guid id, CreateGoalRequest request, CancellationToken cancellationToken = default);
     Task<bool> DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken = default);
