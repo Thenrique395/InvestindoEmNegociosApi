@@ -24,6 +24,8 @@ using OpenTelemetry.Trace;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Exporter;
 using Serilog.Sinks.OpenTelemetry;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 const string CorsPolicy = "AllowFrontend";
@@ -104,6 +106,29 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.OperationFilter<FileUploadOperationFilter>();
     options.MapType<IFormFile>(() => new OpenApiSchema { Type = "string", Format = "binary" });
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header usando o esquema Bearer. Exemplo: \"Bearer {token}\"",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
+    });
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
 });
 
 builder.Services.AddOpenTelemetry()
@@ -183,6 +208,10 @@ builder.Services.AddDbContext<InvestDbContext>(options =>
     {
         npgsqlOptions.MigrationsAssembly(typeof(InvestDbContext).Assembly.GetName().Name);
     }));
+
+builder.Services.AddHealthChecks()
+    .AddCheck("self", () => HealthCheckResult.Healthy())
+    .AddNpgSql(connectionString, name: "db", timeout: TimeSpan.FromSeconds(5));
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserProfileRepository, UserProfileRepository>();
@@ -283,6 +312,14 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    Predicate = _ => true
+}).AllowAnonymous();
+app.MapHealthChecks("/health/db", new HealthCheckOptions
+{
+    Predicate = check => check.Name == "db"
+}).AllowAnonymous();
 
 await app.ApplyMigrationsAsync();
 
