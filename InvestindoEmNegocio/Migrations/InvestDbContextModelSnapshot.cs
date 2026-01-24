@@ -109,6 +109,37 @@ namespace InvestindoEmNegocio.Migrations
                     b.ToTable("card_brands", (string)null);
                 });
 
+            modelBuilder.Entity("InvestindoEmNegocio.Domain.Entities.Institution", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    Npgsql.EntityFrameworkCore.PostgreSQL.Metadata.NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name", "Type")
+                        .IsUnique();
+
+                    b.ToTable("institutions", (string)null);
+                });
+
             modelBuilder.Entity("InvestindoEmNegocio.Domain.Entities.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")

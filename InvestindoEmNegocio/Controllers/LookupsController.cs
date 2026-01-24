@@ -1,4 +1,6 @@
+using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
+using InvestindoEmNegocio.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -27,5 +29,20 @@ public class LookupsController : ControllerBase
     {
         var data = await _lookupsService.GetCardBrandsAsync(cancellationToken);
         return Ok(data);
+    }
+
+    [HttpGet("institutions")]
+    // Lista bancos/corretoras ativos (lookup).
+    public async Task<IActionResult> GetInstitutions([FromQuery] string? type, CancellationToken cancellationToken)
+    {
+        InstitutionType? parsedType = null;
+        if (!string.IsNullOrWhiteSpace(type) && Enum.TryParse<InstitutionType>(type, true, out var typeValue))
+        {
+            parsedType = typeValue;
+        }
+
+        var data = await _lookupsService.GetInstitutionsAsync(parsedType, cancellationToken);
+        var response = data.Select(i => new InstitutionLookupResponse(i.Id, i.Name, i.Type.ToString())).ToList();
+        return Ok(response);
     }
 }

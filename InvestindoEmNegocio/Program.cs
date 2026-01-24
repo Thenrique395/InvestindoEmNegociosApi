@@ -274,6 +274,7 @@ builder.Services.AddScoped<IInvestmentPositionRepository, InvestmentPositionRepo
 builder.Services.AddScoped<IUserOnboardingRepository, UserOnboardingRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+builder.Services.AddScoped<IInstitutionRepository, InstitutionRepository>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAuditService, AuditService>();

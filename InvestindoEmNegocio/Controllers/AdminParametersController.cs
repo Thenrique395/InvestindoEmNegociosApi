@@ -1,6 +1,7 @@
 using System.Linq;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Domain.Entities;
+using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,7 +15,8 @@ namespace InvestindoEmNegocio.Controllers;
 [Authorize(Roles = "Admin")]
 public class AdminParametersController(
     IPaymentMethodRepository paymentMethodRepository,
-    ICardBrandRepository cardBrandRepository) : ControllerBase
+    ICardBrandRepository cardBrandRepository,
+    IInstitutionRepository institutionRepository) : ControllerBase
 {
     [HttpGet("payment-methods")]
     public async Task<IActionResult> ListPaymentMethods(CancellationToken cancellationToken)
@@ -154,5 +156,89 @@ public class AdminParametersController(
                 Status = StatusCodes.Status409Conflict
             });
         }
+    }
+
+    [HttpGet("institutions")]
+    public async Task<IActionResult> ListInstitutions(CancellationToken cancellationToken)
+    {
+        var items = await institutionRepository.ListAllAsync(cancellationToken);
+        var response = items
+            .Select(i => new InstitutionAdminResponse(i.Id, i.Name, i.Type.ToString(), i.IsActive))
+            .ToList();
+        return Ok(response);
+    }
+
+    [HttpPost("institutions")]
+    public async Task<IActionResult> CreateInstitution([FromBody] CreateInstitutionRequest request, CancellationToken cancellationToken)
+    {
+        var name = (request.Name ?? string.Empty).Trim().ToUpperInvariant();
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(request.Type))
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Dados inválidos",
+                Detail = "Informe nome e tipo da instituição.",
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+
+        if (!Enum.TryParse<InstitutionType>(request.Type, true, out var type))
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Tipo inválido",
+                Detail = "Tipo informado não é válido.",
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+
+        if (await institutionRepository.ExistsAsync(name, type, cancellationToken))
+        {
+            return Conflict(new ProblemDetails
+            {
+                Title = "Instituição já existe",
+                Detail = "Já existe uma instituição com esse nome e tipo.",
+                Status = StatusCodes.Status409Conflict
+            });
+        }
+
+        var institution = new Institution(name, type, true);
+        try
+        {
+            await institutionRepository.AddAsync(institution, cancellationToken);
+            await institutionRepository.SaveChangesAsync(cancellationToken);
+            return Ok(new InstitutionAdminResponse(institution.Id, institution.Name, institution.Type.ToString(), institution.IsActive));
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(new ProblemDetails
+            {
+                Title = "Falha ao salvar",
+                Detail = "Não foi possível salvar a instituição. Verifique se já existe um registro parecido.",
+                Status = StatusCodes.Status409Conflict
+            });
+        }
+    }
+
+    [HttpPut("institutions/{id:int}/status")]
+    public async Task<IActionResult> UpdateInstitutionStatus(int id, [FromBody] UpdateActiveRequest request, CancellationToken cancellationToken)
+    {
+        var institution = await institutionRepository.GetByIdAsync(id, cancellationToken);
+        if (institution is null)
+        {
+            return NotFound();
+        }
+
+        if (request.IsActive)
+        {
+            institution.Activate();
+        }
+        else
+        {
+            institution.Deactivate();
+        }
+
+        await institutionRepository.SaveChangesAsync(cancellationToken);
+        return Ok(new InstitutionAdminResponse(institution.Id, institution.Name, institution.Type.ToString(), institution.IsActive));
     }
 }
