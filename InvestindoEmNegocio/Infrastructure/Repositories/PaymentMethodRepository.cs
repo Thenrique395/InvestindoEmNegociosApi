@@ -34,6 +34,11 @@ public class PaymentMethodRepository : IPaymentMethodRepository
         return await _context.PaymentMethods.FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
 
+    public async Task AddAsync(PaymentMethod method, CancellationToken cancellationToken = default)
+    {
+        await _context.PaymentMethods.AddAsync(method, cancellationToken);
+    }
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         await _context.SaveChangesAsync(cancellationToken);

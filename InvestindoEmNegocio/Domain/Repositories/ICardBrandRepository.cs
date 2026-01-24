@@ -8,5 +8,6 @@ public interface ICardBrandRepository
     Task<List<CardBrand>> ListActiveAsync(CancellationToken cancellationToken = default);
     Task<List<CardBrand>> ListAllAsync(CancellationToken cancellationToken = default);
     Task<CardBrand?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
+    Task AddAsync(CardBrand brand, CancellationToken cancellationToken = default);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -77,4 +77,10 @@ public class User
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
     }
+
+    public void Activate()
+    {
+        IsActive = true;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }

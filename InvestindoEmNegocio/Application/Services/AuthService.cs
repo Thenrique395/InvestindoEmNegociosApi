@@ -63,6 +63,12 @@ public class AuthService(
         {
             user.RegisterFailedLogin(now, MaxFailedLoginAttempts, LockoutDuration);
             await userRepository.SaveChangesAsync(cancellationToken);
+            if (user.IsLocked(now))
+            {
+                _logger.LogWarning("Login blocked due to lockout {UserId}", user.Id);
+                throw new InvalidOperationException("Conta bloqueada temporariamente. Tente novamente mais tarde.");
+            }
+
             _logger.LogWarning("Invalid login attempt {UserId}", user.Id);
             throw new UnauthorizedAccessException("Credenciais inválidas.");
         }

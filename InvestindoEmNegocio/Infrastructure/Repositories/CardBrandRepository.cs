@@ -39,6 +39,11 @@ public class CardBrandRepository : ICardBrandRepository
         return await _context.CardBrands.FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
     }
 
+    public async Task AddAsync(CardBrand brand, CancellationToken cancellationToken = default)
+    {
+        await _context.CardBrands.AddAsync(brand, cancellationToken);
+    }
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         await _context.SaveChangesAsync(cancellationToken);
