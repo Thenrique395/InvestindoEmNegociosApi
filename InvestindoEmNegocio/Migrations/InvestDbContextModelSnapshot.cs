@@ -614,6 +614,21 @@ namespace InvestindoEmNegocio.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
 
+                    b.Property<int>("NotifyDaysBeforeDue")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("NotifyEmailEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("NotifyInAppEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("NotifyOverdueEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("NotifyUpcomingEnabled")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Phone")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -635,6 +650,121 @@ namespace InvestindoEmNegocio.Migrations
                         .IsUnique();
 
                     b.ToTable("user_profiles", (string)null);
+                });
+
+            modelBuilder.Entity("InvestindoEmNegocio.Domain.Entities.NotificationSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("CardCloseDayEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("CardCloseDaysBefore")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("CardCloseSoonEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("ExpenseOverdueEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("ExpenseDaysBefore")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("ExpenseUpcomingEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("GoalBelowExpectedEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("GoalCompletedEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("GoalInactivityEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("GoalInactivityDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("IncomeDaysBefore")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IncomeUpcomingEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("MonthCloseEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("MonthSummaryEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("notification_settings", (string)null);
+                });
+
+            modelBuilder.Entity("InvestindoEmNegocio.Domain.Entities.UserNotification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("InstallmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("MoneyType")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("PlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReferenceKey")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.HasIndex("UserId", "ReferenceKey")
+                        .IsUnique();
+
+                    b.ToTable("user_notifications", (string)null);
                 });
 
             modelBuilder.Entity("InvestindoEmNegocio.Domain.Entities.InvestmentGoal", b =>

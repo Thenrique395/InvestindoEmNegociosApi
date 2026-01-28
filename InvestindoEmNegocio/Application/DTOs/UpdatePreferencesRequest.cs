@@ -1,3 +1,3 @@
 namespace InvestindoEmNegocio.Application.DTOs;
 
-public record UpdatePreferencesRequest(string Currency, List<string> Locales);
+public record UpdatePreferencesRequest(string Currency, List<string> Locales, NotificationPreferencesDto? Notifications);

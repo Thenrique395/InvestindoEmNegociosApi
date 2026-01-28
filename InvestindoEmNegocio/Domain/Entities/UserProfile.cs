@@ -16,6 +16,11 @@ public class UserProfile
     public string Country { get; private set; } = string.Empty;
     public string Language { get; private set; } = "pt-BR";
     public string Currency { get; private set; } = "BRL";
+    public bool NotifyUpcomingEnabled { get; private set; } = true;
+    public bool NotifyOverdueEnabled { get; private set; } = true;
+    public bool NotifyEmailEnabled { get; private set; } = false;
+    public bool NotifyInAppEnabled { get; private set; } = true;
+    public int NotifyDaysBeforeDue { get; private set; } = 3;
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
 
@@ -40,6 +45,16 @@ public class UserProfile
         Country = country?.Trim() ?? string.Empty;
         Language = string.IsNullOrWhiteSpace(language) ? "pt-BR" : language.Trim();
         Currency = string.IsNullOrWhiteSpace(currency) ? "BRL" : currency.Trim().ToUpperInvariant();
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void SetNotificationPreferences(bool upcomingEnabled, bool overdueEnabled, bool emailEnabled, bool inAppEnabled, int daysBeforeDue)
+    {
+        NotifyUpcomingEnabled = upcomingEnabled;
+        NotifyOverdueEnabled = overdueEnabled;
+        NotifyEmailEnabled = emailEnabled;
+        NotifyInAppEnabled = inAppEnabled;
+        NotifyDaysBeforeDue = Math.Max(0, daysBeforeDue);
         UpdatedAt = DateTime.UtcNow;
     }
 

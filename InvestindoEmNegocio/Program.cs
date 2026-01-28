@@ -275,6 +275,8 @@ builder.Services.AddScoped<IUserOnboardingRepository, UserOnboardingRepository>(
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 builder.Services.AddScoped<IInstitutionRepository, InstitutionRepository>();
+builder.Services.AddScoped<IUserNotificationRepository, UserNotificationRepository>();
+builder.Services.AddScoped<INotificationSettingsRepository, NotificationSettingsRepository>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
@@ -289,6 +291,7 @@ builder.Services.AddScoped<IInstallmentsService, InstallmentsService>();
 builder.Services.AddScoped<ILookupsService, LookupsService>();
 builder.Services.AddScoped<IPlansService, PlansService>();
 builder.Services.AddScoped<IPreferencesService, PreferencesService>();
+builder.Services.AddScoped<INotificationsService, NotificationsService>();
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<InvestindoEmNegocio.Application.Validation.RegisterUserRequestValidator>();
 

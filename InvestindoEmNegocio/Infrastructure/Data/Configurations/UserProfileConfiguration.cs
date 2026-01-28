@@ -42,6 +42,11 @@ public class UserProfileConfiguration : IEntityTypeConfiguration<UserProfile>
         builder.Property(x => x.Currency)
             .IsRequired(false)
             .HasMaxLength(10);
+        builder.Property(x => x.NotifyUpcomingEnabled).IsRequired();
+        builder.Property(x => x.NotifyOverdueEnabled).IsRequired();
+        builder.Property(x => x.NotifyEmailEnabled).IsRequired();
+        builder.Property(x => x.NotifyInAppEnabled).IsRequired();
+        builder.Property(x => x.NotifyDaysBeforeDue).IsRequired();
 
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired();

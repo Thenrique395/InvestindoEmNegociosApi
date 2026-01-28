@@ -16,7 +16,8 @@ namespace InvestindoEmNegocio.Controllers;
 public class AdminParametersController(
     IPaymentMethodRepository paymentMethodRepository,
     ICardBrandRepository cardBrandRepository,
-    IInstitutionRepository institutionRepository) : ControllerBase
+    IInstitutionRepository institutionRepository,
+    INotificationSettingsRepository notificationSettingsRepository) : ControllerBase
 {
     [HttpGet("payment-methods")]
     public async Task<IActionResult> ListPaymentMethods(CancellationToken cancellationToken)
@@ -241,4 +242,51 @@ public class AdminParametersController(
         await institutionRepository.SaveChangesAsync(cancellationToken);
         return Ok(new InstitutionAdminResponse(institution.Id, institution.Name, institution.Type.ToString(), institution.IsActive));
     }
+
+    [HttpGet("notification-settings")]
+    public async Task<IActionResult> GetNotificationSettings(CancellationToken cancellationToken)
+    {
+        var settings = await notificationSettingsRepository.GetOrCreateAsync(cancellationToken);
+        return Ok(ToNotificationSettingsDto(settings));
+    }
+
+    [HttpPut("notification-settings")]
+    public async Task<IActionResult> UpdateNotificationSettings([FromBody] UpdateNotificationSettingsRequest request, CancellationToken cancellationToken)
+    {
+        var settings = await notificationSettingsRepository.GetOrCreateAsync(cancellationToken);
+        settings.Update(
+            request.IncomeUpcomingEnabled,
+            request.IncomeDaysBefore,
+            request.ExpenseUpcomingEnabled,
+            request.ExpenseDaysBefore,
+            request.ExpenseOverdueEnabled,
+            request.CardCloseSoonEnabled,
+            request.CardCloseDaysBefore,
+            request.CardCloseDayEnabled,
+            request.MonthCloseEnabled,
+            request.MonthSummaryEnabled,
+            request.GoalBelowExpectedEnabled,
+            request.GoalCompletedEnabled,
+            request.GoalInactivityEnabled,
+            request.GoalInactivityDays);
+        await notificationSettingsRepository.SaveChangesAsync(cancellationToken);
+        return Ok(ToNotificationSettingsDto(settings));
+    }
+
+    private static NotificationSettingsDto ToNotificationSettingsDto(NotificationSettings settings) =>
+        new(
+            settings.IncomeUpcomingEnabled,
+            settings.IncomeDaysBefore,
+            settings.ExpenseUpcomingEnabled,
+            settings.ExpenseDaysBefore,
+            settings.ExpenseOverdueEnabled,
+            settings.CardCloseSoonEnabled,
+            settings.CardCloseDaysBefore,
+            settings.CardCloseDayEnabled,
+            settings.MonthCloseEnabled,
+            settings.MonthSummaryEnabled,
+            settings.GoalBelowExpectedEnabled,
+            settings.GoalCompletedEnabled,
+            settings.GoalInactivityEnabled,
+            settings.GoalInactivityDays);
 }
