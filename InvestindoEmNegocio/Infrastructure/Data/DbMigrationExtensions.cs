@@ -1,42 +1,44 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Infrastructure.Data;
 
 public static class DbMigrationExtensions
 {
-    /// <summary>
-    /// Aplica migrações pendentes no start. Se não houver, apenas segue.
-    /// </summary>
-    public static async Task ApplyMigrationsAsync(this IApplicationBuilder app)
+    public static async Task ApplyDatabaseSchemaAsync(this IApplicationBuilder app)
     {
         using var scope = app.ApplicationServices.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<InvestDbContext>();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<InvestDbContext>>();
+        var hostEnvironment = scope.ServiceProvider.GetRequiredService<IHostEnvironment>();
 
         try
         {
-            var allMigrations = (await dbContext.Database.GetPendingMigrationsAsync()).ToList();
-            var applied = (await dbContext.Database.GetAppliedMigrationsAsync()).ToList();
-            var pending = (await dbContext.Database.GetPendingMigrationsAsync()).ToList();
+            // Keep EF model mapping, but stop relying on migrations history.
+            var created = await dbContext.Database.EnsureCreatedAsync();
+            logger.LogInformation("EnsureCreated executado. Banco criado agora? {Created}", created);
 
-            logger.LogInformation("Migrações encontradas: {All}", string.Join(", ", allMigrations));
-            logger.LogInformation("Migrações já aplicadas: {Applied}", string.Join(", ", applied));
+            var schemaPath = Path.Combine(hostEnvironment.ContentRootPath, "Infrastructure", "Data", "schema.sql");
+            if (!File.Exists(schemaPath))
+            {
+                logger.LogWarning("schema.sql não encontrado em {Path}.", schemaPath);
+                return;
+            }
 
-            if (pending.Any())
+            var schemaSql = await File.ReadAllTextAsync(schemaPath);
+            if (string.IsNullOrWhiteSpace(schemaSql))
             {
-                logger.LogInformation("Aplicando migrações pendentes: {Migrations}", string.Join(", ", pending));
-                await dbContext.Database.MigrateAsync();
-                logger.LogInformation("Migrações aplicadas com sucesso.");
+                logger.LogWarning("schema.sql está vazio em {Path}.", schemaPath);
+                return;
             }
-            else
-            {
-                logger.LogInformation("Nenhuma migração pendente encontrada.");
-            }
+
+            await dbContext.Database.ExecuteSqlRawAsync(schemaSql);
+            logger.LogInformation("schema.sql aplicado com sucesso.");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Falha ao aplicar migrações do banco.");
+            logger.LogError(ex, "Falha ao aplicar schema.sql no banco.");
             throw;
         }
     }

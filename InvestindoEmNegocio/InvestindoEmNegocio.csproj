@@ -36,7 +36,10 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Migrations\" />
+      <Content Include="Infrastructure/Data/schema.sql">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
     </ItemGroup>
 
     <!-- Exclude legacy migrations (arquivos travados no disco) para não compilar junto -->
@@ -44,7 +47,6 @@
       <Compile Remove="Migrations/20241229170000_InitialClean.cs" />
       <Compile Remove="Migrations/20251230200806_InitialClean.cs" />
       <Compile Remove="Migrations/20251230200806_InitialClean.Designer.cs" />
-      <Compile Remove="Migrations/InvestDbContextModelSnapshot.cs" />
       <!-- Ignore stale generated sources from previous builds in obj2 -->
       <Compile Remove="obj2/**" />
     </ItemGroup>

@@ -217,12 +217,14 @@ builder.Services.AddCors(options =>
                 "http://localhost:4000",
                 "http://127.0.0.1:4000",
                 "http://192.168.1.87:4000",
+                "http://44.222.150.223:4000",
                 "https://localhost:4200",
                 "https://127.0.0.1:4200",
                 "https://192.168.1.87:4200",
                 "https://localhost:4000",
                 "https://127.0.0.1:4000",
-                "https://192.168.1.87:4000"
+                "https://192.168.1.87:4000",
+                "https://44.222.150.223:4000"
             )
             .AllowAnyHeader()
             .AllowAnyMethod()
@@ -402,6 +404,6 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
     Predicate = check => check.Name == "db"
 }).AllowAnonymous();
 
-await app.ApplyMigrationsAsync();
+await app.ApplyDatabaseSchemaAsync();
 
 app.Run();
