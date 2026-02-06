@@ -1,40 +1,21 @@
 services:
-  db:
-    image: postgres:16
-    container_name: investindo-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-meu_mentor_db}
-      POSTGRES_USER: ${POSTGRES_USER:-investindo}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-investindo} -d ${POSTGRES_DB:-meu_mentor_db}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: investindo-api
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      ASPNETCORE_URLS: http://0.0.0.0:5059
-      ConnectionStrings__Default: Host=db;Database=${POSTGRES_DB:-meu_mentor_db};Username=${POSTGRES_USER:-investindo};Password=${POSTGRES_PASSWORD:-change_me}
-      Jwt__Issuer: ${JWT_ISSUER:-InvestindoEmNegocio}
-      Jwt__Audience: ${JWT_AUDIENCE:-InvestindoEmNegocio}
-      Jwt__SecretKey: ${JWT_SECRET_KEY:-change_me_please}
-      Jwt__ExpiresMinutes: ${JWT_EXPIRES_MINUTES:-15}
+  backend:
+    image: ghcr.io/thenrique395/investindoemnegociosapi:latest
     ports:
       - "5059:5059"
-
-volumes:
-  pgdata:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://0.0.0.0:5059
+      ConnectionStrings__Default: ${DB_CONN}
+      Jwt__Issuer: InvestindoEmNegocio
+      Jwt__Audience: InvestindoEmNegocio
+      Jwt__SecretKey: ${JWT_SECRET}
+      OTEL_SERVICE_NAME: InvestindoEmNegocio
+      OTEL_TRACES_EXPORTER: none
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:5059/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 10

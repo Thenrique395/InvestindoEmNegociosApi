@@ -213,18 +213,18 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(
                 "http://localhost:4200",
                 "http://127.0.0.1:4200",
-                "http://192.168.1.87:4200",
+                "http://35.174.50.187:4200",
                 "http://localhost:4000",
                 "http://127.0.0.1:4000",
-                "http://192.168.1.87:4000",
-                "http://44.222.150.223:4000",
+                "http://35.174.50.187:4000",
+                "http://35.174.50.187:4000",
                 "https://localhost:4200",
                 "https://127.0.0.1:4200",
-                "https://192.168.1.87:4200",
+                "https://35.174.50.187:4200",
                 "https://localhost:4000",
                 "https://127.0.0.1:4000",
-                "https://192.168.1.87:4000",
-                "https://44.222.150.223:4000"
+                "https://35.174.50.187:4000",
+                "https://35.174.50.187:4000"
             )
             .AllowAnyHeader()
             .AllowAnyMethod()

@@ -6,6 +6,7 @@ namespace InvestindoEmNegocio.Infrastructure.Data.Configurations;
 
 public class MoneyPaymentConfiguration : IEntityTypeConfiguration<MoneyPayment>
 {
+    [Obsolete("Obsolete")]
     public void Configure(EntityTypeBuilder<MoneyPayment> builder)
     {
         builder.ToTable("money_payments");
