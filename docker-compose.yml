@@ -26,7 +26,7 @@ services:
       ConnectionStrings__Default: ${DB_CONN}
       Jwt__Issuer: InvestindoEmNegocio
       Jwt__Audience: InvestindoEmNegocio
-      Jwt__SecretKey: ${JWT_SECRET}
+      Jwt__SecretKey: ${JWT_SECRET_KEY}
       OTEL_SERVICE_NAME: InvestindoEmNegocio
       OTEL_TRACES_EXPORTER: none
       OTEL_METRICS_EXPORTER: none
