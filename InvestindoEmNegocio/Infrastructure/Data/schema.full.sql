@@ -227,7 +227,6 @@ CREATE TABLE audit_logs (
     CONSTRAINT "FK_audit_logs_users_UserId" FOREIGN KEY ("UserId") REFERENCES users ("Id") ON DELETE SET NULL
 );
 
-
 CREATE TABLE refresh_tokens (
     "Id" uuid NOT NULL,
     "UserId" uuid NOT NULL,
