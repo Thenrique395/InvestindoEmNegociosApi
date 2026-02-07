@@ -39,7 +39,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "docker-compose.yml,InvestindoEmNegocio/Infrastructure/Data/schema.full.sql"
+          source: "docker-compose.yml,.env,InvestindoEmNegocio/Infrastructure/Data/schema.full.sql"
           target: "/home/ubuntu/InvestindoEmNegocio"
 
       - name: Deploy backend + postgres on VPS
