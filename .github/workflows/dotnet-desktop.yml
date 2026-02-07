@@ -33,7 +33,16 @@ jobs:
           push: true
           tags: ghcr.io/thenrique395/investindoemnegociosapi:latest
 
-      - name: Deploy backend on VPS
+      - name: Upload compose + schema to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "docker-compose.yml,InvestindoEmNegocio/Infrastructure/Data/schema.full.sql"
+          target: "/home/ubuntu/InvestindoEmNegocio"
+
+      - name: Deploy backend + postgres on VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -41,6 +50,10 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             set -euo pipefail
+            mkdir -p /home/ubuntu/InvestindoEmNegocio
             cd /home/ubuntu/InvestindoEmNegocio
+            # ensure schema is in place for initdb
+            mv -f /home/ubuntu/InvestindoEmNegocio/InvestindoEmNegocio/Infrastructure/Data/schema.full.sql /home/ubuntu/InvestindoEmNegocio/schema.full.sql || true
+            docker login ghcr.io -u ${{ secrets.GHCR_USER }} -p ${{ secrets.GHCR_TOKEN }}
             docker compose pull
             docker compose up -d --no-build
