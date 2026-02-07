@@ -212,7 +212,6 @@ CREATE TABLE investment_movements (
     CONSTRAINT "FK_investment_movements_investment_positions_PositionId" FOREIGN KEY ("PositionId") REFERENCES investment_positions ("Id") ON DELETE CASCADE
 );
 
-
 CREATE TABLE audit_logs (
     "Id" uuid NOT NULL,
     "UserId" uuid,
