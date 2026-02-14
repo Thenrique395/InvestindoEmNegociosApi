@@ -9,7 +9,15 @@ public sealed class UploadInvoiceRequest
     public IFormFile? File { get; init; }
 }
 
-public sealed record InvoiceItemDto(string? Date, string Description, string? Amount);
+public sealed record InvoiceItemDto(
+    string? Date,
+    string Description,
+    string? Amount,
+    bool IsInstallment = false,
+    int? InstallmentCurrent = null,
+    int? InstallmentTotal = null,
+    string? BaseDescription = null
+);
 
 public sealed record InvoiceExtractResponse(
     string? Total,

@@ -39,6 +39,7 @@ public sealed class InvoiceParserFactory
 
 internal static class InvoiceParseCommon
 {
+    private static readonly Regex InstallmentRegex = new(@"\b(\d{2})/(\d{2})\b", RegexOptions.Compiled);
     public static readonly Regex DateRegex = new(@"(\d{2}/\d{2}/\d{4})", RegexOptions.Compiled);
     public static readonly Regex ItemRegex = new(@"(\d{2}/\d{2})(?:/\d{2,4})?\s+(.+?)\s+R\$\s*([\d\.]+,\d{2})", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     public static readonly Regex GenericItemRegex = new(@"(\d{2}/\d{2})\s*([A-Z0-9\*\.\-\/\s]{3,}?)\s(-?[\d\.]+,\d{2})(?=\s|$)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -115,13 +116,45 @@ internal static class InvoiceParseCommon
         var amount = $"R$ {amountRaw}";
         var key = $"{date}|{description}|{amount}";
         if (!dedup.Add(key)) return;
-        items.Add(new InvoiceItemDto(date, description, amount));
+        items.Add(CreateItem(date, description, amount));
     }
 
     private static string SanitizeDescription(string input)
     {
         var value = Regex.Replace(input, "\\s+", " ").Trim();
         return value.Length > 120 ? value[..120].Trim() : value;
+    }
+
+    public static InvoiceItemDto CreateItem(string? date, string description, string? amount, string? installmentToken = null)
+    {
+        var token = installmentToken;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            var tokenMatch = InstallmentRegex.Match(description);
+            token = tokenMatch.Success ? tokenMatch.Value : null;
+        }
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return new InvoiceItemDto(date, description, amount);
+        }
+
+        var parsed = InstallmentRegex.Match(token);
+        if (!parsed.Success) return new InvoiceItemDto(date, description, amount);
+
+        var current = int.TryParse(parsed.Groups[1].Value, out var c) ? c : (int?)null;
+        var total = int.TryParse(parsed.Groups[2].Value, out var t) ? t : (int?)null;
+        var baseDescription = Regex.Replace(description, @"\s*\b\d{2}/\d{2}\b", string.Empty).Trim();
+
+        return new InvoiceItemDto(
+            date,
+            description,
+            amount,
+            true,
+            current,
+            total,
+            string.IsNullOrWhiteSpace(baseDescription) ? description : baseDescription
+        );
     }
 }
 
@@ -203,10 +236,10 @@ public sealed class ItauInvoiceParser : IInvoiceParser
     private static readonly Regex ItauCardLast4Regex = new(@"Cart[aã]o\s*\d{4}\.X{4}\.X{4}\.(\d{4})", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex ItauHolderRegex = new(@"Titular\s*([A-ZÀ-Ú\s]{5,}?)(?=Cart[aã]o|\d{4}\.X{4}\.X{4}\.\d{4}|$)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex ItauItemRegex = new(
-        @"(?<!\d)(\d{2}/\d{2})\s*([A-Za-z0-9À-Ú\*\.\-\/\s]{3,90}?)\s*(?:\d{2}/\d{2}\s*)?(-?\d{1,3}(?:\.\d{3})*,\d{2})(?=(?:\s*(?:ALIMENTA|SA[UÚ]DE|VESTU|HOBBY|DIVERSOS|MORADIA|VE[ÍI]CULOS|TURISMO|EDUCA|DATAESTABELECIMENTO|Lançamentos|LANCAMENTOS|Total|Pr[oó]xima|Demais|Continua|JOANNA|TIAGO|\d{2}/\d{2}|$)))",
+        @"(?<!\d)(\d{2}/\d{2})\s*([A-Za-z0-9À-Ú\*\.\-\/\s]{3,90}?)\s*(?:(\d{2}/\d{2})\s*)?(-?\d{1,3}(?:\.\d{3})*,\d{2})(?=(?:\s*(?:ALIMENTA|SA[UÚ]DE|VESTU|HOBBY|DIVERSOS|MORADIA|VE[ÍI]CULOS|TURISMO|EDUCA|DATAESTABELECIMENTO|Lançamentos|LANCAMENTOS|Total|Pr[oó]xima|Demais|Continua|JOANNA|TIAGO|\d{2}/\d{2}|$)))",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex ItauLooseItemRegex = new(
-        @"(?<!\d)(\d{2}/\d{2})\s*([A-Za-z0-9À-Ú\*\.\-\/\s]{3,80}?)\s*(-?\d{1,3}(?:\.\d{3})*,\d{2})(?=(?:\s*\d{2}/\d{2}|\s*[A-ZÀ-Ú]{4,}|$))",
+        @"(?<!\d)(\d{2}/\d{2})\s*([A-Za-z0-9À-Ú\*\.\-\/\s]{3,80}?)\s*(?:(\d{2}/\d{2})\s*)?(-?\d{1,3}(?:\.\d{3})*,\d{2})(?=(?:\s*\d{2}/\d{2}|\s*[A-ZÀ-Ú]{4,}|$))",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public bool CanParse(string rawText, IReadOnlyList<string> lines)
@@ -322,18 +355,22 @@ public sealed class ItauInvoiceParser : IInvoiceParser
         {
             var date = match.Groups[1].Value;
             var description = Regex.Replace(match.Groups[2].Value, "\\s+", " ").Trim();
-            var amountRaw = match.Groups[3].Value.Replace(" ", string.Empty);
+            description = Regex.Replace(description, @"^\d{6,}(?=[A-Za-zÀ-Ú])", string.Empty).Trim();
+            var installment = match.Groups[3].Success ? match.Groups[3].Value : null;
+            var amountRaw = match.Groups[4].Value.Replace(" ", string.Empty);
 
             if (description.Length < 3) continue;
             if (description.Contains("PAGAMENTO EFETUADO", StringComparison.OrdinalIgnoreCase)) continue;
             if (description.Contains("DESC ANTECIPA PARCELAS", StringComparison.OrdinalIgnoreCase)) continue;
             if (description.Contains("LANCAMENTOS", StringComparison.OrdinalIgnoreCase)) continue;
             if (description.Contains("DATAESTABELECIMENTO", StringComparison.OrdinalIgnoreCase)) continue;
+            if (description.EndsWith("-", StringComparison.Ordinal)) continue;
+            if (amountRaw.StartsWith("-", StringComparison.Ordinal)) continue;
 
             var amount = $"R$ {amountRaw}";
             var key = $"{date}|{description}|{amount}";
             if (!dedup.Add(key)) continue;
-            items.Add(new InvoiceItemDto(date, description, amount));
+            items.Add(InvoiceParseCommon.CreateItem(date, description, amount, installment));
         }
 
         if (items.Count < 10)
@@ -342,7 +379,9 @@ public sealed class ItauInvoiceParser : IInvoiceParser
             {
                 var date = match.Groups[1].Value;
                 var description = Regex.Replace(match.Groups[2].Value, "\\s+", " ").Trim();
-                var amountRaw = match.Groups[3].Value.Replace(" ", string.Empty);
+                description = Regex.Replace(description, @"^\d{6,}(?=[A-Za-zÀ-Ú])", string.Empty).Trim();
+                var installment = match.Groups[3].Success ? match.Groups[3].Value : null;
+                var amountRaw = match.Groups[4].Value.Replace(" ", string.Empty);
 
                 if (description.Length < 3) continue;
                 if (description.Contains("PAGAMENTO EFETUADO", StringComparison.OrdinalIgnoreCase)) continue;
@@ -351,11 +390,13 @@ public sealed class ItauInvoiceParser : IInvoiceParser
                 if (description.Contains("DATAESTABELECIMENTO", StringComparison.OrdinalIgnoreCase)) continue;
                 if (description.Contains("TOTAL", StringComparison.OrdinalIgnoreCase)) continue;
                 if (description.Contains("LIMITE", StringComparison.OrdinalIgnoreCase)) continue;
+                if (description.EndsWith("-", StringComparison.Ordinal)) continue;
+                if (amountRaw.StartsWith("-", StringComparison.Ordinal)) continue;
 
                 var amount = $"R$ {amountRaw}";
                 var key = $"{date}|{description}|{amount}";
                 if (!dedup.Add(key)) continue;
-                items.Add(new InvoiceItemDto(date, description, amount));
+                items.Add(InvoiceParseCommon.CreateItem(date, description, amount, installment));
             }
         }
 
