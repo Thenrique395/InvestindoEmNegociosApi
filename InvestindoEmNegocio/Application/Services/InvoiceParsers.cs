@@ -203,7 +203,10 @@ public sealed class ItauInvoiceParser : IInvoiceParser
     private static readonly Regex ItauCardLast4Regex = new(@"Cart[aã]o\s*\d{4}\.X{4}\.X{4}\.(\d{4})", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex ItauHolderRegex = new(@"Titular\s*([A-ZÀ-Ú\s]{5,}?)(?=Cart[aã]o|\d{4}\.X{4}\.X{4}\.\d{4}|$)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex ItauItemRegex = new(
-        @"(?<!\d)(\d{2}/\d{2})\s+([A-Za-z0-9À-Ú\*\.\-\/\s]{3,90}?)\s+(?:\d{2}/\d{2}\s+)?(-?\d{1,3}(?:\.\d{3})*,\d{2})(?=\s(?:ALIMENTA|SA[UÚ]DE|VESTU|HOBBY|DIVERSOS|MORADIA|VE[ÍI]CULOS|TURISMO|EDUCA|DATAESTABELECIMENTO|Lançamentos|LANCAMENTOS|Total|Pr[oó]xima|Demais|Continua|JOANNA|TIAGO|\d{2}/\d{2}|$))",
+        @"(?<!\d)(\d{2}/\d{2})\s*([A-Za-z0-9À-Ú\*\.\-\/\s]{3,90}?)\s*(?:\d{2}/\d{2}\s*)?(-?\d{1,3}(?:\.\d{3})*,\d{2})(?=(?:\s*(?:ALIMENTA|SA[UÚ]DE|VESTU|HOBBY|DIVERSOS|MORADIA|VE[ÍI]CULOS|TURISMO|EDUCA|DATAESTABELECIMENTO|Lançamentos|LANCAMENTOS|Total|Pr[oó]xima|Demais|Continua|JOANNA|TIAGO|\d{2}/\d{2}|$)))",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex ItauLooseItemRegex = new(
+        @"(?<!\d)(\d{2}/\d{2})\s*([A-Za-z0-9À-Ú\*\.\-\/\s]{3,80}?)\s*(-?\d{1,3}(?:\.\d{3})*,\d{2})(?=(?:\s*\d{2}/\d{2}|\s*[A-ZÀ-Ú]{4,}|$))",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public bool CanParse(string rawText, IReadOnlyList<string> lines)
@@ -304,6 +307,7 @@ public sealed class ItauInvoiceParser : IInvoiceParser
         var text = rawText.Replace('\n', ' ');
         text = Regex.Replace(text, @"(\d{2}/\d{2})(?=[A-Za-zÀ-Ú0-9])", "$1 ");
         text = Regex.Replace(text, @"(\d{1,3}(?:\.\d{3})*,\d{2})(?=[A-Za-zÀ-Ú])", "$1 ");
+        text = Regex.Replace(text, @"(\d{1,3}(?:\.\d{3})*,\d{2})(?=\d{2}/\d{2})", "$1 ");
         text = Regex.Replace(text, @"\s+", " ");
         return text;
     }
@@ -330,6 +334,29 @@ public sealed class ItauInvoiceParser : IInvoiceParser
             var key = $"{date}|{description}|{amount}";
             if (!dedup.Add(key)) continue;
             items.Add(new InvoiceItemDto(date, description, amount));
+        }
+
+        if (items.Count < 10)
+        {
+            foreach (Match match in ItauLooseItemRegex.Matches(normalizedRawText))
+            {
+                var date = match.Groups[1].Value;
+                var description = Regex.Replace(match.Groups[2].Value, "\\s+", " ").Trim();
+                var amountRaw = match.Groups[3].Value.Replace(" ", string.Empty);
+
+                if (description.Length < 3) continue;
+                if (description.Contains("PAGAMENTO EFETUADO", StringComparison.OrdinalIgnoreCase)) continue;
+                if (description.Contains("DESC ANTECIPA PARCELAS", StringComparison.OrdinalIgnoreCase)) continue;
+                if (description.Contains("LANCAMENTOS", StringComparison.OrdinalIgnoreCase)) continue;
+                if (description.Contains("DATAESTABELECIMENTO", StringComparison.OrdinalIgnoreCase)) continue;
+                if (description.Contains("TOTAL", StringComparison.OrdinalIgnoreCase)) continue;
+                if (description.Contains("LIMITE", StringComparison.OrdinalIgnoreCase)) continue;
+
+                var amount = $"R$ {amountRaw}";
+                var key = $"{date}|{description}|{amount}";
+                if (!dedup.Add(key)) continue;
+                items.Add(new InvoiceItemDto(date, description, amount));
+            }
         }
 
         if (items.Count < 10)
