@@ -2,6 +2,7 @@ using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using UglyToad.PdfPig.Exceptions;
 
 namespace InvestindoEmNegocio.Controllers;
 
@@ -9,7 +10,10 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/[controller]")]
 [Route("api/v1/[controller]")]
 [Authorize]
-public sealed class InvoiceImportController(IInvoiceImportService invoiceImportService) : ControllerBase
+public sealed class InvoiceImportController(
+    IInvoiceImportService invoiceImportService,
+    ILogger<InvoiceImportController> logger
+) : ControllerBase
 {
     [HttpPost("extract")]
     [Consumes("multipart/form-data")]
@@ -27,8 +31,31 @@ public sealed class InvoiceImportController(IInvoiceImportService invoiceImportS
             return BadRequest(new ProblemDetails { Title = "Arquivo inválido", Detail = "Formato não suportado. Use PDF.", Status = StatusCodes.Status400BadRequest });
         }
 
-        await using var stream = file.OpenReadStream();
-        var result = await invoiceImportService.ExtractAsync(stream, cancellationToken);
-        return Ok(result);
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var result = await invoiceImportService.ExtractAsync(stream, cancellationToken);
+            return Ok(result);
+        }
+        catch (PdfDocumentFormatException ex)
+        {
+            logger.LogWarning(ex, "Falha ao ler PDF (formato inválido).");
+            return UnprocessableEntity(new ProblemDetails
+            {
+                Title = "Falha ao ler PDF",
+                Detail = "O PDF parece inválido ou protegido.",
+                Status = StatusCodes.Status422UnprocessableEntity
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Erro ao processar fatura.");
+            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+            {
+                Title = "Erro interno do servidor.",
+                Detail = "Nao foi possivel processar o PDF.",
+                Status = StatusCodes.Status500InternalServerError
+            });
+        }
     }
 }
