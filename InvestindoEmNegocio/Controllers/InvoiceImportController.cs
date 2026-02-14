@@ -2,6 +2,7 @@ using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using UglyToad.PdfPig.Core;
 using UglyToad.PdfPig.Exceptions;
 
 namespace InvestindoEmNegocio.Controllers;
