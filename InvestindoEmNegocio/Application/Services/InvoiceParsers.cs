@@ -44,7 +44,7 @@ internal static class InvoiceParseCommon
     public static readonly Regex ItemRegex = new(@"(\d{2}/\d{2})(?:/\d{2,4})?\s+(.+?)\s+R\$\s*([\d\.]+,\d{2})", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     public static readonly Regex GenericItemRegex = new(@"(\d{2}/\d{2})\s*([A-Z0-9\*\.\-\/\s]{3,}?)\s(-?[\d\.]+,\d{2})(?=\s|$)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     public static readonly Regex DenseLineItemRegex = new(@"\d?(\d{2}/\d{2})\s*([A-Z0-9\*\.\-\/\s]{3,}?)(?:\s*\d{2}/\d{2,3})?\s*(-?[\d\.]+,\d{2})(?=(?:\s+\d?\d{2}/\d{2})|$)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    public static readonly Regex HolderLast4Regex = new(@"([A-Z\s]{5,})\s-\s\d{4}\sX+\sX+\sX+\s(\d{4})", RegexOptions.Compiled);
+    public static readonly Regex HolderLast4Regex = new(@"([A-Z\s]{5,})\s-\s\d{4}(?:\sX+){2,3}\s(\d{4})", RegexOptions.Compiled);
 
     public static string? FindMoneyByPattern(string rawText, string pattern)
     {
@@ -162,6 +162,9 @@ public sealed class SantanderInvoiceParser : IInvoiceParser
 {
     private static readonly Regex CardNameRegex = new(@"cart[aã]o\s+([A-Z0-9\s]+?)\s+contendo", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex CloseDateShortRegex = new(@"at[eé]\s+(\d{2}/\d{2})(?!/\d)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex SantanderItemRegex = new(
+        @"(?<!\d)\d?(\d{2}/\d{2})\s+([A-Z0-9À-Ú\*\.\-\/\s]{3,80}?)(?:\s+(\d{2}/\d{2}))?\s+(-?\d{1,3}(?:\.\d{3})*,\d{2})(?=(?:\s+\d?\d{2}/\d{2}|\s+VALOR\s+TOTAL|\s+RESUMO\s+DA\s+FATURA|\s+DETALHAMENTO\s+DA\s+FATURA|$))",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public bool CanParse(string rawText, IReadOnlyList<string> lines)
     {
@@ -182,7 +185,7 @@ public sealed class SantanderInvoiceParser : IInvoiceParser
             closeDate,
             cardName,
             "Santander",
-            InvoiceParseCommon.ExtractItems(lines, rawText),
+            ExtractSantanderItems(lines, rawText),
             rawText,
             holderData.cardHolder,
             holderData.cardLast4,
@@ -228,6 +231,53 @@ public sealed class SantanderInvoiceParser : IInvoiceParser
             return $"{shortDate}/{dueDate.Split('/').Last()}";
         }
         return shortDate;
+    }
+
+    private static IReadOnlyList<InvoiceItemDto> ExtractSantanderItems(IReadOnlyList<string> lines, string rawText)
+    {
+        var start = rawText.IndexOf("Detalhamento da Fatura", StringComparison.OrdinalIgnoreCase);
+        var section = start >= 0 ? rawText[start..] : rawText;
+        var normalized = NormalizeSantanderRawText(section);
+
+        var items = new List<InvoiceItemDto>();
+        var dedup = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (Match match in SantanderItemRegex.Matches(normalized))
+        {
+            var date = match.Groups[1].Value;
+            var description = Regex.Replace(match.Groups[2].Value, "\\s+", " ").Trim();
+            var installment = match.Groups[3].Success ? match.Groups[3].Value : null;
+            var amountRaw = match.Groups[4].Value.Replace(" ", string.Empty);
+
+            if (description.Length < 3) continue;
+            if (description.StartsWith("A ", StringComparison.OrdinalIgnoreCase)) continue;
+            if (description.Contains("PAGAMENTO PERIODO", StringComparison.OrdinalIgnoreCase)) continue;
+            if (description.Contains("HISTORICO DE FATURAS", StringComparison.OrdinalIgnoreCase)) continue;
+            if (description.Contains("VALOR TOTAL", StringComparison.OrdinalIgnoreCase)) continue;
+            if (description.Contains("RESUMO DA FATURA", StringComparison.OrdinalIgnoreCase)) continue;
+
+            var amount = $"R$ {amountRaw}";
+            var key = $"{date}|{description}|{amount}";
+            if (!dedup.Add(key)) continue;
+            items.Add(InvoiceParseCommon.CreateItem(date, description, amount, installment));
+        }
+
+        if (items.Count < 10)
+        {
+            return InvoiceParseCommon.ExtractItems(lines, rawText);
+        }
+
+        return items.Take(200).ToList();
+    }
+
+    private static string NormalizeSantanderRawText(string rawText)
+    {
+        var text = rawText.Replace('\n', ' ');
+        text = Regex.Replace(text, @"(\d{2}/\d{2})(?=[A-Za-zÀ-Ú0-9@])", "$1 ");
+        text = Regex.Replace(text, @"(\d{2}/\d{2})(?=\d{1,3}(?:\.\d{3})*,\d{2})", "$1 ");
+        text = Regex.Replace(text, @"(\d{1,3}(?:\.\d{3})*,\d{2})(?=\d{1,2}/\d{2})", "$1 ");
+        text = Regex.Replace(text, @"\s+", " ");
+        return text;
     }
 }
 
