@@ -201,9 +201,9 @@ public sealed class SantanderInvoiceParser : IInvoiceParser
 public sealed class ItauInvoiceParser : IInvoiceParser
 {
     private static readonly Regex ItauCardLast4Regex = new(@"Cart[aã]o\s*\d{4}\.X{4}\.X{4}\.(\d{4})", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    private static readonly Regex ItauHolderRegex = new(@"Titular\s*([A-ZÀ-Ú\s]{5,})", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex ItauHolderRegex = new(@"Titular\s*([A-ZÀ-Ú\s]{5,}?)(?=Cart[aã]o|\d{4}\.X{4}\.X{4}\.\d{4}|$)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex ItauItemRegex = new(
-        @"(?<!\d)(\d{2}/\d{2})\s+([A-Za-z0-9\*\.\-\/\s]{3,90}?)\s(-?\s?[\d\.]+,\d{2})(?=\s(?:ALIMENTA|SA[UÚ]DE|VESTU|HOBBY|DIVERSOS|MORADIA|VE[ÍI]CULOS|TURISMO|EDUCA|DATAESTABELECIMENTO|Lançamentos|LANCAMENTOS|Total|Pr[oó]xima|Demais|Continua|JOANNA|TIAGO|\d{2}/\d{2}|$))",
+        @"(?<!\d)(\d{2}/\d{2})\s+([A-Za-z0-9À-Ú\*\.\-\/\s]{3,90}?)\s+(?:\d{2}/\d{2}\s+)?(-?\d{1,3}(?:\.\d{3})*,\d{2})(?=\s(?:ALIMENTA|SA[UÚ]DE|VESTU|HOBBY|DIVERSOS|MORADIA|VE[ÍI]CULOS|TURISMO|EDUCA|DATAESTABELECIMENTO|Lançamentos|LANCAMENTOS|Total|Pr[oó]xima|Demais|Continua|JOANNA|TIAGO|\d{2}/\d{2}|$))",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public bool CanParse(string rawText, IReadOnlyList<string> lines)
@@ -234,7 +234,7 @@ public sealed class ItauInvoiceParser : IInvoiceParser
             holderData.cardHolder,
             holderData.cardLast4,
             FindMoney(rawText, @"pagamento\s+m[ií]nimo[^\d\-]*(-?\s?[\d\.]+,\d{2})"),
-            FindMoney(rawText, @"Limite\s+total\s+de\s+cr[eé]dito:\s*R?\$?\s*([\d\.]+,\d{2})"),
+            FindItauLimitTotal(rawText),
             FindMoney(rawText, @"Limite\s+total\s+utilizado\s*([\d\.]+,\d{2})"),
             FindMoney(rawText, @"Limite\s+dispon[ií]vel\s*([\d\.]+,\d{2})"),
             FindMoney(rawText, @"Total\s+da\s+fatura\s+anterior\s*([\d\.]+,\d{2})"),
@@ -267,12 +267,54 @@ public sealed class ItauInvoiceParser : IInvoiceParser
         return $"R$ {match.Groups[1].Value.Trim()}";
     }
 
+    private static string? FindItauLimitTotal(string rawText)
+    {
+        var anchor = rawText.IndexOf("Limite total de crédito", StringComparison.OrdinalIgnoreCase);
+        if (anchor < 0)
+        {
+            return FindMoney(rawText, @"Limite\s+total\s+de\s+cr[eé]dito:\s*R?\$?\s*([\d\.]+,\d{2})");
+        }
+
+        var windowSize = Math.Min(220, rawText.Length - anchor);
+        var snippet = rawText.Substring(anchor, windowSize);
+        var values = Regex.Matches(snippet, @"R\$\s*([\d\.]+,\d{2})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        if (values.Count == 0) return null;
+
+        decimal max = -1m;
+        string? best = null;
+        foreach (Match m in values)
+        {
+            var value = m.Groups[1].Value;
+            var normalized = value.Replace(".", string.Empty).Replace(',', '.');
+            if (!decimal.TryParse(normalized, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var number))
+            {
+                continue;
+            }
+            if (number > max)
+            {
+                max = number;
+                best = value;
+            }
+        }
+        return best is null ? null : $"R$ {best}";
+    }
+
+    private static string NormalizeItauRawText(string rawText)
+    {
+        var text = rawText.Replace('\n', ' ');
+        text = Regex.Replace(text, @"(\d{2}/\d{2})(?=[A-Za-zÀ-Ú0-9])", "$1 ");
+        text = Regex.Replace(text, @"(\d{1,3}(?:\.\d{3})*,\d{2})(?=[A-Za-zÀ-Ú])", "$1 ");
+        text = Regex.Replace(text, @"\s+", " ");
+        return text;
+    }
+
     private static IReadOnlyList<InvoiceItemDto> ExtractItauItems(IReadOnlyList<string> lines, string rawText)
     {
+        var normalizedRawText = NormalizeItauRawText(rawText);
         var items = new List<InvoiceItemDto>();
         var dedup = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (Match match in ItauItemRegex.Matches(rawText))
+        foreach (Match match in ItauItemRegex.Matches(normalizedRawText))
         {
             var date = match.Groups[1].Value;
             var description = Regex.Replace(match.Groups[2].Value, "\\s+", " ").Trim();
@@ -281,6 +323,8 @@ public sealed class ItauInvoiceParser : IInvoiceParser
             if (description.Length < 3) continue;
             if (description.Contains("PAGAMENTO EFETUADO", StringComparison.OrdinalIgnoreCase)) continue;
             if (description.Contains("DESC ANTECIPA PARCELAS", StringComparison.OrdinalIgnoreCase)) continue;
+            if (description.Contains("LANCAMENTOS", StringComparison.OrdinalIgnoreCase)) continue;
+            if (description.Contains("DATAESTABELECIMENTO", StringComparison.OrdinalIgnoreCase)) continue;
 
             var amount = $"R$ {amountRaw}";
             var key = $"{date}|{description}|{amount}";
