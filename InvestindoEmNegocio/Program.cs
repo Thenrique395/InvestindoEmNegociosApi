@@ -294,6 +294,7 @@ builder.Services.AddScoped<ILookupsService, LookupsService>();
 builder.Services.AddScoped<IPlansService, PlansService>();
 builder.Services.AddScoped<IPreferencesService, PreferencesService>();
 builder.Services.AddScoped<INotificationsService, NotificationsService>();
+builder.Services.AddScoped<IInvoiceImportService, InvoiceImportService>();
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<InvestindoEmNegocio.Application.Validation.RegisterUserRequestValidator>();
 
