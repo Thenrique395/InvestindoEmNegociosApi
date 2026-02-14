@@ -15,6 +15,7 @@ public sealed class InvoiceImportService : IInvoiceImportService
     private static readonly Regex HolderLast4Regex = new(@"([A-Z\s]{5,})\s-\s\d{4}\sX+\sX+\sX+\s(\d{4})", RegexOptions.Compiled);
     private static readonly Regex CloseDateShortRegex = new(@"at[eé]\s+(\d{2}/\d{2})(?!/\d)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex GenericItemRegex = new(@"(\d{2}/\d{2})\s*([A-Z0-9\*\.\-\/\s]{3,}?)\s(-?[\d\.]+,\d{2})(?=\s|$)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex DenseLineItemRegex = new(@"\d?(\d{2}/\d{2})\s*([A-Z0-9\*\.\-\/\s]{3,}?)(?:\s*\d{2}/\d{2,3})?\s*(-?[\d\.]+,\d{2})(?=(?:\s+\d?\d{2}/\d{2})|$)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public Task<InvoiceExtractResponse> ExtractAsync(Stream pdfStream, CancellationToken cancellationToken)
     {
@@ -135,7 +136,7 @@ public sealed class InvoiceImportService : IInvoiceImportService
                 items.Add(new InvoiceItemDto(date, description, amount));
             }
         }
-        if (items.Count < 5)
+        if (items.Count < 15)
         {
             foreach (Match match in GenericItemRegex.Matches(rawText))
             {
@@ -147,6 +148,24 @@ public sealed class InvoiceImportService : IInvoiceImportService
                 if (dedup.Add(key))
                 {
                     items.Add(new InvoiceItemDto(date, description, amount));
+                }
+            }
+        }
+        if (items.Count < 25)
+        {
+            foreach (var line in lines)
+            {
+                foreach (Match match in DenseLineItemRegex.Matches(line))
+                {
+                    var date = match.Groups[1].Value;
+                    var description = SanitizeDescription(match.Groups[2].Value);
+                    if (description.Length < 3) continue;
+                    var amount = $"R$ {match.Groups[3].Value}";
+                    var key = $"{date}|{description}|{amount}";
+                    if (dedup.Add(key))
+                    {
+                        items.Add(new InvoiceItemDto(date, description, amount));
+                    }
                 }
             }
         }
