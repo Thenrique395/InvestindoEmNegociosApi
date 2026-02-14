@@ -200,6 +200,12 @@ public sealed class SantanderInvoiceParser : IInvoiceParser
 
 public sealed class ItauInvoiceParser : IInvoiceParser
 {
+    private static readonly Regex ItauCardLast4Regex = new(@"Cart[aã]o\s*\d{4}\.X{4}\.X{4}\.(\d{4})", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex ItauHolderRegex = new(@"Titular\s*([A-ZÀ-Ú\s]{5,})", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex ItauItemRegex = new(
+        @"(?<!\d)(\d{2}/\d{2})\s+([A-Za-z0-9\*\.\-\/\s]{3,90}?)\s(-?\s?[\d\.]+,\d{2})(?=\s(?:ALIMENTA|SA[UÚ]DE|VESTU|HOBBY|DIVERSOS|MORADIA|VE[ÍI]CULOS|TURISMO|EDUCA|DATAESTABELECIMENTO|Lançamentos|LANCAMENTOS|Total|Pr[oó]xima|Demais|Continua|JOANNA|TIAGO|\d{2}/\d{2}|$))",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     public bool CanParse(string rawText, IReadOnlyList<string> lines)
     {
         return rawText.Contains("ITAU", StringComparison.OrdinalIgnoreCase)
@@ -208,32 +214,86 @@ public sealed class ItauInvoiceParser : IInvoiceParser
 
     public InvoiceExtractResponse Parse(string rawText, IReadOnlyList<string> lines)
     {
-        var dueDate = InvoiceParseCommon.FindDateByLabel(lines, ["vencimento", "vencto"]);
-        var closeDate = InvoiceParseCommon.FindDateByLabel(lines, ["fechamento", "até"]);
-        var holderData = InvoiceParseCommon.FindHolderAndLast4(rawText);
+        var dueDate = FindDate(rawText, @"Vencimento:\s*(\d{2}/\d{2}/\d{4})")
+            ?? InvoiceParseCommon.FindDateByLabel(lines, ["vencimento", "vencto"]);
+        var closeDate = FindDate(rawText, @"Emiss[aã]o:\s*(\d{2}/\d{2}/\d{4})")
+            ?? FindDate(rawText, @"Previs[aã]o\s+prox\.?\s+Fechamento:\s*(\d{2}/\d{2}/\d{4})")
+            ?? InvoiceParseCommon.FindDateByLabel(lines, ["fechamento", "emissão", "emissao"]);
+        var holderData = FindHolderAndLast4(rawText);
 
         return new InvoiceExtractResponse(
-            InvoiceParseCommon.FindMoneyByPattern(rawText, @"Total\s+da\s+fatura\s*R\$\s*([\d\.]+,\d{2})")
-                ?? InvoiceParseCommon.FindMoneyByPattern(rawText, @"Total\s+a\s+pagar\s*R\$\s*([\d\.]+,\d{2})")
-                ?? InvoiceParseCommon.FindMoneyByPattern(rawText, @"Valor\s+da\s+fatura\s*R\$\s*([\d\.]+,\d{2})"),
+            FindMoney(rawText, @"Total\s+desta\s+fatura\s*([\d\.]+,\d{2})")
+                ?? FindMoney(rawText, @"O\s+total\s+da\s+sua\s+fatura\s+[ée]:?\s*R\$\s*([\d\.]+,\d{2})")
+                ?? FindMoney(rawText, @"Total\s+da\s+fatura\s*R?\$?\s*([\d\.]+,\d{2})"),
             dueDate,
             closeDate,
-            InvoiceParseCommon.FindMoneyByPattern(rawText, @"Cart[aã]o\s+([A-Z0-9\s]+)") is null ? null : "Cartao Itau",
+            "Cartao Itau",
             "Itau",
-            InvoiceParseCommon.ExtractItems(lines, rawText),
+            ExtractItauItems(lines, rawText),
             rawText,
             holderData.cardHolder,
             holderData.cardLast4,
-            InvoiceParseCommon.FindMoneyByPattern(rawText, @"Pagamento\s+m[ií]nimo\s*R\$\s*([\d\.]+,\d{2})"),
-            InvoiceParseCommon.FindMoneyByPattern(rawText, @"Limite\s+total\s*R\$\s*([\d\.]+,\d{2})"),
-            InvoiceParseCommon.FindMoneyByPattern(rawText, @"Limite\s+utilizado\s*R\$\s*([\d\.]+,\d{2})"),
-            InvoiceParseCommon.FindMoneyByPattern(rawText, @"Limite\s+dispon[ií]vel\s*R\$\s*([\d\.]+,\d{2})"),
+            FindMoney(rawText, @"pagamento\s+m[ií]nimo[^\d\-]*(-?\s?[\d\.]+,\d{2})"),
+            FindMoney(rawText, @"Limite\s+total\s+de\s+cr[eé]dito:\s*R?\$?\s*([\d\.]+,\d{2})"),
+            FindMoney(rawText, @"Limite\s+total\s+utilizado\s*([\d\.]+,\d{2})"),
+            FindMoney(rawText, @"Limite\s+dispon[ií]vel\s*([\d\.]+,\d{2})"),
+            FindMoney(rawText, @"Total\s+da\s+fatura\s+anterior\s*([\d\.]+,\d{2})"),
+            FindMoney(rawText, @"Total\s+dos\s+lan[cç]amentos\s+atuais\s*([\d\.]+,\d{2})"),
+            FindMoney(rawText, @"Total\s+dos\s+pagamentos\s*(-?\s?[\d\.]+,\d{2})"),
             null,
-            null,
-            null,
-            null,
-            null
+            FindMoney(rawText, @"Total\s+desta\s+fatura\s*([\d\.]+,\d{2})")
         );
+    }
+
+    private static (string? cardHolder, string? cardLast4) FindHolderAndLast4(string rawText)
+    {
+        var holder = ItauHolderRegex.Match(rawText);
+        var last4 = ItauCardLast4Regex.Match(rawText);
+        var holderValue = holder.Success ? Regex.Replace(holder.Groups[1].Value, "\\s+", " ").Trim() : null;
+        var last4Value = last4.Success ? last4.Groups[1].Value : null;
+        return (string.IsNullOrWhiteSpace(holderValue) ? null : holderValue, last4Value);
+    }
+
+    private static string? FindDate(string rawText, string pattern)
+    {
+        var match = Regex.Match(rawText, pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        return match.Success ? match.Groups[1].Value : null;
+    }
+
+    private static string? FindMoney(string rawText, string pattern)
+    {
+        var match = Regex.Match(rawText, pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        if (!match.Success) return null;
+        return $"R$ {match.Groups[1].Value.Trim()}";
+    }
+
+    private static IReadOnlyList<InvoiceItemDto> ExtractItauItems(IReadOnlyList<string> lines, string rawText)
+    {
+        var items = new List<InvoiceItemDto>();
+        var dedup = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (Match match in ItauItemRegex.Matches(rawText))
+        {
+            var date = match.Groups[1].Value;
+            var description = Regex.Replace(match.Groups[2].Value, "\\s+", " ").Trim();
+            var amountRaw = match.Groups[3].Value.Replace(" ", string.Empty);
+
+            if (description.Length < 3) continue;
+            if (description.Contains("PAGAMENTO EFETUADO", StringComparison.OrdinalIgnoreCase)) continue;
+            if (description.Contains("DESC ANTECIPA PARCELAS", StringComparison.OrdinalIgnoreCase)) continue;
+
+            var amount = $"R$ {amountRaw}";
+            var key = $"{date}|{description}|{amount}";
+            if (!dedup.Add(key)) continue;
+            items.Add(new InvoiceItemDto(date, description, amount));
+        }
+
+        if (items.Count < 10)
+        {
+            return InvoiceParseCommon.ExtractItems(lines, rawText);
+        }
+
+        return items.Take(160).ToList();
     }
 }
 
@@ -275,4 +335,3 @@ public sealed class GenericInvoiceParser : IInvoiceParser
         return null;
     }
 }
-
