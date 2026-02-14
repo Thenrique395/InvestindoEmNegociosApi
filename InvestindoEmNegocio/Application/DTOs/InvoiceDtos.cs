@@ -18,5 +18,16 @@ public sealed record InvoiceExtractResponse(
     string? CardName,
     string? BankName,
     IReadOnlyList<InvoiceItemDto> Items,
-    string RawText
+    string RawText,
+    string? CardHolder,
+    string? CardLast4,
+    string? MinimumPayment,
+    string? LimitTotal,
+    string? LimitUsed,
+    string? LimitAvailable,
+    string? PreviousBalance,
+    string? TotalDebitsBrazil,
+    string? TotalPayments,
+    string? TotalCredits,
+    string? CurrentBalance
 );
