@@ -163,7 +163,7 @@ public sealed class SantanderInvoiceParser : IInvoiceParser
     private static readonly Regex CardNameRegex = new(@"cart[aã]o\s+([A-Z0-9\s]+?)\s+contendo", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex CloseDateShortRegex = new(@"at[eé]\s+(\d{2}/\d{2})(?!/\d)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex SantanderItemRegex = new(
-        @"(?<!\d)\d?(\d{2}/\d{2})\s+([A-Z0-9À-Ú\*\.\-\/\s]{3,80}?)(?:\s+(\d{2}/\d{2}))?\s+(-?\d{1,3}(?:\.\d{3})*,\d{2})(?=(?:\s+\d?\d{2}/\d{2}|\s+VALOR\s+TOTAL|\s+RESUMO\s+DA\s+FATURA|\s+DETALHAMENTO\s+DA\s+FATURA|$))",
+        @"(?<!\d)\d?(\d{2}/\d{2})\s+([A-Z0-9À-Ú\*\.\-\/\s]{3,80}?)(?:\s*(\d{2}/\d{2}))?\s*(-?\d{1,3}(?:\.\d{3})*,\d{2})(?=(?:\s+\d?\d{2}/\d{2}|\s+VALOR\s+TOTAL|\s+RESUMO\s+DA\s+FATURA|\s+DETALHAMENTO\s+DA\s+FATURA|$))",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public bool CanParse(string rawText, IReadOnlyList<string> lines)
@@ -274,6 +274,7 @@ public sealed class SantanderInvoiceParser : IInvoiceParser
     {
         var text = rawText.Replace('\n', ' ');
         text = Regex.Replace(text, @"(\d{2}/\d{2})(?=[A-Za-zÀ-Ú0-9@])", "$1 ");
+        text = Regex.Replace(text, @"([A-Za-zÀ-Ú\*])(\d{2}/\d{2})", "$1 $2");
         text = Regex.Replace(text, @"(\d{2}/\d{2})(?=\d{1,3}(?:\.\d{3})*,\d{2})", "$1 ");
         text = Regex.Replace(text, @"(\d{1,3}(?:\.\d{3})*,\d{2})(?=\d{1,2}/\d{2})", "$1 ");
         text = Regex.Replace(text, @"\s+", " ");
