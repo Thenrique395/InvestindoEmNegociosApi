@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Repositories;
