@@ -162,8 +162,17 @@ public sealed class SantanderInvoiceParser : IInvoiceParser
 {
     private static readonly Regex CardNameRegex = new(@"cart[aã]o\s+([A-Z0-9\s]+?)\s+contendo", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex CloseDateShortRegex = new(@"at[eé]\s+(\d{2}/\d{2})(?!/\d)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    private static readonly Regex SantanderItemRegex = new(
-        @"(?<!\d)\d?(\d{2}/\d{2})\s+([A-Z0-9À-Ú\*\.\-\/\s]{3,80}?)(?:\s*(\d{2}/\d{2}))?\s*(-?\d{1,3}(?:\.\d{3})*,\d{2})(?=(?:\s+\d?\d{2}/\d{2}|\s+VALOR\s+TOTAL|\s+RESUMO\s+DA\s+FATURA|\s+DETALHAMENTO\s+DA\s+FATURA|$))",
+    private static readonly Regex SantanderInstallmentItemRegex = new(
+        @"(?<!\d)\d?(\d{2}/\d{2})\s+([A-Z0-9À-Ú\*\.\-\/\s]{3,80}?)\s*(\d{2}/\d{2})\s*(?<!\d)(-?\d{1,3}(?:\.\d{3})*,\d{2})(?=(?:\s+\d?\d{2}/\d{2}|\s+VALOR\s+TOTAL|\s+RESUMO\s+DA\s+FATURA|\s+DETALHAMENTO\s+DA\s+FATURA|$))",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex SantanderCompactInstallmentItemRegex = new(
+        @"(?<!\d)\d?(\d{2}/\d{2})\s*([A-Z0-9À-Ú\*\.\-\/\s]{3,80}?)\s*(\d{2}/\d{2})(\d{2,3},\d{2})(?=(?:\s+\d?\d{2}/\d{2}|\s+VALOR\s+TOTAL|\s+RESUMO\s+DA\s+FATURA|\s+DETALHAMENTO\s+DA\s+FATURA|$))",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex SantanderSimpleItemRegex = new(
+        @"(?<!\d)\d?(\d{2}/\d{2})\s+([A-Z0-9À-Ú\*\.\-\/\s]{3,80}?)\s+(?<!\d)(-?\d{1,3}(?:\.\d{3})*,\d{2})(?=(?:\s+\d?\d{2}/\d{2}|\s+VALOR\s+TOTAL|\s+RESUMO\s+DA\s+FATURA|\s+DETALHAMENTO\s+DA\s+FATURA|$))",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex SantanderDenseInstallmentRegex = new(
+        @"(\d{2}/\d{2})([A-Z0-9\*\.\-]{4,80}?)(\d{2}/\d{2})(\d{2,3},\d{2})",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     public bool CanParse(string rawText, IReadOnlyList<string> lines)
@@ -242,11 +251,13 @@ public sealed class SantanderInvoiceParser : IInvoiceParser
         var items = new List<InvoiceItemDto>();
         var dedup = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (Match match in SantanderItemRegex.Matches(normalized))
+        ExtractSantanderDenseInstallmentBlock(section, items, dedup);
+
+        foreach (Match match in SantanderCompactInstallmentItemRegex.Matches(section))
         {
             var date = match.Groups[1].Value;
             var description = Regex.Replace(match.Groups[2].Value, "\\s+", " ").Trim();
-            var installment = match.Groups[3].Success ? match.Groups[3].Value : null;
+            var installment = match.Groups[3].Value;
             var amountRaw = match.Groups[4].Value.Replace(" ", string.Empty);
 
             if (description.Length < 3) continue;
@@ -262,12 +273,168 @@ public sealed class SantanderInvoiceParser : IInvoiceParser
             items.Add(InvoiceParseCommon.CreateItem(date, description, amount, installment));
         }
 
-        if (items.Count < 10)
+        foreach (Match match in SantanderInstallmentItemRegex.Matches(normalized))
         {
-            return InvoiceParseCommon.ExtractItems(lines, rawText);
+            var date = match.Groups[1].Value;
+            var description = Regex.Replace(match.Groups[2].Value, "\\s+", " ").Trim();
+            var installment = match.Groups[3].Value;
+            var amountRaw = match.Groups[4].Value.Replace(" ", string.Empty);
+
+            if (description.Length < 3) continue;
+            if (description.StartsWith("A ", StringComparison.OrdinalIgnoreCase)) continue;
+            if (description.Contains("PAGAMENTO PERIODO", StringComparison.OrdinalIgnoreCase)) continue;
+            if (description.Contains("HISTORICO DE FATURAS", StringComparison.OrdinalIgnoreCase)) continue;
+            if (description.Contains("VALOR TOTAL", StringComparison.OrdinalIgnoreCase)) continue;
+            if (description.Contains("RESUMO DA FATURA", StringComparison.OrdinalIgnoreCase)) continue;
+
+            var amount = $"R$ {amountRaw}";
+            var key = $"{date}|{description}|{amount}";
+            if (!dedup.Add(key)) continue;
+            items.Add(InvoiceParseCommon.CreateItem(date, description, amount, installment));
+        }
+
+        foreach (Match match in SantanderSimpleItemRegex.Matches(normalized))
+        {
+            var date = match.Groups[1].Value;
+            var description = Regex.Replace(match.Groups[2].Value, "\\s+", " ").Trim();
+            var amountRaw = match.Groups[3].Value.Replace(" ", string.Empty);
+
+            if (description.Length < 3) continue;
+            if (description.StartsWith("A ", StringComparison.OrdinalIgnoreCase)) continue;
+            if (description.Contains("PAGAMENTO PERIODO", StringComparison.OrdinalIgnoreCase)) continue;
+            if (description.Contains("HISTORICO DE FATURAS", StringComparison.OrdinalIgnoreCase)) continue;
+            if (description.Contains("VALOR TOTAL", StringComparison.OrdinalIgnoreCase)) continue;
+            if (description.Contains("RESUMO DA FATURA", StringComparison.OrdinalIgnoreCase)) continue;
+            if (description.Contains("PAGAMENTO DE FATURA", StringComparison.OrdinalIgnoreCase) && amountRaw.StartsWith("-", StringComparison.Ordinal)) continue;
+
+            var amount = $"R$ {amountRaw}";
+            var key = $"{date}|{description}|{amount}";
+            if (!dedup.Add(key)) continue;
+            items.Add(InvoiceParseCommon.CreateItem(date, description, amount));
+        }
+
+        if (items.Count > 0)
+        {
+            items = FixDenseSantanderInstallments(section, items);
+
+            var installmentKeys = items
+                .Where(i => i.IsInstallment)
+                .Select(i => $"{i.Date}|{i.Description}")
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            items = items
+                .Where(i =>
+                {
+                    if (i.IsInstallment) return true;
+                    if (!installmentKeys.Contains($"{i.Date}|{i.Description}")) return true;
+                    var parsed = ParseAmount(i.Amount);
+                    return !parsed.HasValue || parsed.Value >= 100m;
+                })
+                .ToList();
+        }
+
+        if (items.Count == 0)
+        {
+            var fallback = InvoiceParseCommon.ExtractItems(lines, rawText)
+                .Where(i => !i.Description.Contains("PAGAMENTO EFETUADO", StringComparison.OrdinalIgnoreCase))
+                .Where(i => !i.Description.Contains("DESC ANTECIPA PARCELAS", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            return fallback;
         }
 
         return items.Take(200).ToList();
+    }
+
+    private static void ExtractSantanderDenseInstallmentBlock(string section, List<InvoiceItemDto> items, HashSet<string> dedup)
+    {
+        var dense = Regex.Replace(section.ToUpperInvariant(), "\\s+", string.Empty);
+        var markerIndex = dense.IndexOf("PARCELAMENTOSCOMPRADATA", StringComparison.Ordinal);
+        if (markerIndex < 0) return;
+
+        var denseSection = dense[markerIndex..];
+        var endIndex = denseSection.IndexOf("VALORTOTAL", StringComparison.Ordinal);
+        if (endIndex > 0)
+        {
+            denseSection = denseSection[..endIndex];
+        }
+
+        foreach (Match match in SantanderDenseInstallmentRegex.Matches(denseSection))
+        {
+            var date = match.Groups[1].Value;
+            var description = match.Groups[2].Value;
+            var installment = match.Groups[3].Value;
+            var amountRaw = match.Groups[4].Value;
+
+            if (description.Length < 3) continue;
+            if (description.Contains("PAGAMENTO", StringComparison.OrdinalIgnoreCase)) continue;
+            if (description.Contains("DESPESAS", StringComparison.OrdinalIgnoreCase)) continue;
+
+            var amount = $"R$ {amountRaw}";
+            var key = $"{date}|{description}|{amount}";
+            if (!dedup.Add(key)) continue;
+            items.Add(InvoiceParseCommon.CreateItem(date, description, amount, installment));
+        }
+    }
+
+    private static decimal? ParseAmount(string? amount)
+    {
+        if (string.IsNullOrWhiteSpace(amount)) return null;
+        var normalized = amount.Replace("R$", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace(".", string.Empty)
+            .Replace(',', '.')
+            .Trim();
+        return decimal.TryParse(normalized, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var value)
+            ? value
+            : null;
+    }
+
+    private static List<InvoiceItemDto> FixDenseSantanderInstallments(string rawSection, List<InvoiceItemDto> items)
+    {
+        var dense = Regex.Replace(rawSection.ToUpperInvariant(), "\\s+", string.Empty);
+        var fixedItems = new List<InvoiceItemDto>(items.Count);
+
+        foreach (var item in items)
+        {
+            if (item.IsInstallment || item.Date is null)
+            {
+                fixedItems.Add(item);
+                continue;
+            }
+
+            var currentAmount = ParseAmount(item.Amount);
+            if (!currentAmount.HasValue || currentAmount.Value >= 100m)
+            {
+                fixedItems.Add(item);
+                continue;
+            }
+
+            var compactDescription = Regex.Replace(item.Description.ToUpperInvariant(), "\\s+", string.Empty);
+            var anchor = $"{item.Date}{compactDescription}";
+            var idx = dense.IndexOf(anchor, StringComparison.Ordinal);
+            if (idx < 0)
+            {
+                fixedItems.Add(item);
+                continue;
+            }
+
+            var tailStart = idx + anchor.Length;
+            var tailLength = Math.Min(20, Math.Max(0, dense.Length - tailStart));
+            var tail = tailLength > 0 ? dense.Substring(tailStart, tailLength) : string.Empty;
+
+            var compactMatch = Regex.Match(tail, @"^(\d{2}/\d{2})(\d{2,3},\d{2})", RegexOptions.Compiled);
+            if (!compactMatch.Success)
+            {
+                fixedItems.Add(item);
+                continue;
+            }
+
+            var installment = compactMatch.Groups[1].Value;
+            var amountRaw = compactMatch.Groups[2].Value;
+            var corrected = InvoiceParseCommon.CreateItem(item.Date, item.Description, $"R$ {amountRaw}", installment);
+            fixedItems.Add(corrected);
+        }
+
+        return fixedItems;
     }
 
     private static string NormalizeSantanderRawText(string rawText)
@@ -296,7 +463,9 @@ public sealed class ItauInvoiceParser : IInvoiceParser
     public bool CanParse(string rawText, IReadOnlyList<string> lines)
     {
         return rawText.Contains("ITAU", StringComparison.OrdinalIgnoreCase)
-               || rawText.Contains("ITAÚ", StringComparison.OrdinalIgnoreCase);
+               || rawText.Contains("ITAÚ", StringComparison.OrdinalIgnoreCase)
+               || (rawText.Contains("Resumo da fatura em R$", StringComparison.OrdinalIgnoreCase)
+                   && rawText.Contains("Lançamentos: compras e saques", StringComparison.OrdinalIgnoreCase));
     }
 
     public InvoiceExtractResponse Parse(string rawText, IReadOnlyList<string> lines)
@@ -451,9 +620,18 @@ public sealed class ItauInvoiceParser : IInvoiceParser
             }
         }
 
+        items = items
+            .Where(i => !i.Description.Contains("PAGAMENTO EFETUADO", StringComparison.OrdinalIgnoreCase))
+            .Where(i => !i.Description.Contains("DESC ANTECIPA PARCELAS", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
         if (items.Count < 10)
         {
-            return InvoiceParseCommon.ExtractItems(lines, rawText);
+            var fallback = InvoiceParseCommon.ExtractItems(lines, rawText)
+                .Where(i => !i.Description.Contains("PAGAMENTO EFETUADO", StringComparison.OrdinalIgnoreCase))
+                .Where(i => !i.Description.Contains("DESC ANTECIPA PARCELAS", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            return fallback;
         }
 
         return items.Take(160).ToList();
