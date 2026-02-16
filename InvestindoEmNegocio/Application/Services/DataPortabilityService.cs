@@ -1,11 +1,11 @@
 using System.Reflection;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
 
 namespace InvestindoEmNegocio.Application.Services;
 
@@ -14,7 +14,8 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        PropertyNameCaseInsensitive = true
     };
 
     public async Task<(string FileName, byte[] Content)> ExportAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -113,7 +114,18 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
         if (snapshot.Profile is not null)
         {
             var p = snapshot.Profile;
-            var profile = new UserProfile(userId, p.FullName, p.Document, p.Phone, p.BirthDate, p.AvatarUrl, p.City, p.State, p.Country, p.Language, p.Currency);
+            var profile = new UserProfile(
+                userId,
+                RequireValue(p.FullName, "profile.fullName"),
+                p.Document ?? string.Empty,
+                p.Phone ?? string.Empty,
+                p.BirthDate,
+                p.AvatarUrl ?? string.Empty,
+                p.City ?? string.Empty,
+                p.State ?? string.Empty,
+                p.Country ?? string.Empty,
+                string.IsNullOrWhiteSpace(p.Language) ? "pt-BR" : p.Language,
+                string.IsNullOrWhiteSpace(p.Currency) ? "BRL" : p.Currency);
             profile.SetNotificationPreferences(p.NotifyUpcomingEnabled, p.NotifyOverdueEnabled, p.NotifyEmailEnabled, p.NotifyInAppEnabled, p.NotifyDaysBeforeDue);
             Set(profile, nameof(UserProfile.Id), p.Id);
             Set(profile, nameof(UserProfile.CreatedAt), p.CreatedAt);
@@ -124,7 +136,7 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
 
         foreach (var c in snapshot.Categories)
         {
-            var category = new Category(userId, c.Name, c.AppliesTo);
+            var category = new Category(userId, RequireValue(c.Name, $"categories[{c.Id}].name"), c.AppliesTo);
             if (!c.IsActive) category.Deactivate();
             Set(category, nameof(Category.Id), c.Id);
             Set(category, nameof(Category.CreatedAt), c.CreatedAt);
@@ -134,7 +146,16 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
 
         foreach (var c in snapshot.Cards)
         {
-            var card = new Card(userId, c.BrandId, c.HolderName, c.Nickname, c.Last4, c.Bank, c.CreditLimit, c.StatementCloseDay, c.DueDay);
+            var card = new Card(
+                userId,
+                c.BrandId,
+                RequireValue(c.HolderName, $"cards[{c.Id}].holderName"),
+                string.IsNullOrWhiteSpace(c.Nickname) ? c.HolderName : c.Nickname,
+                RequireValue(c.Last4, $"cards[{c.Id}].last4"),
+                c.Bank,
+                c.CreditLimit,
+                c.StatementCloseDay,
+                c.DueDay);
             Set(card, nameof(Card.Id), c.Id);
             Set(card, nameof(Card.CreatedAt), c.CreatedAt);
             Set(card, nameof(Card.UpdatedAt), c.UpdatedAt);
@@ -144,7 +165,16 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
 
         foreach (var g in snapshot.Goals)
         {
-            var goal = new Goal(userId, g.Title, g.TargetAmount, g.Year, g.Description, g.Status, g.CurrentAmount, g.ExpectedMonthly, g.TargetDate);
+            var goal = new Goal(
+                userId,
+                RequireValue(g.Title, $"goals[{g.Id}].title"),
+                g.TargetAmount,
+                g.Year,
+                g.Description,
+                g.Status,
+                g.CurrentAmount,
+                g.ExpectedMonthly,
+                g.TargetDate);
             Set(goal, nameof(Goal.Id), g.Id);
             Set(goal, nameof(Goal.CreatedAt), g.CreatedAt);
             Set(goal, nameof(Goal.UpdatedAt), g.UpdatedAt);
@@ -154,7 +184,18 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
 
         foreach (var p in snapshot.Plans)
         {
-            var plan = new MoneyPlan(userId, p.Type, p.Title, p.Amount, p.Schedule, p.StartDate, p.Frequency, p.InstallmentsCount, p.DefaultPaymentMethodId, p.CategoryId, p.CardId);
+            var plan = new MoneyPlan(
+                userId,
+                p.Type,
+                RequireValue(p.Title, $"plans[{p.Id}].title"),
+                p.Amount,
+                p.Schedule,
+                p.StartDate,
+                p.Frequency,
+                p.InstallmentsCount,
+                p.DefaultPaymentMethodId,
+                p.CategoryId,
+                p.CardId);
             Set(plan, nameof(MoneyPlan.Id), p.Id);
             Set(plan, nameof(MoneyPlan.Status), p.Status);
             Set(plan, nameof(MoneyPlan.CreatedAt), p.CreatedAt);
@@ -205,7 +246,16 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
 
         foreach (var p in snapshot.InvestmentPositions)
         {
-            var position = new InvestmentPosition(userId, p.Type, p.Asset, p.Quantity, p.AvgPrice, p.OpenedAt, p.Account, p.Category, p.Note);
+            var position = new InvestmentPosition(
+                userId,
+                p.Type,
+                RequireValue(p.Asset, $"investmentPositions[{p.Id}].asset"),
+                p.Quantity,
+                p.AvgPrice,
+                p.OpenedAt,
+                p.Account ?? string.Empty,
+                p.Category ?? string.Empty,
+                p.Note);
             Set(position, nameof(InvestmentPosition.Id), p.Id);
             Set(position, nameof(InvestmentPosition.CreatedAt), p.CreatedAt);
             Set(position, nameof(InvestmentPosition.UpdatedAt), p.UpdatedAt);
@@ -235,7 +285,16 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
 
         foreach (var n in snapshot.Notifications)
         {
-            var notification = new UserNotification(userId, n.Kind, n.Title, n.Message, n.ReferenceKey, n.MoneyType, n.PlanId, n.InstallmentId, n.DueDate);
+            var notification = new UserNotification(
+                userId,
+                n.Kind,
+                RequireValue(n.Title, $"notifications[{n.Id}].title"),
+                n.Message ?? string.Empty,
+                RequireValue(n.ReferenceKey, $"notifications[{n.Id}].referenceKey"),
+                n.MoneyType,
+                n.PlanId,
+                n.InstallmentId,
+                n.DueDate);
             Set(notification, nameof(UserNotification.Id), n.Id);
             Set(notification, nameof(UserNotification.CreatedAt), n.CreatedAt);
             Set(notification, nameof(UserNotification.ReadAt), n.ReadAt);
@@ -276,5 +335,15 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
         var property = typeof(TEntity).GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         if (property is null || !property.CanWrite) return;
         property.SetValue(entity, value);
+    }
+
+    private static string RequireValue(string? value, string field)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new InvalidOperationException($"Arquivo inválido: campo obrigatório ausente ({field}).");
+        }
+
+        return value.Trim();
     }
 }

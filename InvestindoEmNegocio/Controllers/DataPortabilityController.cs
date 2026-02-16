@@ -1,7 +1,9 @@
 using System.Security.Claims;
+using System.Text.Json;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -69,8 +71,38 @@ public sealed class DataPortabilityController(
         }
 
         await using var stream = request.File.OpenReadStream();
-        var result = await dataPortabilityService.ImportAsync(GetUserId(), stream, request.ReplaceExisting, cancellationToken);
-        return Ok(result);
+        try
+        {
+            var result = await dataPortabilityService.ImportAsync(GetUserId(), stream, request.ReplaceExisting, cancellationToken);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Arquivo de importação inválido",
+                Detail = ex.Message,
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+        catch (JsonException)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Arquivo JSON inválido",
+                Detail = "Não foi possível ler o conteúdo do arquivo enviado.",
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+        catch (DbUpdateException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Falha ao importar dados",
+                Detail = ex.InnerException?.Message ?? ex.Message,
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
     }
 
     private Guid GetUserId()
