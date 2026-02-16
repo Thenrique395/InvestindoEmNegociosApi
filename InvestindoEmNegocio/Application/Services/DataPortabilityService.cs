@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
@@ -110,64 +109,113 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
         }
 
         var importedRecords = 0;
+        var categoryMap = new Dictionary<Guid, Guid>();
+        var cardMap = new Dictionary<Guid, Guid>();
+        var goalMap = new Dictionary<Guid, Guid>();
+        var planMap = new Dictionary<Guid, Guid>();
+        var installmentMap = new Dictionary<Guid, Guid>();
+        var positionMap = new Dictionary<Guid, Guid>();
 
         if (snapshot.Profile is not null)
         {
             var p = snapshot.Profile;
-            var profile = new UserProfile(
-                userId,
-                RequireValue(p.FullName, "profile.fullName"),
-                p.Document ?? string.Empty,
-                p.Phone ?? string.Empty,
-                p.BirthDate,
-                p.AvatarUrl ?? string.Empty,
-                p.City ?? string.Empty,
-                p.State ?? string.Empty,
-                p.Country ?? string.Empty,
-                string.IsNullOrWhiteSpace(p.Language) ? "pt-BR" : p.Language,
-                string.IsNullOrWhiteSpace(p.Currency) ? "BRL" : p.Currency);
-            profile.SetNotificationPreferences(p.NotifyUpcomingEnabled, p.NotifyOverdueEnabled, p.NotifyEmailEnabled, p.NotifyInAppEnabled, p.NotifyDaysBeforeDue);
-            Set(profile, nameof(UserProfile.Id), p.Id);
-            Set(profile, nameof(UserProfile.CreatedAt), p.CreatedAt);
-            Set(profile, nameof(UserProfile.UpdatedAt), p.UpdatedAt);
-            await dbContext.UserProfiles.AddAsync(profile, cancellationToken);
+            var existingProfile = await dbContext.UserProfiles.FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken);
+            if (existingProfile is null)
+            {
+                var profile = new UserProfile(
+                    userId,
+                    RequireValue(p.FullName, "profile.fullName"),
+                    p.Document ?? string.Empty,
+                    p.Phone ?? string.Empty,
+                    p.BirthDate,
+                    p.AvatarUrl ?? string.Empty,
+                    p.City ?? string.Empty,
+                    p.State ?? string.Empty,
+                    p.Country ?? string.Empty,
+                    string.IsNullOrWhiteSpace(p.Language) ? "pt-BR" : p.Language,
+                    string.IsNullOrWhiteSpace(p.Currency) ? "BRL" : p.Currency);
+                profile.SetNotificationPreferences(p.NotifyUpcomingEnabled, p.NotifyOverdueEnabled, p.NotifyEmailEnabled, p.NotifyInAppEnabled, p.NotifyDaysBeforeDue);
+                await dbContext.UserProfiles.AddAsync(profile, cancellationToken);
+            }
+            else
+            {
+                existingProfile.SetData(
+                    RequireValue(p.FullName, "profile.fullName"),
+                    p.Document ?? string.Empty,
+                    p.Phone ?? string.Empty,
+                    p.BirthDate,
+                    p.AvatarUrl ?? string.Empty,
+                    p.City ?? string.Empty,
+                    p.State ?? string.Empty,
+                    p.Country ?? string.Empty,
+                    string.IsNullOrWhiteSpace(p.Language) ? "pt-BR" : p.Language,
+                    string.IsNullOrWhiteSpace(p.Currency) ? "BRL" : p.Currency);
+                existingProfile.SetNotificationPreferences(p.NotifyUpcomingEnabled, p.NotifyOverdueEnabled, p.NotifyEmailEnabled, p.NotifyInAppEnabled, p.NotifyDaysBeforeDue);
+            }
             importedRecords++;
         }
 
         foreach (var c in snapshot.Categories)
         {
-            var category = new Category(userId, RequireValue(c.Name, $"categories[{c.Id}].name"), c.AppliesTo);
+            var name = RequireValue(c.Name, $"categories[{c.Id}].name");
+            var existingCategory = await dbContext.Categories
+                .FirstOrDefaultAsync(x => x.UserId == userId && x.Name.ToLower() == name.ToLower(), cancellationToken);
+            if (existingCategory is not null)
+            {
+                categoryMap[c.Id] = existingCategory.Id;
+                continue;
+            }
+
+            var category = new Category(userId, name, c.AppliesTo);
             if (!c.IsActive) category.Deactivate();
-            Set(category, nameof(Category.Id), c.Id);
-            Set(category, nameof(Category.CreatedAt), c.CreatedAt);
             await dbContext.Categories.AddAsync(category, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            categoryMap[c.Id] = category.Id;
             importedRecords++;
         }
 
         foreach (var c in snapshot.Cards)
         {
+            var holderName = RequireValue(c.HolderName, $"cards[{c.Id}].holderName");
+            var nickname = string.IsNullOrWhiteSpace(c.Nickname) ? holderName : c.Nickname.Trim();
+            var existingCard = await dbContext.Cards
+                .FirstOrDefaultAsync(x => x.UserId == userId && x.Nickname.ToLower() == nickname.ToLower(), cancellationToken);
+            if (existingCard is not null)
+            {
+                cardMap[c.Id] = existingCard.Id;
+                continue;
+            }
+
             var card = new Card(
                 userId,
                 c.BrandId,
-                RequireValue(c.HolderName, $"cards[{c.Id}].holderName"),
-                string.IsNullOrWhiteSpace(c.Nickname) ? c.HolderName : c.Nickname,
+                holderName,
+                nickname,
                 RequireValue(c.Last4, $"cards[{c.Id}].last4"),
                 c.Bank,
                 c.CreditLimit,
                 c.StatementCloseDay,
                 c.DueDay);
-            Set(card, nameof(Card.Id), c.Id);
-            Set(card, nameof(Card.CreatedAt), c.CreatedAt);
-            Set(card, nameof(Card.UpdatedAt), c.UpdatedAt);
             await dbContext.Cards.AddAsync(card, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            cardMap[c.Id] = card.Id;
             importedRecords++;
         }
 
         foreach (var g in snapshot.Goals)
         {
+            var title = RequireValue(g.Title, $"goals[{g.Id}].title");
+            var existingGoal = await dbContext.Goals
+                .FirstOrDefaultAsync(x => x.UserId == userId && x.Title.ToLower() == title.ToLower() && x.Year == g.Year, cancellationToken);
+            if (existingGoal is not null)
+            {
+                goalMap[g.Id] = existingGoal.Id;
+                continue;
+            }
+
             var goal = new Goal(
                 userId,
-                RequireValue(g.Title, $"goals[{g.Id}].title"),
+                title,
                 g.TargetAmount,
                 g.Year,
                 g.Description,
@@ -175,60 +223,76 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
                 g.CurrentAmount,
                 g.ExpectedMonthly,
                 g.TargetDate);
-            Set(goal, nameof(Goal.Id), g.Id);
-            Set(goal, nameof(Goal.CreatedAt), g.CreatedAt);
-            Set(goal, nameof(Goal.UpdatedAt), g.UpdatedAt);
             await dbContext.Goals.AddAsync(goal, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            goalMap[g.Id] = goal.Id;
             importedRecords++;
         }
 
         foreach (var p in snapshot.Plans)
         {
+            var title = RequireValue(p.Title, $"plans[{p.Id}].title");
+            var categoryId = p.CategoryId.HasValue && categoryMap.TryGetValue(p.CategoryId.Value, out var newCategoryId)
+                ? newCategoryId
+                : p.CategoryId;
+            var cardId = p.CardId.HasValue && cardMap.TryGetValue(p.CardId.Value, out var newCardId)
+                ? newCardId
+                : p.CardId;
+
             var plan = new MoneyPlan(
                 userId,
                 p.Type,
-                RequireValue(p.Title, $"plans[{p.Id}].title"),
+                title,
                 p.Amount,
                 p.Schedule,
                 p.StartDate,
                 p.Frequency,
                 p.InstallmentsCount,
                 p.DefaultPaymentMethodId,
-                p.CategoryId,
-                p.CardId);
-            Set(plan, nameof(MoneyPlan.Id), p.Id);
-            Set(plan, nameof(MoneyPlan.Status), p.Status);
-            Set(plan, nameof(MoneyPlan.CreatedAt), p.CreatedAt);
-            Set(plan, nameof(MoneyPlan.UpdatedAt), p.UpdatedAt);
+                categoryId,
+                cardId);
+            SetValue(plan, nameof(MoneyPlan.Status), p.Status);
             await dbContext.MoneyPlans.AddAsync(plan, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            planMap[p.Id] = plan.Id;
             importedRecords++;
         }
 
         foreach (var i in snapshot.Installments)
         {
-            var installment = new MoneyInstallment(i.PlanId, userId, i.InstallmentNo, i.DueDate, i.Amount, i.OriginalDueDate);
-            Set(installment, nameof(MoneyInstallment.Id), i.Id);
-            Set(installment, nameof(MoneyInstallment.Status), i.Status);
-            Set(installment, nameof(MoneyInstallment.CreatedAt), i.CreatedAt);
-            Set(installment, nameof(MoneyInstallment.UpdatedAt), i.UpdatedAt);
+            if (!planMap.TryGetValue(i.PlanId, out var mappedPlanId))
+            {
+                continue;
+            }
+
+            var installment = new MoneyInstallment(mappedPlanId, userId, i.InstallmentNo, i.DueDate, i.Amount, i.OriginalDueDate);
+            SetValue(installment, nameof(MoneyInstallment.Status), i.Status);
             await dbContext.MoneyInstallments.AddAsync(installment, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            installmentMap[i.Id] = installment.Id;
             importedRecords++;
         }
 
         foreach (var p in snapshot.Payments)
         {
-            var payment = new MoneyPayment(p.InstallmentId, userId, p.PaidAt, p.PaidAmount, p.MethodId, p.Note);
-            Set(payment, nameof(MoneyPayment.Id), p.Id);
-            Set(payment, nameof(MoneyPayment.CreatedAt), p.CreatedAt);
+            if (!installmentMap.TryGetValue(p.InstallmentId, out var mappedInstallmentId))
+            {
+                continue;
+            }
+
+            var payment = new MoneyPayment(mappedInstallmentId, userId, p.PaidAt, p.PaidAmount, p.MethodId, p.Note);
             await dbContext.MoneyPayments.AddAsync(payment, cancellationToken);
             importedRecords++;
         }
 
         foreach (var c in snapshot.GoalContributions)
         {
-            var contribution = new GoalContribution(c.GoalId, userId, c.Amount, c.Date, c.Note);
-            Set(contribution, nameof(GoalContribution.Id), c.Id);
-            Set(contribution, nameof(GoalContribution.CreatedAt), c.CreatedAt);
+            if (!goalMap.TryGetValue(c.GoalId, out var mappedGoalId))
+            {
+                continue;
+            }
+
+            var contribution = new GoalContribution(mappedGoalId, userId, c.Amount, c.Date, c.Note);
             await dbContext.GoalContributions.AddAsync(contribution, cancellationToken);
             importedRecords++;
         }
@@ -236,12 +300,17 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
         if (snapshot.InvestmentGoal is not null)
         {
             var g = snapshot.InvestmentGoal;
-            var goal = new InvestmentGoal(userId, g.TargetAmount);
-            Set(goal, nameof(InvestmentGoal.Id), g.Id);
-            Set(goal, nameof(InvestmentGoal.CreatedAt), g.CreatedAt);
-            Set(goal, nameof(InvestmentGoal.UpdatedAt), g.UpdatedAt);
-            await dbContext.InvestmentGoals.AddAsync(goal, cancellationToken);
-            importedRecords++;
+            var existingInvestmentGoal = await dbContext.InvestmentGoals.FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken);
+            if (existingInvestmentGoal is null)
+            {
+                var goal = new InvestmentGoal(userId, g.TargetAmount);
+                await dbContext.InvestmentGoals.AddAsync(goal, cancellationToken);
+                importedRecords++;
+            }
+            else
+            {
+                existingInvestmentGoal.SetTargetAmount(g.TargetAmount);
+            }
         }
 
         foreach (var p in snapshot.InvestmentPositions)
@@ -256,18 +325,20 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
                 p.Account ?? string.Empty,
                 p.Category ?? string.Empty,
                 p.Note);
-            Set(position, nameof(InvestmentPosition.Id), p.Id);
-            Set(position, nameof(InvestmentPosition.CreatedAt), p.CreatedAt);
-            Set(position, nameof(InvestmentPosition.UpdatedAt), p.UpdatedAt);
             await dbContext.InvestmentPositions.AddAsync(position, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            positionMap[p.Id] = position.Id;
             importedRecords++;
         }
 
         foreach (var m in snapshot.InvestmentMovements)
         {
-            var movement = new InvestmentMovement(m.PositionId, m.Type, m.Quantity, m.Price, m.Date, m.Note);
-            Set(movement, nameof(InvestmentMovement.Id), m.Id);
-            Set(movement, nameof(InvestmentMovement.CreatedAt), m.CreatedAt);
+            if (!positionMap.TryGetValue(m.PositionId, out var mappedPositionId))
+            {
+                continue;
+            }
+
+            var movement = new InvestmentMovement(mappedPositionId, m.Type, m.Quantity, m.Price, m.Date, m.Note);
             await dbContext.InvestmentMovements.AddAsync(movement, cancellationToken);
             importedRecords++;
         }
@@ -275,29 +346,43 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
         if (snapshot.Onboarding is not null)
         {
             var o = snapshot.Onboarding;
-            var onboarding = new UserOnboarding(userId, o.Step, o.Completed);
-            Set(onboarding, nameof(UserOnboarding.Id), o.Id);
-            Set(onboarding, nameof(UserOnboarding.CreatedAt), o.CreatedAt);
-            Set(onboarding, nameof(UserOnboarding.UpdatedAt), o.UpdatedAt);
-            await dbContext.UserOnboardings.AddAsync(onboarding, cancellationToken);
-            importedRecords++;
+            var existingOnboarding = await dbContext.UserOnboardings.FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken);
+            if (existingOnboarding is null)
+            {
+                var onboarding = new UserOnboarding(userId, o.Step, o.Completed);
+                await dbContext.UserOnboardings.AddAsync(onboarding, cancellationToken);
+                importedRecords++;
+            }
+            else
+            {
+                existingOnboarding.Update(o.Step, o.Completed);
+            }
         }
 
         foreach (var n in snapshot.Notifications)
         {
+            var normalizedReference = RequireValue(n.ReferenceKey, $"notifications[{n.Id}].referenceKey");
+            var exists = await dbContext.UserNotifications
+                .AsNoTracking()
+                .AnyAsync(x => x.UserId == userId && x.ReferenceKey == normalizedReference, cancellationToken);
+            if (exists)
+            {
+                continue;
+            }
+
+            var mappedPlanId = n.PlanId.HasValue && planMap.TryGetValue(n.PlanId.Value, out var pId) ? pId : (Guid?)null;
+            var mappedInstallmentId = n.InstallmentId.HasValue && installmentMap.TryGetValue(n.InstallmentId.Value, out var iId) ? iId : (Guid?)null;
             var notification = new UserNotification(
                 userId,
                 n.Kind,
                 RequireValue(n.Title, $"notifications[{n.Id}].title"),
                 n.Message ?? string.Empty,
-                RequireValue(n.ReferenceKey, $"notifications[{n.Id}].referenceKey"),
+                normalizedReference,
                 n.MoneyType,
-                n.PlanId,
-                n.InstallmentId,
+                mappedPlanId,
+                mappedInstallmentId,
                 n.DueDate);
-            Set(notification, nameof(UserNotification.Id), n.Id);
-            Set(notification, nameof(UserNotification.CreatedAt), n.CreatedAt);
-            Set(notification, nameof(UserNotification.ReadAt), n.ReadAt);
+            SetValue(notification, nameof(UserNotification.ReadAt), n.ReadAt);
             await dbContext.UserNotifications.AddAsync(notification, cancellationToken);
             importedRecords++;
         }
@@ -330,13 +415,6 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    private static void Set<TEntity>(TEntity entity, string propertyName, object? value)
-    {
-        var property = typeof(TEntity).GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        if (property is null || !property.CanWrite) return;
-        property.SetValue(entity, value);
-    }
-
     private static string RequireValue(string? value, string field)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -345,5 +423,11 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
         }
 
         return value.Trim();
+    }
+
+    private static void SetValue<TEntity>(TEntity entity, string propertyName, object? value)
+    {
+        var property = typeof(TEntity).GetProperty(propertyName);
+        property?.SetValue(entity, value);
     }
 }
