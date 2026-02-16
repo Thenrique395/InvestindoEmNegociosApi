@@ -92,7 +92,7 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
         };
 
         var content = JsonSerializer.SerializeToUtf8Bytes(snapshot, JsonOptions);
-        var fileName = $"investindo-user-export-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json";
+        var fileName = $"investindoemnegocios-dados-v1-{DateTime.UtcNow:yyyyMMddTHHmmssZ}.json";
         return (fileName, content);
     }
 
