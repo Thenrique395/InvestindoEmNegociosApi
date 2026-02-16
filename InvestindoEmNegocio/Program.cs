@@ -6,15 +6,16 @@ using InvestindoEmNegocio.Domain.Repositories;
 using InvestindoEmNegocio.Infrastructure.Auth;
 using InvestindoEmNegocio.Infrastructure.Data;
 using InvestindoEmNegocio.Infrastructure.Logging;
-using InvestindoEmNegocio.Infrastructure.Swagger;
 using InvestindoEmNegocio.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.OpenApi;
 using Serilog;
 using Serilog.Formatting.Compact;
 using System.Security.Claims;
@@ -130,32 +131,51 @@ builder.Host.UseSerilog((context, services, configuration) =>
 });
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
+builder.Services.AddOpenApi(options =>
 {
-    options.OperationFilter<FileUploadOperationFilter>();
-    options.MapType<IFormFile>(() => new OpenApiSchema { Type = "string", Format = "binary" });
-    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    options.AddDocumentTransformer((document, _, _) =>
     {
-        Description = "JWT Authorization header usando o esquema Bearer. Exemplo: \"Bearer {token}\"",
-        Name = "Authorization",
-        In = ParameterLocation.Header,
-        Type = SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT"
-    });
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
+        document.Components ??= new OpenApiComponents();
+        document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
         {
-            new OpenApiSecurityScheme
+            Description = "JWT Authorization header usando o esquema Bearer. Exemplo: \"Bearer {token}\"",
+            Name = "Authorization",
+            In = ParameterLocation.Header,
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT"
+        };
+        return Task.CompletedTask;
+    });
+
+    options.AddOperationTransformer((operation, context, _) =>
+    {
+        var requiresAuth = context.Description.ActionDescriptor.EndpointMetadata
+            .OfType<IAuthorizeData>()
+            .Any();
+        var allowsAnonymous = context.Description.ActionDescriptor.EndpointMetadata
+            .OfType<IAllowAnonymous>()
+            .Any();
+
+        if (!requiresAuth || allowsAnonymous)
+        {
+            return Task.CompletedTask;
+        }
+
+        operation.Security ??= [];
+        operation.Security.Add(new OpenApiSecurityRequirement
+        {
+            [new OpenApiSecurityScheme
             {
                 Reference = new OpenApiReference
                 {
                     Type = ReferenceType.SecurityScheme,
                     Id = "Bearer"
                 }
-            },
-            Array.Empty<string>()
-        }
+            }] = []
+        });
+
+        return Task.CompletedTask;
     });
 });
 
@@ -333,8 +353,7 @@ var app = builder.Build();
 Log.Information("OTEL config loaded. Endpoint: {OtelEndpoint}, Protocol: {OtelProtocol}, ServiceName: {OtelServiceName}",
     otlpEndpoint?.ToString() ?? "<not-set>", otlpProtocol, otelServiceName);
 
-app.UseSwagger();
-app.UseSwaggerUI();
+app.MapOpenApi("/openapi/v1.json");
 
 app.UseExceptionHandler(exceptionApp =>
 {
