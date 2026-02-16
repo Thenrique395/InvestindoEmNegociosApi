@@ -65,6 +65,8 @@ EnsureEnvFromConfig(builder.Configuration, "OTEL_EXPORTER_OTLP_PROTOCOL", "OTEL_
 EnsureEnvFromConfig(builder.Configuration, "OTEL_TRACES_EXPORTER", "OTEL_TRACES_EXPORTER");
 EnsureEnvFromConfig(builder.Configuration, "OTEL_METRICS_EXPORTER", "OTEL_METRICS_EXPORTER");
 EnsureEnvFromConfig(builder.Configuration, "OTEL_LOGS_EXPORTER", "OTEL_LOGS_EXPORTER");
+EnsureEnvFromConfig(builder.Configuration, "DataPortability__Enabled", "DataPortability:Enabled");
+EnsureEnvFromConfig(builder.Configuration, "DataPortability__MaxImportSizeMb", "DataPortability:MaxImportSizeMb");
 
 var otelServiceName = Environment.GetEnvironmentVariable("OTEL_SERVICE_NAME") ?? "InvestindoEmNegocio";
 var otlpEndpointValue = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT");
@@ -227,6 +229,7 @@ builder.Services.AddProblemDetails(options =>
 });
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+builder.Services.Configure<DataPortabilityOptions>(builder.Configuration.GetSection("DataPortability"));
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(CorsPolicy, policy =>
@@ -317,6 +320,7 @@ builder.Services.AddScoped<IPreferencesService, PreferencesService>();
 builder.Services.AddScoped<INotificationsService, NotificationsService>();
 builder.Services.AddSingleton<InvoiceParserFactory>();
 builder.Services.AddScoped<IInvoiceImportService, InvoiceImportService>();
+builder.Services.AddScoped<IDataPortabilityService, DataPortabilityService>();
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<InvestindoEmNegocio.Application.Validation.RegisterUserRequestValidator>();
 
