@@ -29,6 +29,7 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 const string CorsPolicy = "AllowFrontend";
@@ -354,6 +355,13 @@ Log.Information("OTEL config loaded. Endpoint: {OtelEndpoint}, Protocol: {OtelPr
     otlpEndpoint?.ToString() ?? "<not-set>", otlpProtocol, otelServiceName);
 
 app.MapOpenApi("/openapi/v1.json");
+app.MapScalarApiReference("/docs", options =>
+{
+    options.Title = "InvestindoEmNegocio API";
+    options.Theme = ScalarTheme.BluePlanet;
+    options.DefaultHttpClient = new(ScalarTarget.CSharp, ScalarClient.HttpClient);
+});
+app.MapGet("/docs/", () => Results.Redirect("/docs"));
 
 app.UseExceptionHandler(exceptionApp =>
 {
