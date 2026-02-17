@@ -47,7 +47,10 @@ public sealed class InvestmentBenchmarksService(
             }
 
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            var points = await JsonSerializer.DeserializeAsync<List<BcbPoint>>(stream, cancellationToken: cancellationToken);
+            var points = await JsonSerializer.DeserializeAsync<List<BcbPoint>>(
+                stream,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true },
+                cancellationToken);
             if (points is null || points.Count == 0)
             {
                 return 0m;
@@ -92,5 +95,5 @@ public sealed class InvestmentBenchmarksService(
         return 0m;
     }
 
-    private sealed record BcbPoint(string Data, string Valor);
+    private sealed record BcbPoint(string? Data, string? Valor);
 }
