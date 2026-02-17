@@ -376,6 +376,18 @@ internal static class B3ReportParser
         @"(?<code>[A-Z0-9]{4,10})\s+(?<period>\d{2}\/\d{2}\/\d{4})\s+(?<institution>.+?)\s+(?<buy>\d+(?:,\d+)?)\s+(?<sell>\d+(?:,\d+)?)\s+(?<net>-?\d+(?:,\d+)?)\s+(?:R\$\s*)?(?<avgBuy>-?[\d\.]+,\d{2})\s+(?:R\$\s*)?(?<avgSell>-?[\d\.]+,\d{2})",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
+    private static readonly Regex CompactPositionRegex = new(
+        @"(?<product>[A-Z0-9]{4,8}\s-\s.+?)(?<type>ON|PN|COTAS?|Cotas)(?<institution>BANCO\s+[A-Z\s\.]+S\/A)(?<quantity>\d+)(?:R\$\s*)?(?<closing>[\d\.]+,\d{2})(?:R\$\s*)?(?<updated>[\d\.]+,\d{2})(?=(?:[A-Z0-9]{4,8}\s-\s)|(?:TotalR\$)|(?:Relatório)|(?:Proventos))",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+
+    private static readonly Regex CompactIncomeRegex = new(
+        @"(?<product>[A-Z0-9]{4,8}[A-Z]?\s-\s.+?)(?<payment>\d{2}\/\d{2}\/\d{4})(?<event>Juros\s+Sobre\s*Capital\s+Próprio|Juros\s+Sobre\s*Capital\s+Proprio|Dividendo|Rendimento)(?<institution>BANCO\s+[A-Z\s\.]+S\/A|BANCO\s+[A-Z\s\.]+S\.A\.)(?<quantity>\d+)(?:R\$\s*)?(?<unit>[\d\.]+,\d{2})(?:R\$\s*)?(?<net>[\d\.]+,\d{2})(?=(?:[A-Z0-9]{4,8}[A-Z]?\s-\s)|(?:TotalR\$)|(?:Relatório)|(?:Reembolsos)|(?:Negociação))",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+
+    private static readonly Regex CompactTradeRegex = new(
+        @"(?<code>[A-Z0-9]{4,10})(?<period>\d{2}\/\d{2}\/\d{4})(?<institution>BANCO\s+[A-Z\s]+S\/A)(?<qblock>\d+)(?:R\$\s*)?(?<avgBuy>[\d\.]+,\d{2})(?:R\$\s*)?(?<avgSell>[\d\.]+,\d{2})(?=(?:[A-Z0-9]{4,10}\d{2}\/\d{2}\/\d{4})|(?:Relatório)|$)",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+
     public static B3ParsedSnapshot Parse(string rawText)
     {
         var headerMatch = HeaderRegex.Match(rawText);
@@ -394,15 +406,27 @@ internal static class B3ReportParser
         {
             positions = ParsePositions(normalized);
         }
+        if (positions.Count == 0)
+        {
+            positions = ParseCompactPositions(rawText);
+        }
 
         if (incomes.Count == 0)
         {
             incomes = ParseIncomes(normalized);
         }
+        if (incomes.Count == 0)
+        {
+            incomes = ParseCompactIncomes(rawText);
+        }
 
         if (trades.Count == 0)
         {
             trades = ParseTrades(normalized);
+        }
+        if (trades.Count == 0)
+        {
+            trades = ParseCompactTrades(rawText);
         }
 
         return new B3ParsedSnapshot(
@@ -517,6 +541,120 @@ internal static class B3ReportParser
         }
 
         return rows;
+    }
+
+    private static List<B3ExtractPosition> ParseCompactPositions(string raw)
+    {
+        var normalized = Regex.Replace(raw, "\\s+", " ").Trim();
+        var rows = new List<B3ExtractPosition>();
+        var dedup = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (Match match in CompactPositionRegex.Matches(normalized))
+        {
+            var product = NormalizeSpaces(match.Groups["product"].Value);
+            var key = $"{product}|{match.Groups["institution"].Value}|{match.Groups["quantity"].Value}|{match.Groups["updated"].Value}";
+            if (!dedup.Add(key))
+            {
+                continue;
+            }
+
+            rows.Add(new B3ExtractPosition(
+                product,
+                NormalizeSpaces(match.Groups["type"].Value),
+                NormalizeSpaces(match.Groups["institution"].Value).Replace("BTGPACTUAL", "BTG PACTUAL", StringComparison.OrdinalIgnoreCase),
+                ParseDecimal(match.Groups["quantity"].Value),
+                ParseMoney(match.Groups["closing"].Value),
+                ParseMoney(match.Groups["updated"].Value)));
+        }
+
+        return rows;
+    }
+
+    private static List<B3ExtractIncome> ParseCompactIncomes(string raw)
+    {
+        var normalized = Regex.Replace(raw, "\\s+", " ").Trim();
+        var rows = new List<B3ExtractIncome>();
+        var dedup = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (Match match in CompactIncomeRegex.Matches(normalized))
+        {
+            var product = NormalizeSpaces(match.Groups["product"].Value);
+            var paymentDate = match.Groups["payment"].Value;
+            var eventType = NormalizeSpaces(match.Groups["event"].Value);
+            var key = $"{product}|{paymentDate}|{eventType}|{match.Groups["net"].Value}";
+            if (!dedup.Add(key))
+            {
+                continue;
+            }
+
+            rows.Add(new B3ExtractIncome(
+                product,
+                paymentDate,
+                eventType,
+                NormalizeSpaces(match.Groups["institution"].Value).Replace("BTGPACTUAL", "BTG PACTUAL", StringComparison.OrdinalIgnoreCase),
+                ParseDecimal(match.Groups["quantity"].Value),
+                ParseMoney(match.Groups["unit"].Value),
+                ParseMoney(match.Groups["net"].Value)));
+        }
+
+        return rows;
+    }
+
+    private static List<B3ExtractTrade> ParseCompactTrades(string raw)
+    {
+        var normalized = Regex.Replace(raw, "\\s+", " ").Trim();
+        var rows = new List<B3ExtractTrade>();
+        var dedup = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (Match match in CompactTradeRegex.Matches(normalized))
+        {
+            var code = NormalizeSpaces(match.Groups["code"].Value);
+            var period = match.Groups["period"].Value;
+            var qblock = match.Groups["qblock"].Value;
+            var (buy, sell, net) = ParseCompactQuantities(qblock);
+            var key = $"{code}|{period}|{qblock}|{match.Groups["avgBuy"].Value}|{match.Groups["avgSell"].Value}";
+            if (!dedup.Add(key))
+            {
+                continue;
+            }
+
+            rows.Add(new B3ExtractTrade(
+                code,
+                period,
+                NormalizeSpaces(match.Groups["institution"].Value).Replace("BTGPACTUAL", "BTG PACTUAL", StringComparison.OrdinalIgnoreCase),
+                buy,
+                sell,
+                net,
+                ParseMoney(match.Groups["avgBuy"].Value),
+                ParseMoney(match.Groups["avgSell"].Value)));
+        }
+
+        return rows;
+    }
+
+    private static (decimal buy, decimal sell, decimal net) ParseCompactQuantities(string qblock)
+    {
+        if (string.IsNullOrWhiteSpace(qblock))
+        {
+            return (0m, 0m, 0m);
+        }
+
+        if (qblock.Length == 3 && qblock.All(char.IsDigit))
+        {
+            return (qblock[0] - '0', qblock[1] - '0', qblock[2] - '0');
+        }
+
+        if (qblock.Length % 3 == 0)
+        {
+            var size = qblock.Length / 3;
+            var p1 = qblock[..size];
+            var p2 = qblock[size..(size * 2)];
+            var p3 = qblock[(size * 2)..];
+            return (ParseDecimal(p1), ParseDecimal(p2), ParseDecimal(p3));
+        }
+
+        var net = ParseDecimal(qblock);
+        return (0m, 0m, net);
     }
 
     private static decimal ParseMoney(string value)
