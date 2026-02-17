@@ -31,6 +31,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Scalar.AspNetCore;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 const string CorsPolicy = "AllowFrontend";
@@ -68,6 +69,10 @@ EnsureEnvFromConfig(builder.Configuration, "OTEL_METRICS_EXPORTER", "OTEL_METRIC
 EnsureEnvFromConfig(builder.Configuration, "OTEL_LOGS_EXPORTER", "OTEL_LOGS_EXPORTER");
 EnsureEnvFromConfig(builder.Configuration, "DataPortability__Enabled", "DataPortability:Enabled");
 EnsureEnvFromConfig(builder.Configuration, "DataPortability__MaxImportSizeMb", "DataPortability:MaxImportSizeMb");
+EnsureEnvFromConfig(builder.Configuration, "B3Api__Enabled", "B3Api:Enabled");
+EnsureEnvFromConfig(builder.Configuration, "B3Api__BaseUrl", "B3Api:BaseUrl");
+EnsureEnvFromConfig(builder.Configuration, "B3Api__ClientId", "B3Api:ClientId");
+EnsureEnvFromConfig(builder.Configuration, "B3Api__ClientSecret", "B3Api:ClientSecret");
 
 var otelServiceName = Environment.GetEnvironmentVariable("OTEL_SERVICE_NAME") ?? "InvestindoEmNegocio";
 var otlpEndpointValue = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT");
@@ -232,6 +237,7 @@ builder.Services.AddProblemDetails(options =>
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<DataPortabilityOptions>(builder.Configuration.GetSection("DataPortability"));
+builder.Services.Configure<B3ApiOptions>(builder.Configuration.GetSection("B3Api"));
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(CorsPolicy, policy =>
@@ -323,6 +329,17 @@ builder.Services.AddScoped<INotificationsService, NotificationsService>();
 builder.Services.AddSingleton<InvoiceParserFactory>();
 builder.Services.AddScoped<IInvoiceImportService, InvoiceImportService>();
 builder.Services.AddScoped<IB3ImportService, B3ImportService>();
+builder.Services.AddHttpClient<IB3Connector, B3ApiClient>((sp, client) =>
+{
+    var opts = sp.GetRequiredService<IOptions<B3ApiOptions>>().Value;
+    if (!string.IsNullOrWhiteSpace(opts.BaseUrl))
+    {
+        client.BaseAddress = new Uri(opts.BaseUrl);
+    }
+
+    client.Timeout = TimeSpan.FromSeconds(opts.TimeoutSeconds <= 0 ? 30 : opts.TimeoutSeconds);
+});
+builder.Services.AddScoped<IB3SyncService, B3SyncService>();
 builder.Services.AddScoped<IDataPortabilityService, DataPortabilityService>();
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<InvestindoEmNegocio.Application.Validation.RegisterUserRequestValidator>();

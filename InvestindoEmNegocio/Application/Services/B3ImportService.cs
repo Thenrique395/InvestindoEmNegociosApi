@@ -76,8 +76,25 @@ public sealed class B3ImportService(
             throw new UnauthorizedAccessException("Importação pertence a outro usuário.");
         }
 
-        var strategy = ParseStrategy(request.Strategy);
-        var snapshot = cached.Snapshot;
+        var response = await ImportSnapshotAsync(
+            userId,
+            new B3ImportSnapshot(
+                cached.Snapshot.ReferenceMonth,
+                cached.Snapshot.HolderName,
+                cached.Snapshot.Document,
+                cached.Snapshot.Positions,
+                cached.Snapshot.Incomes,
+                cached.Snapshot.Trades),
+            request.Strategy,
+            cancellationToken);
+
+        memoryCache.Remove(request.ImportToken);
+        return response;
+    }
+
+    public async Task<B3ConfirmImportResponse> ImportSnapshotAsync(Guid userId, B3ImportSnapshot snapshot, string strategy, CancellationToken cancellationToken)
+    {
+        var importStrategy = ParseStrategy(strategy);
         var imported = 0;
 
         await using var tx = await dbContext.Database.BeginTransactionAsync(cancellationToken);
@@ -87,7 +104,7 @@ public sealed class B3ImportService(
             .Where(x => x.UserId == userId)
             .ToListAsync(cancellationToken);
 
-        if (strategy == ImportStrategy.Replace)
+        if (importStrategy == ImportStrategy.Replace)
         {
             var importedKeys = snapshot.Positions
                 .Select(x => BuildPositionKey(NormalizeAssetCode(x.Product), x.Institution))
@@ -191,7 +208,6 @@ public sealed class B3ImportService(
         await dbContext.SaveChangesAsync(cancellationToken);
         await tx.CommitAsync(cancellationToken);
 
-        memoryCache.Remove(request.ImportToken);
         logger.LogInformation("Importacao B3 concluida para usuario {UserId}. Itens importados: {Imported}", userId, imported);
 
         return new B3ConfirmImportResponse(imported);

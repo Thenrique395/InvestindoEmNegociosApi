@@ -17,6 +17,7 @@ public class InvestmentsController(
     IInvestmentsService investmentsService,
     IAuditService auditService,
     IB3ImportService b3ImportService,
+    IB3SyncService b3SyncService,
     ILogger<InvestmentsController> logger) : ControllerBase
 {
     [HttpGet("goal")]
@@ -201,6 +202,47 @@ public class InvestmentsController(
             {
                 Title = "Erro interno do servidor.",
                 Detail = "Nao foi possivel concluir a importação da B3.",
+                Status = StatusCodes.Status500InternalServerError
+            });
+        }
+    }
+
+    [HttpGet("b3/consent")]
+    public async Task<ActionResult<B3ConsentStatusResponse>> GetB3Consent(CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        var response = await b3SyncService.GetConsentStatusAsync(userId, cancellationToken);
+        return Ok(response);
+    }
+
+    [HttpPost("b3/consent/mock-grant")]
+    public async Task<ActionResult<B3ConsentStatusResponse>> GrantB3ConsentMock(CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        var response = await b3SyncService.GrantMockConsentAsync(userId, cancellationToken);
+        return Ok(response);
+    }
+
+    [HttpPost("b3/sync")]
+    public async Task<ActionResult<B3SyncResponse>> SyncB3([FromBody] B3SyncRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var response = await b3SyncService.SyncAsync(userId, request, cancellationToken);
+            return Ok(response);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ProblemDetails { Title = "Sincronização inválida", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Erro ao sincronizar B3.");
+            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+            {
+                Title = "Erro interno do servidor.",
+                Detail = "Nao foi possivel sincronizar dados da B3.",
                 Status = StatusCodes.Status500InternalServerError
             });
         }
