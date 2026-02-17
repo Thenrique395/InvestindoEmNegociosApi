@@ -3,5 +3,11 @@ namespace InvestindoEmNegocio.Domain.Enums;
 public enum InvestmentMovementType
 {
     APORTE,
-    RESGATE
+    RESGATE,
+    COMPRA,
+    VENDA,
+    DIVIDENDO,
+    JCP,
+    RENDIMENTO,
+    TAXA
 }

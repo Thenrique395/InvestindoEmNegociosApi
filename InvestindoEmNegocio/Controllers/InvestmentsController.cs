@@ -5,6 +5,7 @@ using InvestindoEmNegocio.Infrastructure.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
+using UglyToad.PdfPig.Core;
 
 namespace InvestindoEmNegocio.Controllers;
 
@@ -12,7 +13,11 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/[controller]")]
 [Route("api/v1/[controller]")]
 [Authorize]
-public class InvestmentsController(IInvestmentsService investmentsService, IAuditService auditService) : ControllerBase
+public class InvestmentsController(
+    IInvestmentsService investmentsService,
+    IAuditService auditService,
+    IB3ImportService b3ImportService,
+    ILogger<InvestmentsController> logger) : ControllerBase
 {
     [HttpGet("goal")]
     public async Task<ActionResult<InvestmentGoalDto>> GetGoal(CancellationToken cancellationToken)
@@ -120,6 +125,84 @@ public class InvestmentsController(IInvestmentsService investmentsService, IAudi
         catch (ArgumentException ex)
         {
             return BadRequest(new ProblemDetails { Title = "Movimento inválido", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+        }
+    }
+
+    [HttpPost("import/b3/extract")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(20 * 1024 * 1024)]
+    public async Task<ActionResult<B3ExtractResponse>> ExtractB3([FromForm] UploadB3ReportRequest request, CancellationToken cancellationToken)
+    {
+        var file = request.File;
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new ProblemDetails { Title = "Arquivo inválido", Detail = "Envie o relatório da B3 em PDF.", Status = StatusCodes.Status400BadRequest });
+        }
+
+        if (!string.Equals(file.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new ProblemDetails { Title = "Arquivo inválido", Detail = "Formato não suportado. Use PDF.", Status = StatusCodes.Status400BadRequest });
+        }
+
+        try
+        {
+            var userId = GetUserId();
+            await using var stream = file.OpenReadStream();
+            var response = await b3ImportService.ExtractAsync(userId, stream, cancellationToken);
+            return Ok(response);
+        }
+        catch (PdfDocumentFormatException ex)
+        {
+            logger.LogWarning(ex, "Falha ao ler relatorio B3 (PDF inválido).");
+            return UnprocessableEntity(new ProblemDetails
+            {
+                Title = "Falha ao ler PDF",
+                Detail = "O arquivo parece inválido ou protegido.",
+                Status = StatusCodes.Status422UnprocessableEntity
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ProblemDetails { Title = "Relatório inválido", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Erro ao extrair relatorio B3.");
+            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+            {
+                Title = "Erro interno do servidor.",
+                Detail = "Nao foi possivel ler o relatório da B3.",
+                Status = StatusCodes.Status500InternalServerError
+            });
+        }
+    }
+
+    [HttpPost("import/b3/confirm")]
+    public async Task<ActionResult<B3ConfirmImportResponse>> ConfirmB3([FromBody] ConfirmB3ImportRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var response = await b3ImportService.ConfirmAsync(userId, request, cancellationToken);
+            return Ok(response);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ProblemDetails { Title = "Importação inválida", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new ProblemDetails { Title = "Acesso negado", Detail = ex.Message, Status = StatusCodes.Status401Unauthorized });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Erro ao confirmar importacao B3.");
+            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+            {
+                Title = "Erro interno do servidor.",
+                Detail = "Nao foi possivel concluir a importação da B3.",
+                Status = StatusCodes.Status500InternalServerError
+            });
         }
     }
 

@@ -123,7 +123,7 @@ public class InvestmentsService : IInvestmentsService
         if (request.Quantity <= 0 || request.Price <= 0)
             throw new ArgumentException("Quantidade e preço devem ser maiores que zero.");
 
-        if (request.Type == InvestmentMovementType.RESGATE && request.Quantity > position.Quantity)
+        if (IsOutputMovement(request.Type) && request.Quantity > position.Quantity)
             throw new ArgumentException("Quantidade de resgate maior que posição.");
 
         var movement = new InvestmentMovement(position.Id, request.Type, request.Quantity, request.Price, request.Date,
@@ -132,14 +132,14 @@ public class InvestmentsService : IInvestmentsService
         var quantity = position.Quantity;
         var avgPrice = position.AvgPrice;
 
-        if (request.Type == InvestmentMovementType.APORTE)
+        if (IsInputMovement(request.Type))
         {
             var totalAtual = quantity * avgPrice;
             var totalNovo = request.Quantity * request.Price;
             quantity = quantity + request.Quantity;
             avgPrice = quantity > 0 ? (totalAtual + totalNovo) / quantity : 0;
         }
-        else
+        else if (IsOutputMovement(request.Type))
             quantity = quantity - request.Quantity;
 
 
@@ -191,4 +191,10 @@ public class InvestmentsService : IInvestmentsService
         if (request.Quantity <= 0 || request.AvgPrice <= 0)
             throw new ArgumentException("Quantidade e preço médio devem ser maiores que zero.");
     }
+
+    private static bool IsInputMovement(InvestmentMovementType type) =>
+        type is InvestmentMovementType.APORTE or InvestmentMovementType.COMPRA;
+
+    private static bool IsOutputMovement(InvestmentMovementType type) =>
+        type is InvestmentMovementType.RESGATE or InvestmentMovementType.VENDA;
 }

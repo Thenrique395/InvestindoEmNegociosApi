@@ -135,6 +135,7 @@ builder.Host.UseSerilog((context, services, configuration) =>
 });
 
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddMemoryCache();
 builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer((document, _, _) =>
@@ -321,6 +322,7 @@ builder.Services.AddScoped<IPreferencesService, PreferencesService>();
 builder.Services.AddScoped<INotificationsService, NotificationsService>();
 builder.Services.AddSingleton<InvoiceParserFactory>();
 builder.Services.AddScoped<IInvoiceImportService, InvoiceImportService>();
+builder.Services.AddScoped<IB3ImportService, B3ImportService>();
 builder.Services.AddScoped<IDataPortabilityService, DataPortabilityService>();
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<InvestindoEmNegocio.Application.Validation.RegisterUserRequestValidator>();
