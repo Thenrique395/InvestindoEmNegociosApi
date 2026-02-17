@@ -365,15 +365,15 @@ internal static class B3ReportParser
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex PositionRegex = new(
-        @"(?<product>[A-Z0-9]{4,8}\s*-\s*.+?)\s+(?<type>ON|PN|UNT|COTAS?|Cotas)\s+(?<institution>.+?)\s+(?<quantity>\d+(?:,\d+)?)\s+R\$\s*(?<closing>[\d\.]+,\d{2})\s+R\$\s*(?<updated>[\d\.]+,\d{2})",
+        @"(?<product>[A-Z0-9]{4,8}\s*-\s*.+?)\s+(?<type>ON|PN|UNT|COTAS?|Cotas)\s+(?<institution>.+?)\s+(?<quantity>\d+(?:,\d+)?)\s+(?:R\$\s*)?(?<closing>-?[\d\.]+,\d{2})\s+(?:R\$\s*)?(?<updated>-?[\d\.]+,\d{2})",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
     private static readonly Regex IncomeRegex = new(
-        @"(?<product>[A-Z0-9]{4,8}[A-Z]?\s*-\s*.+?)\s+(?<payment>\d{2}\/\d{2}\/\d{4})\s+(?<event>.+?)\s+(?<institution>(?:BANCO|BTG|XP|CLEAR|INTER|NU|ITA[UÚ])[A-Z0-9\s\./-]+?)\s+(?<quantity>\d+(?:,\d+)?)\s+R\$\s*(?<unit>[\d\.]+,\d{2})\s+R\$\s*(?<net>[\d\.]+,\d{2})",
+        @"(?<product>[A-Z0-9]{4,8}[A-Z]?\s*-\s*.+?)\s+(?<payment>\d{2}\/\d{2}\/\d{4})\s+(?<event>.+?)\s+(?<institution>.+?)\s+(?<quantity>\d+(?:,\d+)?)\s+(?:R\$\s*)?(?<unit>-?[\d\.]+,\d{2})\s+(?:R\$\s*)?(?<net>-?[\d\.]+,\d{2})",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
     private static readonly Regex TradeRegex = new(
-        @"(?<code>[A-Z0-9]{4,10})\s+(?<period>\d{2}\/\d{2}\/\d{4})\s+(?<institution>.+?)\s+(?<buy>\d+(?:,\d+)?)\s+(?<sell>\d+(?:,\d+)?)\s+(?<net>-?\d+(?:,\d+)?)\s+R\$\s*(?<avgBuy>[\d\.]+,\d{2})\s+R\$\s*(?<avgSell>[\d\.]+,\d{2})",
+        @"(?<code>[A-Z0-9]{4,10})\s+(?<period>\d{2}\/\d{2}\/\d{4})\s+(?<institution>.+?)\s+(?<buy>\d+(?:,\d+)?)\s+(?<sell>\d+(?:,\d+)?)\s+(?<net>-?\d+(?:,\d+)?)\s+(?:R\$\s*)?(?<avgBuy>-?[\d\.]+,\d{2})\s+(?:R\$\s*)?(?<avgSell>-?[\d\.]+,\d{2})",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
     public static B3ParsedSnapshot Parse(string rawText)
@@ -389,6 +389,21 @@ internal static class B3ReportParser
         var positions = ParsePositions(positionsSection);
         var incomes = ParseIncomes(incomesSection);
         var trades = ParseTrades(tradesSection);
+
+        if (positions.Count == 0)
+        {
+            positions = ParsePositions(normalized);
+        }
+
+        if (incomes.Count == 0)
+        {
+            incomes = ParseIncomes(normalized);
+        }
+
+        if (trades.Count == 0)
+        {
+            trades = ParseTrades(normalized);
+        }
 
         return new B3ParsedSnapshot(
             referenceMatch.Success ? referenceMatch.Groups["month"].Value : null,
@@ -506,6 +521,13 @@ internal static class B3ReportParser
 
     private static decimal ParseMoney(string value)
     {
+        value = value?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return 0m;
+        }
+
+        value = value.Replace("R$", string.Empty, StringComparison.OrdinalIgnoreCase).Trim();
         return decimal.TryParse(
             value.Replace(".", string.Empty, StringComparison.Ordinal).Replace(",", ".", StringComparison.Ordinal),
             NumberStyles.Number,
