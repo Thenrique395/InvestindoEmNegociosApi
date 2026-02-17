@@ -329,6 +329,11 @@ builder.Services.AddScoped<INotificationsService, NotificationsService>();
 builder.Services.AddSingleton<InvoiceParserFactory>();
 builder.Services.AddScoped<IInvoiceImportService, InvoiceImportService>();
 builder.Services.AddScoped<IB3ImportService, B3ImportService>();
+builder.Services.AddHttpClient<IInvestmentBenchmarksService, InvestmentBenchmarksService>(client =>
+{
+    client.BaseAddress = new Uri("https://api.bcb.gov.br/");
+    client.Timeout = TimeSpan.FromSeconds(20);
+});
 builder.Services.AddHttpClient<IB3Connector, B3ApiClient>((sp, client) =>
 {
     var opts = sp.GetRequiredService<IOptions<B3ApiOptions>>().Value;

@@ -15,6 +15,7 @@ namespace InvestindoEmNegocio.Controllers;
 [Authorize]
 public class InvestmentsController(
     IInvestmentsService investmentsService,
+    IInvestmentBenchmarksService benchmarksService,
     IAuditService auditService,
     IB3ImportService b3ImportService,
     IB3SyncService b3SyncService,
@@ -127,6 +128,13 @@ public class InvestmentsController(
         {
             return BadRequest(new ProblemDetails { Title = "Movimento inválido", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
         }
+    }
+
+    [HttpGet("benchmarks")]
+    public async Task<ActionResult<InvestmentBenchmarksResponse>> GetBenchmarks([FromQuery] int months = 6, CancellationToken cancellationToken = default)
+    {
+        var response = await benchmarksService.GetBenchmarksAsync(months, cancellationToken);
+        return Ok(response);
     }
 
     [HttpPost("import/b3/extract")]
