@@ -61,7 +61,7 @@ public sealed class FreeMarketDataProvider(
             {
                 var parsed = ParseSnapshot(item);
                 if (parsed is null) continue;
-                dict[parsed.Value.Symbol] = parsed.Value;
+                dict[parsed.Symbol] = parsed;
             }
 
             return dict;
@@ -218,7 +218,7 @@ public sealed class FreeMarketDataProvider(
                 }
             }
 
-            return (snapshot.Value.Price, snapshot.Value.ChangePercent, snapshot.Value.Currency, snapshot.Value.Name, snapshot.Value.LastUpdatedUtc, snapshot.Value.LogoUrl, "BRAPI /api/quote", history);
+            return (snapshot.Price, snapshot.ChangePercent, snapshot.Currency, snapshot.Name, snapshot.LastUpdatedUtc, snapshot.LogoUrl, "BRAPI /api/quote", history);
         }
         catch (Exception ex)
         {

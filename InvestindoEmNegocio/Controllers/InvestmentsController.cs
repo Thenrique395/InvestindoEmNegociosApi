@@ -360,6 +360,7 @@ public class InvestmentsController(
         var symbols = items
             .Select(i => ExtractTicker(i.Asset))
             .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s!)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
