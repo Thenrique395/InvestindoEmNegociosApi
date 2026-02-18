@@ -9,15 +9,19 @@ namespace InvestindoEmNegocio.Application.Services;
 
 public class InvestmentsService : IInvestmentsService
 {
+    private const decimal TotalAllocation = 100m;
     private readonly IInvestmentGoalRepository _goalRepository;
+    private readonly IInvestmentAllocationTargetRepository _allocationTargetRepository;
     private readonly IInvestmentPositionRepository _positionRepository;
     private readonly ILogger<InvestmentsService> _logger;
 
     public InvestmentsService(IInvestmentGoalRepository goalRepository,
+        IInvestmentAllocationTargetRepository allocationTargetRepository,
         IInvestmentPositionRepository positionRepository,
         ILogger<InvestmentsService> logger)
     {
         _goalRepository = goalRepository;
+        _allocationTargetRepository = allocationTargetRepository;
         _positionRepository = positionRepository;
         _logger = logger;
     }
@@ -45,6 +49,37 @@ public class InvestmentsService : IInvestmentsService
         await _goalRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Investment goal updated {UserId} {GoalId}", userId, existing.Id);
         return new InvestmentGoalDto(existing.Id, existing.TargetAmount);
+    }
+
+    public async Task<InvestmentAllocationTargetDto> GetAllocationTargetAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var current = await _allocationTargetRepository.GetByUserAsync(userId, cancellationToken);
+        if (current is null)
+        {
+            return MapAllocation(40m, 35m, 20m, 5m);
+        }
+
+        return MapAllocation(current.Rf, current.Acoes, current.Fundos, current.Cripto);
+    }
+
+    public async Task<InvestmentAllocationTargetDto> UpsertAllocationTargetAsync(Guid userId, UpsertInvestmentAllocationTargetRequest request, CancellationToken cancellationToken = default)
+    {
+        ValidateAllocation(request);
+
+        var current = await _allocationTargetRepository.GetByUserAsync(userId, cancellationToken);
+        if (current is null)
+        {
+            var target = new InvestmentAllocationTarget(userId, request.Rf, request.Acoes, request.Fundos, request.Cripto);
+            await _allocationTargetRepository.AddAsync(target, cancellationToken);
+            await _allocationTargetRepository.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("Investment allocation target created {UserId} {TargetId}", userId, target.Id);
+            return MapAllocation(target.Rf, target.Acoes, target.Fundos, target.Cripto);
+        }
+
+        current.SetAllocation(request.Rf, request.Acoes, request.Fundos, request.Cripto);
+        await _allocationTargetRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Investment allocation target updated {UserId} {TargetId}", userId, current.Id);
+        return MapAllocation(current.Rf, current.Acoes, current.Fundos, current.Cripto);
     }
 
     public async Task<List<InvestmentPositionDto>> ListPositionsAsync(Guid userId,
@@ -197,4 +232,20 @@ public class InvestmentsService : IInvestmentsService
 
     private static bool IsOutputMovement(InvestmentMovementType type) =>
         type is InvestmentMovementType.RESGATE or InvestmentMovementType.VENDA;
+
+    private static InvestmentAllocationTargetDto MapAllocation(decimal rf, decimal acoes, decimal fundos, decimal cripto)
+    {
+        var total = rf + acoes + fundos + cripto;
+        return new InvestmentAllocationTargetDto(rf, acoes, fundos, cripto, total);
+    }
+
+    private static void ValidateAllocation(UpsertInvestmentAllocationTargetRequest request)
+    {
+        if (request.Rf < 0 || request.Acoes < 0 || request.Fundos < 0 || request.Cripto < 0)
+            throw new ArgumentException("Os percentuais não podem ser negativos.");
+
+        var total = request.Rf + request.Acoes + request.Fundos + request.Cripto;
+        if (Math.Abs(total - TotalAllocation) > 0.001m)
+            throw new ArgumentException("A soma da alocação alvo precisa ser 100%.");
+    }
 }

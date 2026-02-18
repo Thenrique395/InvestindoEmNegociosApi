@@ -54,6 +54,21 @@ CREATE TABLE IF NOT EXISTS notification_settings (
     CONSTRAINT "PK_notification_settings" PRIMARY KEY ("Id")
 );
 
+CREATE TABLE IF NOT EXISTS investment_allocation_targets (
+    "Id" uuid NOT NULL,
+    "UserId" uuid NOT NULL,
+    "Rf" numeric(5,2) NOT NULL,
+    "Acoes" numeric(5,2) NOT NULL,
+    "Fundos" numeric(5,2) NOT NULL,
+    "Cripto" numeric(5,2) NOT NULL,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    "UpdatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_investment_allocation_targets" PRIMARY KEY ("Id")
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_investment_allocation_targets_UserId"
+    ON investment_allocation_targets ("UserId");
+
 DO $$
 BEGIN
     IF EXISTS (

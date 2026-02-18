@@ -39,6 +39,34 @@ public class InvestmentsController(
         return Ok(goal);
     }
 
+    [HttpGet("allocation-target")]
+    public async Task<ActionResult<InvestmentAllocationTargetDto>> GetAllocationTarget(CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        var target = await investmentsService.GetAllocationTargetAsync(userId, cancellationToken);
+        return Ok(target);
+    }
+
+    [HttpPut("allocation-target")]
+    public async Task<ActionResult<InvestmentAllocationTargetDto>> UpsertAllocationTarget([FromBody] UpsertInvestmentAllocationTargetRequest request, CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        try
+        {
+            var target = await investmentsService.UpsertAllocationTargetAsync(userId, request, cancellationToken);
+            return Ok(target);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Alocação alvo inválida",
+                Detail = ex.Message,
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+    }
+
     [HttpGet("positions")]
     public async Task<IActionResult> ListPositions([FromQuery] ListQuery query, CancellationToken cancellationToken)
     {

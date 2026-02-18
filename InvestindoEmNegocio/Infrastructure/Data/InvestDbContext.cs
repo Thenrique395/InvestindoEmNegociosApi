@@ -21,6 +21,7 @@ public class InvestDbContext : DbContext
     public DbSet<Goal> Goals => Set<Goal>();
     public DbSet<GoalContribution> GoalContributions => Set<GoalContribution>();
     public DbSet<InvestmentGoal> InvestmentGoals => Set<InvestmentGoal>();
+    public DbSet<InvestmentAllocationTarget> InvestmentAllocationTargets => Set<InvestmentAllocationTarget>();
     public DbSet<InvestmentPosition> InvestmentPositions => Set<InvestmentPosition>();
     public DbSet<InvestmentMovement> InvestmentMovements => Set<InvestmentMovement>();
     public DbSet<UserOnboarding> UserOnboardings => Set<UserOnboarding>();

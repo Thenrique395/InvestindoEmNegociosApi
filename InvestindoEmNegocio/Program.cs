@@ -307,6 +307,7 @@ builder.Services.AddScoped<IMoneyPlanRepository, MoneyPlanRepository>();
 builder.Services.AddScoped<IMoneyInstallmentRepository, MoneyInstallmentRepository>();
 builder.Services.AddScoped<IMoneyPaymentRepository, MoneyPaymentRepository>();
 builder.Services.AddScoped<IInvestmentGoalRepository, InvestmentGoalRepository>();
+builder.Services.AddScoped<IInvestmentAllocationTargetRepository, InvestmentAllocationTargetRepository>();
 builder.Services.AddScoped<IInvestmentPositionRepository, InvestmentPositionRepository>();
 builder.Services.AddScoped<IUserOnboardingRepository, UserOnboardingRepository>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
