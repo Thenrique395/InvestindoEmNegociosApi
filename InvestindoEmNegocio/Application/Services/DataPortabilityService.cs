@@ -126,6 +126,18 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
         var planMap = new Dictionary<Guid, Guid>();
         var installmentMap = new Dictionary<Guid, Guid>();
         var positionMap = new Dictionary<Guid, Guid>();
+        var existingCategoriesByName = await dbContext.Categories
+            .AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .ToDictionaryAsync(x => x.Name.Trim().ToLowerInvariant(), x => x.Id, cancellationToken);
+        var existingCardsByNickname = await dbContext.Cards
+            .AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .ToDictionaryAsync(x => x.Nickname.Trim().ToLowerInvariant(), x => x.Id, cancellationToken);
+        var existingGoalsByYearTitle = await dbContext.Goals
+            .AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .ToDictionaryAsync(x => $"{x.Year}:{x.Title.Trim().ToLowerInvariant()}", x => x.Id, cancellationToken);
 
         if (snapshot.Profile is not null)
         {
@@ -169,19 +181,18 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
         foreach (var c in snapshot.Categories)
         {
             var name = RequireValue(c.Name, $"categories[{c.Id}].name");
-            var existingCategory = await dbContext.Categories
-                .FirstOrDefaultAsync(x => x.UserId == userId && x.Name.ToLower() == name.ToLower(), cancellationToken);
-            if (existingCategory is not null)
+            var categoryKey = name.ToLowerInvariant();
+            if (existingCategoriesByName.TryGetValue(categoryKey, out var existingCategoryId))
             {
-                categoryMap[c.Id] = existingCategory.Id;
+                categoryMap[c.Id] = existingCategoryId;
                 continue;
             }
 
             var category = new Category(userId, name, c.AppliesTo);
             if (!c.IsActive) category.Deactivate();
             await dbContext.Categories.AddAsync(category, cancellationToken);
-            await dbContext.SaveChangesAsync(cancellationToken);
             categoryMap[c.Id] = category.Id;
+            existingCategoriesByName[categoryKey] = category.Id;
             importedRecords++;
         }
 
@@ -189,11 +200,10 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
         {
             var holderName = RequireValue(c.HolderName, $"cards[{c.Id}].holderName");
             var nickname = string.IsNullOrWhiteSpace(c.Nickname) ? holderName : c.Nickname.Trim();
-            var existingCard = await dbContext.Cards
-                .FirstOrDefaultAsync(x => x.UserId == userId && x.Nickname.ToLower() == nickname.ToLower(), cancellationToken);
-            if (existingCard is not null)
+            var nicknameKey = nickname.ToLowerInvariant();
+            if (existingCardsByNickname.TryGetValue(nicknameKey, out var existingCardId))
             {
-                cardMap[c.Id] = existingCard.Id;
+                cardMap[c.Id] = existingCardId;
                 continue;
             }
 
@@ -208,19 +218,18 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
                 c.StatementCloseDay,
                 c.DueDay);
             await dbContext.Cards.AddAsync(card, cancellationToken);
-            await dbContext.SaveChangesAsync(cancellationToken);
             cardMap[c.Id] = card.Id;
+            existingCardsByNickname[nicknameKey] = card.Id;
             importedRecords++;
         }
 
         foreach (var g in snapshot.Goals)
         {
             var title = RequireValue(g.Title, $"goals[{g.Id}].title");
-            var existingGoal = await dbContext.Goals
-                .FirstOrDefaultAsync(x => x.UserId == userId && x.Title.ToLower() == title.ToLower() && x.Year == g.Year, cancellationToken);
-            if (existingGoal is not null)
+            var goalKey = $"{g.Year}:{title.ToLowerInvariant()}";
+            if (existingGoalsByYearTitle.TryGetValue(goalKey, out var existingGoalId))
             {
-                goalMap[g.Id] = existingGoal.Id;
+                goalMap[g.Id] = existingGoalId;
                 continue;
             }
 
@@ -235,8 +244,8 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
                 g.ExpectedMonthly,
                 g.TargetDate);
             await dbContext.Goals.AddAsync(goal, cancellationToken);
-            await dbContext.SaveChangesAsync(cancellationToken);
             goalMap[g.Id] = goal.Id;
+            existingGoalsByYearTitle[goalKey] = goal.Id;
             importedRecords++;
         }
 
@@ -264,7 +273,6 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
                 cardId);
             SetValue(plan, nameof(MoneyPlan.Status), p.Status);
             await dbContext.MoneyPlans.AddAsync(plan, cancellationToken);
-            await dbContext.SaveChangesAsync(cancellationToken);
             planMap[p.Id] = plan.Id;
             importedRecords++;
         }
@@ -279,7 +287,6 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
             var installment = new MoneyInstallment(mappedPlanId, userId, i.InstallmentNo, i.DueDate, i.Amount, i.OriginalDueDate);
             SetValue(installment, nameof(MoneyInstallment.Status), i.Status);
             await dbContext.MoneyInstallments.AddAsync(installment, cancellationToken);
-            await dbContext.SaveChangesAsync(cancellationToken);
             installmentMap[i.Id] = installment.Id;
             importedRecords++;
         }
@@ -353,7 +360,6 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
                 p.Category ?? string.Empty,
                 p.Note);
             await dbContext.InvestmentPositions.AddAsync(position, cancellationToken);
-            await dbContext.SaveChangesAsync(cancellationToken);
             positionMap[p.Id] = position.Id;
             importedRecords++;
         }
@@ -386,13 +392,17 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
             }
         }
 
+        var existingNotificationReferences = (await dbContext.UserNotifications
+            .AsNoTracking()
+            .Where(x => x.UserId == userId)
+            .Select(x => x.ReferenceKey)
+            .ToListAsync(cancellationToken))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         foreach (var n in snapshot.Notifications)
         {
             var normalizedReference = RequireValue(n.ReferenceKey, $"notifications[{n.Id}].referenceKey");
-            var exists = await dbContext.UserNotifications
-                .AsNoTracking()
-                .AnyAsync(x => x.UserId == userId && x.ReferenceKey == normalizedReference, cancellationToken);
-            if (exists)
+            if (existingNotificationReferences.Contains(normalizedReference))
             {
                 continue;
             }
@@ -411,6 +421,7 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
                 n.DueDate);
             SetValue(notification, nameof(UserNotification.ReadAt), n.ReadAt);
             await dbContext.UserNotifications.AddAsync(notification, cancellationToken);
+            existingNotificationReferences.Add(normalizedReference);
             importedRecords++;
         }
 
