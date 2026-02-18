@@ -32,7 +32,17 @@ public sealed class FreeMarketDataProvider(
             return stooq with { ProviderLabel = "Stooq (free)" };
         }
 
-        throw new InvalidOperationException($"Nao foi possivel obter cotacao para {normalized}.");
+        // Degrada para resposta estimada para nao quebrar o frontend com 503
+        return new MarketQuoteResponse(
+            normalized,
+            null,
+            null,
+            "BRL",
+            normalized,
+            DateTimeOffset.UtcNow,
+            "Fallback sem cotacao",
+            true,
+            "FAKE - TEMPORARIAMENTE");
     }
 
     public async Task<MarketProfileResponse> GetProfileAsync(string symbol, CancellationToken cancellationToken = default)
@@ -79,7 +89,13 @@ public sealed class FreeMarketDataProvider(
             return yahoo with { ProviderLabel = "Yahoo (free)" };
         }
 
-        throw new InvalidOperationException($"Nao foi possivel obter historico para {normalized}.");
+        return new MarketHistoryResponse(
+            normalized,
+            NormalizePeriod(period),
+            "Fallback sem historico",
+            true,
+            "FAKE - TEMPORARIAMENTE",
+            []);
     }
 
     private async Task<MarketQuoteResponse?> TryGetYahooQuoteAsync(string symbol, CancellationToken cancellationToken)

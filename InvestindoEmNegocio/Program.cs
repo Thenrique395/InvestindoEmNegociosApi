@@ -342,11 +342,15 @@ builder.Services.AddHttpClient("MarketYahoo", client =>
 {
     client.BaseAddress = new Uri("https://query1.finance.yahoo.com/");
     client.Timeout = TimeSpan.FromSeconds(20);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("InvestindoEmNegocio/1.0 (+market-data)");
+    client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
 });
 builder.Services.AddHttpClient("MarketStooq", client =>
 {
     client.BaseAddress = new Uri("https://stooq.com/");
     client.Timeout = TimeSpan.FromSeconds(20);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("InvestindoEmNegocio/1.0 (+market-data)");
+    client.DefaultRequestHeaders.Accept.ParseAdd("text/csv, text/plain, */*");
 });
 builder.Services.AddHttpClient<IB3Connector, B3ApiClient>((sp, client) =>
 {
