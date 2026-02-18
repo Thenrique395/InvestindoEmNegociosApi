@@ -16,6 +16,7 @@ namespace InvestindoEmNegocio.Controllers;
 public class InvestmentsController(
     IInvestmentsService investmentsService,
     IInvestmentBenchmarksService benchmarksService,
+    IMarketDataService marketDataService,
     IAuditService auditService,
     IB3ImportService b3ImportService,
     IB3SyncService b3SyncService,
@@ -135,6 +136,75 @@ public class InvestmentsController(
     {
         var response = await benchmarksService.GetBenchmarksAsync(months, cancellationToken);
         return Ok(response);
+    }
+
+    [HttpGet("market/quote")]
+    public async Task<ActionResult<MarketQuoteResponse>> GetMarketQuote([FromQuery] string symbol, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(symbol))
+            return BadRequest(new ProblemDetails { Title = "Símbolo obrigatório", Detail = "Informe o símbolo, ex.: VALE3.", Status = StatusCodes.Status400BadRequest });
+
+        try
+        {
+            var response = await marketDataService.GetQuoteAsync(symbol, cancellationToken);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Falha ao buscar cotação de mercado para {Symbol}", symbol);
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new ProblemDetails
+            {
+                Title = "Market data indisponível",
+                Detail = "Não foi possível obter cotação no momento.",
+                Status = StatusCodes.Status503ServiceUnavailable
+            });
+        }
+    }
+
+    [HttpGet("market/profile")]
+    public async Task<ActionResult<MarketProfileResponse>> GetMarketProfile([FromQuery] string symbol, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(symbol))
+            return BadRequest(new ProblemDetails { Title = "Símbolo obrigatório", Detail = "Informe o símbolo, ex.: VALE3.", Status = StatusCodes.Status400BadRequest });
+
+        try
+        {
+            var response = await marketDataService.GetProfileAsync(symbol, cancellationToken);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Falha ao buscar perfil de mercado para {Symbol}", symbol);
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new ProblemDetails
+            {
+                Title = "Market data indisponível",
+                Detail = "Não foi possível obter perfil do ativo no momento.",
+                Status = StatusCodes.Status503ServiceUnavailable
+            });
+        }
+    }
+
+    [HttpGet("market/history")]
+    public async Task<ActionResult<MarketHistoryResponse>> GetMarketHistory([FromQuery] string symbol, [FromQuery] string period = "6mo", CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(symbol))
+            return BadRequest(new ProblemDetails { Title = "Símbolo obrigatório", Detail = "Informe o símbolo, ex.: VALE3.", Status = StatusCodes.Status400BadRequest });
+
+        try
+        {
+            var response = await marketDataService.GetHistoryAsync(symbol, period, cancellationToken);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Falha ao buscar histórico de mercado para {Symbol}", symbol);
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new ProblemDetails
+            {
+                Title = "Market data indisponível",
+                Detail = "Não foi possível obter histórico do ativo no momento.",
+                Status = StatusCodes.Status503ServiceUnavailable
+            });
+        }
     }
 
     [HttpPost("import/b3/extract")]

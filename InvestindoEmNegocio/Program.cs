@@ -238,6 +238,7 @@ builder.Services.AddProblemDetails(options =>
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<DataPortabilityOptions>(builder.Configuration.GetSection("DataPortability"));
 builder.Services.Configure<B3ApiOptions>(builder.Configuration.GetSection("B3Api"));
+builder.Services.Configure<MarketDataOptions>(builder.Configuration.GetSection(MarketDataOptions.SectionName));
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(CorsPolicy, policy =>
@@ -329,9 +330,22 @@ builder.Services.AddScoped<INotificationsService, NotificationsService>();
 builder.Services.AddSingleton<InvoiceParserFactory>();
 builder.Services.AddScoped<IInvoiceImportService, InvoiceImportService>();
 builder.Services.AddScoped<IB3ImportService, B3ImportService>();
+builder.Services.AddScoped<IMarketDataService, MarketDataService>();
+builder.Services.AddScoped<IMarketDataProvider, FreeMarketDataProvider>();
+builder.Services.AddScoped<IMarketDataProvider, B3MarketDataProvider>();
 builder.Services.AddHttpClient<IInvestmentBenchmarksService, InvestmentBenchmarksService>(client =>
 {
     client.BaseAddress = new Uri("https://api.bcb.gov.br/");
+    client.Timeout = TimeSpan.FromSeconds(20);
+});
+builder.Services.AddHttpClient("MarketYahoo", client =>
+{
+    client.BaseAddress = new Uri("https://query1.finance.yahoo.com/");
+    client.Timeout = TimeSpan.FromSeconds(20);
+});
+builder.Services.AddHttpClient("MarketStooq", client =>
+{
+    client.BaseAddress = new Uri("https://stooq.com/");
     client.Timeout = TimeSpan.FromSeconds(20);
 });
 builder.Services.AddHttpClient<IB3Connector, B3ApiClient>((sp, client) =>
