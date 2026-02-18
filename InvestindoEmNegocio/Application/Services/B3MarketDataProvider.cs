@@ -16,4 +16,7 @@ public sealed class B3MarketDataProvider : IMarketDataProvider
 
     public Task<MarketHistoryResponse> GetHistoryAsync(string symbol, string period = "6mo", CancellationToken cancellationToken = default)
         => throw new NotSupportedException("Provider B3 ainda nao configurado. Use MarketData:Provider=free.");
+
+    public Task<IReadOnlyDictionary<string, MarketSnapshotResponse>> GetSnapshotsAsync(IReadOnlyCollection<string> symbols, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("Provider B3 ainda nao configurado. Use MarketData:Provider=free.");
 }

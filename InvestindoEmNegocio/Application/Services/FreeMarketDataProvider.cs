@@ -19,6 +19,60 @@ public sealed class FreeMarketDataProvider(
     public string Name => "free";
     public bool IsEstimated => false;
 
+    public async Task<IReadOnlyDictionary<string, MarketSnapshotResponse>> GetSnapshotsAsync(IReadOnlyCollection<string> symbols, CancellationToken cancellationToken = default)
+    {
+        var normalized = symbols
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(NormalizeSymbol)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (normalized.Length == 0)
+            return new Dictionary<string, MarketSnapshotResponse>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            var tickers = string.Join(",", normalized);
+            var path = $"api/quote/{Uri.EscapeDataString(tickers)}?fundamental=true&dividends=true&range=1d&interval=1d";
+            using var request = CreateBrapiRequest(path);
+            using var response = await _brapiClient.SendAsync(request, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogWarning("BRAPI snapshot retornou status {Status} para {Tickers}", (int)response.StatusCode, tickers);
+                return new Dictionary<string, MarketSnapshotResponse>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+            using var json = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+
+            if (json.RootElement.TryGetProperty("error", out var errorNode) && errorNode.ValueKind is JsonValueKind.True)
+            {
+                var msg = ReadString(json.RootElement, "message") ?? "Erro da BRAPI";
+                logger.LogWarning("BRAPI snapshot erro para {Tickers}: {Message}", tickers, msg);
+                return new Dictionary<string, MarketSnapshotResponse>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            if (!json.RootElement.TryGetProperty("results", out var results) || results.ValueKind != JsonValueKind.Array)
+                return new Dictionary<string, MarketSnapshotResponse>(StringComparer.OrdinalIgnoreCase);
+
+            var dict = new Dictionary<string, MarketSnapshotResponse>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in results.EnumerateArray())
+            {
+                var parsed = ParseSnapshot(item);
+                if (parsed is null) continue;
+                dict[parsed.Value.Symbol] = parsed.Value;
+            }
+
+            return dict;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Falha ao consultar snapshots BRAPI");
+            return new Dictionary<string, MarketSnapshotResponse>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
     public async Task<MarketQuoteResponse> GetQuoteAsync(string symbol, CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeSymbol(symbol);
@@ -116,12 +170,6 @@ public sealed class FreeMarketDataProvider(
         try
         {
             var qs = new List<string>();
-            var token = _options.BrapiToken?.Trim();
-            if (!string.IsNullOrWhiteSpace(token))
-            {
-                qs.Add($"token={Uri.EscapeDataString(token)}");
-            }
-
             if (includeHistory)
             {
                 qs.Add($"range={Uri.EscapeDataString(period ?? "6mo")}");
@@ -130,8 +178,8 @@ public sealed class FreeMarketDataProvider(
 
             var suffix = qs.Count > 0 ? "?" + string.Join("&", qs) : string.Empty;
             var path = $"api/quote/{Uri.EscapeDataString(symbol)}{suffix}";
-
-            using var response = await _brapiClient.GetAsync(path, cancellationToken);
+            using var request = CreateBrapiRequest(path);
+            using var response = await _brapiClient.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("BRAPI retornou status {Status} para {Symbol}", (int)response.StatusCode, symbol);
@@ -154,12 +202,8 @@ public sealed class FreeMarketDataProvider(
             }
 
             var first = results[0];
-            var price = ReadDecimal(first, "regularMarketPrice");
-            var change = ReadDecimal(first, "regularMarketChangePercent");
-            var currency = ReadString(first, "currency");
-            var name = ReadString(first, "longName") ?? ReadString(first, "shortName") ?? ReadString(first, "symbol");
-            var logo = ReadString(first, "logourl");
-            var marketTime = ReadDateTimeOffset(first, "regularMarketTime");
+            var snapshot = ParseSnapshot(first);
+            if (snapshot is null) return null;
 
             var history = new List<MarketHistoryPointResponse>();
             if (includeHistory && first.TryGetProperty("historicalDataPrice", out var hist) && hist.ValueKind == JsonValueKind.Array)
@@ -174,7 +218,7 @@ public sealed class FreeMarketDataProvider(
                 }
             }
 
-            return (price, change, currency, name, marketTime, logo, "BRAPI /api/quote", history);
+            return (snapshot.Value.Price, snapshot.Value.ChangePercent, snapshot.Value.Currency, snapshot.Value.Name, snapshot.Value.LastUpdatedUtc, snapshot.Value.LogoUrl, "BRAPI /api/quote", history);
         }
         catch (Exception ex)
         {
@@ -195,6 +239,42 @@ public sealed class FreeMarketDataProvider(
             "1mo" or "3mo" or "6mo" or "1y" or "2y" or "5y" => period.Trim().ToLowerInvariant(),
             _ => "6mo"
         };
+
+    private HttpRequestMessage CreateBrapiRequest(string path)
+    {
+        var req = new HttpRequestMessage(HttpMethod.Get, path);
+        var token = _options.BrapiToken?.Trim();
+        if (!string.IsNullOrWhiteSpace(token))
+        {
+            req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+
+        return req;
+    }
+
+    private static MarketSnapshotResponse? ParseSnapshot(JsonElement element)
+    {
+        var symbol = ReadString(element, "symbol");
+        if (string.IsNullOrWhiteSpace(symbol)) return null;
+        var price = ReadDecimal(element, "regularMarketPrice");
+        var change = ReadDecimal(element, "regularMarketChangePercent");
+        var currency = ReadString(element, "currency") ?? "BRL";
+        var name = ReadString(element, "longName") ?? ReadString(element, "shortName") ?? symbol;
+        var logo = ReadString(element, "logourl");
+        var updated = ReadDateTimeOffset(element, "regularMarketTime");
+
+        return new MarketSnapshotResponse(
+            symbol.ToUpperInvariant(),
+            price,
+            change,
+            currency,
+            name,
+            logo,
+            updated,
+            "BRAPI /api/quote",
+            false,
+            "BRAPI");
+    }
 
     private static decimal? ReadDecimal(JsonElement node, string property)
     {

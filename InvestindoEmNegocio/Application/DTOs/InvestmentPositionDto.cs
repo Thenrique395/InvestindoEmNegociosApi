@@ -12,4 +12,11 @@ public record InvestmentPositionDto(
     string Account,
     string Category,
     string? Note,
-    List<InvestmentMovementDto> Movements);
+    List<InvestmentMovementDto> Movements,
+    string? MarketSymbol = null,
+    decimal? MarketPrice = null,
+    decimal? MarketChangePercent = null,
+    string? MarketName = null,
+    string? MarketLogoUrl = null,
+    string? MarketSource = null,
+    string? MarketProvider = null);

@@ -50,6 +50,29 @@ public sealed class MarketDataService(
         })!;
     }
 
+    public async Task<IReadOnlyDictionary<string, MarketSnapshotResponse>> GetSnapshotsAsync(IReadOnlyCollection<string> symbols, CancellationToken cancellationToken = default)
+    {
+        if (symbols.Count == 0) return new Dictionary<string, MarketSnapshotResponse>(StringComparer.OrdinalIgnoreCase);
+
+        var normalized = symbols
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(NormalizeSymbol)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (normalized.Length == 0) return new Dictionary<string, MarketSnapshotResponse>(StringComparer.OrdinalIgnoreCase);
+
+        var cacheKey = $"market:snapshots:{ProviderName()}:{string.Join(',', normalized)}";
+        return await cache.GetOrCreateAsync(cacheKey, async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(Math.Max(_options.QuoteCacheMinutes, 1));
+            var provider = ResolveProvider();
+            var snapshots = await provider.GetSnapshotsAsync(normalized, cancellationToken);
+            return new Dictionary<string, MarketSnapshotResponse>(snapshots, StringComparer.OrdinalIgnoreCase);
+        }) ?? new Dictionary<string, MarketSnapshotResponse>(StringComparer.OrdinalIgnoreCase);
+    }
+
     private IMarketDataProvider ResolveProvider()
     {
         var provider = providers.FirstOrDefault(p => string.Equals(p.Name, ProviderName(), StringComparison.OrdinalIgnoreCase));

@@ -31,3 +31,15 @@ public sealed record MarketHistoryResponse(
     bool IsEstimated,
     string ProviderLabel,
     IReadOnlyList<MarketHistoryPointResponse> Points);
+
+public sealed record MarketSnapshotResponse(
+    string Symbol,
+    decimal? Price,
+    decimal? ChangePercent,
+    string Currency,
+    string? Name,
+    string? LogoUrl,
+    DateTimeOffset? LastUpdatedUtc,
+    string Source,
+    bool IsEstimated,
+    string ProviderLabel);
