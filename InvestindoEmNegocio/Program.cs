@@ -73,6 +73,8 @@ EnsureEnvFromConfig(builder.Configuration, "B3Api__Enabled", "B3Api:Enabled");
 EnsureEnvFromConfig(builder.Configuration, "B3Api__BaseUrl", "B3Api:BaseUrl");
 EnsureEnvFromConfig(builder.Configuration, "B3Api__ClientId", "B3Api:ClientId");
 EnsureEnvFromConfig(builder.Configuration, "B3Api__ClientSecret", "B3Api:ClientSecret");
+EnsureEnvFromConfig(builder.Configuration, "MarketData__Provider", "MarketData:Provider");
+EnsureEnvFromConfig(builder.Configuration, "MarketData__BrapiToken", "MarketData:BrapiToken");
 
 var otelServiceName = Environment.GetEnvironmentVariable("OTEL_SERVICE_NAME") ?? "InvestindoEmNegocio";
 var otlpEndpointValue = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT");
@@ -338,19 +340,12 @@ builder.Services.AddHttpClient<IInvestmentBenchmarksService, InvestmentBenchmark
     client.BaseAddress = new Uri("https://api.bcb.gov.br/");
     client.Timeout = TimeSpan.FromSeconds(20);
 });
-builder.Services.AddHttpClient("MarketYahoo", client =>
+builder.Services.AddHttpClient("MarketBrapi", client =>
 {
-    client.BaseAddress = new Uri("https://query1.finance.yahoo.com/");
+    client.BaseAddress = new Uri("https://brapi.dev/");
     client.Timeout = TimeSpan.FromSeconds(20);
     client.DefaultRequestHeaders.UserAgent.ParseAdd("InvestindoEmNegocio/1.0 (+market-data)");
     client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
-});
-builder.Services.AddHttpClient("MarketStooq", client =>
-{
-    client.BaseAddress = new Uri("https://stooq.com/");
-    client.Timeout = TimeSpan.FromSeconds(20);
-    client.DefaultRequestHeaders.UserAgent.ParseAdd("InvestindoEmNegocio/1.0 (+market-data)");
-    client.DefaultRequestHeaders.Accept.ParseAdd("text/csv, text/plain, */*");
 });
 builder.Services.AddHttpClient<IB3Connector, B3ApiClient>((sp, client) =>
 {

@@ -1,17 +1,20 @@
 using System.Globalization;
-using System.Net;
 using System.Text.Json;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
+using Microsoft.Extensions.Options;
 
 namespace InvestindoEmNegocio.Application.Services;
 
+// Mantido o nome da classe para evitar mudanças de DI em vários pontos.
+// A fonte agora é exclusivamente BRAPI.
 public sealed class FreeMarketDataProvider(
     IHttpClientFactory httpClientFactory,
+    IOptions<MarketDataOptions> options,
     ILogger<FreeMarketDataProvider> logger) : IMarketDataProvider
 {
-    private readonly HttpClient _yahooClient = httpClientFactory.CreateClient("MarketYahoo");
-    private readonly HttpClient _stooqClient = httpClientFactory.CreateClient("MarketStooq");
+    private readonly HttpClient _brapiClient = httpClientFactory.CreateClient("MarketBrapi");
+    private readonly MarketDataOptions _options = options.Value;
 
     public string Name => "free";
     public bool IsEstimated => false;
@@ -19,284 +22,163 @@ public sealed class FreeMarketDataProvider(
     public async Task<MarketQuoteResponse> GetQuoteAsync(string symbol, CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeSymbol(symbol);
+        var result = await TryGetBrapiQuoteAsync(normalized, includeHistory: false, cancellationToken);
 
-        var yahoo = await TryGetYahooQuoteAsync(normalized, cancellationToken);
-        if (yahoo is not null)
+        if (result is null)
         {
-            return yahoo with { ProviderLabel = "Yahoo (free) + fallback Stooq" };
+            return new MarketQuoteResponse(
+                normalized,
+                null,
+                null,
+                "BRL",
+                null,
+                DateTimeOffset.UtcNow,
+                "Sem resposta da BRAPI",
+                false,
+                "BRAPI");
         }
 
-        var stooq = await TryGetStooqQuoteAsync(normalized, cancellationToken);
-        if (stooq is not null)
-        {
-            return stooq with { ProviderLabel = "Stooq (free)" };
-        }
-
-        // Degrada para resposta sem cobertura (sem inventar valor)
         return new MarketQuoteResponse(
             normalized,
-            null,
-            null,
-            "BRL",
-            null,
-            DateTimeOffset.UtcNow,
-            "Sem cotacao na fonte gratuita",
+            result.Value.price,
+            result.Value.changePercent,
+            result.Value.currency ?? "BRL",
+            result.Value.name,
+            result.Value.lastUpdatedUtc,
+            result.Value.source,
             false,
-            "Sem cobertura");
+            "BRAPI");
     }
 
     public async Task<MarketProfileResponse> GetProfileAsync(string symbol, CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeSymbol(symbol);
-        var yahooSymbol = ToYahooSymbol(normalized);
+        var result = await TryGetBrapiQuoteAsync(normalized, includeHistory: false, cancellationToken);
 
-        var quote = await TryGetYahooQuoteSummaryAsync(yahooSymbol, cancellationToken);
-        if (quote is not null)
-        {
-            var website = quote.Value.website;
-            var logoUrl = BuildLogoUrl(website);
-
-            return new MarketProfileResponse(
-                normalized,
-                quote.Value.name,
-                quote.Value.sector,
-                quote.Value.industry,
-                website,
-                logoUrl,
-                "Yahoo quoteSummary",
-                false,
-                "Yahoo (free)");
-        }
-
-        var quoteOnly = await TryGetYahooQuoteAsync(normalized, cancellationToken);
-        if (quoteOnly is not null)
+        if (result is null)
         {
             return new MarketProfileResponse(
                 normalized,
-                quoteOnly.Name,
                 null,
                 null,
                 null,
                 null,
-                "Yahoo quote",
+                null,
+                "Sem resposta da BRAPI",
                 false,
-                "Yahoo (free)");
+                "BRAPI");
         }
 
         return new MarketProfileResponse(
             normalized,
+            result.Value.name,
             null,
             null,
             null,
-            null,
-            null,
-            "Sem cobertura de perfil na fonte gratuita",
+            result.Value.logoUrl,
+            result.Value.source,
             false,
-            "Sem cobertura");
+            "BRAPI");
     }
 
     public async Task<MarketHistoryResponse> GetHistoryAsync(string symbol, string period = "6mo", CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeSymbol(symbol);
-        var yahoo = await TryGetYahooHistoryAsync(normalized, period, cancellationToken);
-        if (yahoo is not null)
+        var normalizedPeriod = NormalizePeriod(period);
+        var result = await TryGetBrapiQuoteAsync(normalized, includeHistory: true, cancellationToken, normalizedPeriod);
+
+        if (result is null)
         {
-            return yahoo with { ProviderLabel = "Yahoo (free)" };
+            return new MarketHistoryResponse(
+                normalized,
+                normalizedPeriod,
+                "Sem resposta da BRAPI",
+                false,
+                "BRAPI",
+                []);
         }
 
         return new MarketHistoryResponse(
             normalized,
-            NormalizePeriod(period),
-            "Sem historico na fonte gratuita",
+            normalizedPeriod,
+            result.Value.source,
             false,
-            "Sem cobertura",
-            []);
+            "BRAPI",
+            result.Value.historyPoints);
     }
 
-    private async Task<MarketQuoteResponse?> TryGetYahooQuoteAsync(string symbol, CancellationToken cancellationToken)
+    private async Task<(decimal? price, decimal? changePercent, string? currency, string? name, DateTimeOffset? lastUpdatedUtc, string? logoUrl, string source, List<MarketHistoryPointResponse> historyPoints)?> TryGetBrapiQuoteAsync(
+        string symbol,
+        bool includeHistory,
+        CancellationToken cancellationToken,
+        string? period = null)
     {
         try
         {
-            var yahooSymbol = ToYahooSymbol(symbol);
-            using var response = await _yahooClient.GetAsync($"v7/finance/quote?symbols={Uri.EscapeDataString(yahooSymbol)}", cancellationToken);
+            var qs = new List<string>();
+            var token = _options.BrapiToken?.Trim();
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                qs.Add($"token={Uri.EscapeDataString(token)}");
+            }
+
+            if (includeHistory)
+            {
+                qs.Add($"range={Uri.EscapeDataString(period ?? "6mo")}");
+                qs.Add("interval=1d");
+            }
+
+            var suffix = qs.Count > 0 ? "?" + string.Join("&", qs) : string.Empty;
+            var path = $"api/quote/{Uri.EscapeDataString(symbol)}{suffix}";
+
+            using var response = await _brapiClient.GetAsync(path, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogWarning("Yahoo quote retornou status {Status} para {Symbol}", (int)response.StatusCode, symbol);
+                logger.LogWarning("BRAPI retornou status {Status} para {Symbol}", (int)response.StatusCode, symbol);
                 return null;
             }
 
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
             using var json = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
 
-            var result = json.RootElement.GetProperty("quoteResponse").GetProperty("result");
-            if (result.GetArrayLength() == 0) return null;
+            if (json.RootElement.TryGetProperty("error", out var errorNode) && errorNode.ValueKind is JsonValueKind.True)
+            {
+                var msg = ReadString(json.RootElement, "message") ?? "Erro da BRAPI";
+                logger.LogWarning("BRAPI erro para {Symbol}: {Message}", symbol, msg);
+                return null;
+            }
 
-            var first = result[0];
+            if (!json.RootElement.TryGetProperty("results", out var results) || results.ValueKind != JsonValueKind.Array || results.GetArrayLength() == 0)
+            {
+                return null;
+            }
+
+            var first = results[0];
             var price = ReadDecimal(first, "regularMarketPrice");
-            if (price is null) return null;
+            var change = ReadDecimal(first, "regularMarketChangePercent");
+            var currency = ReadString(first, "currency");
+            var name = ReadString(first, "longName") ?? ReadString(first, "shortName") ?? ReadString(first, "symbol");
+            var logo = ReadString(first, "logourl");
+            var marketTime = ReadDateTimeOffset(first, "regularMarketTime");
 
-            var changePercent = ReadDecimal(first, "regularMarketChangePercent");
-            var currency = ReadString(first, "currency") ?? "BRL";
-            var name = ReadString(first, "longName") ?? ReadString(first, "shortName") ?? symbol;
-            var ts = ReadLong(first, "regularMarketTime");
-            var updated = ts is null ? (DateTimeOffset?)null : DateTimeOffset.FromUnixTimeSeconds(ts.Value);
-
-            return new MarketQuoteResponse(
-                symbol,
-                price,
-                changePercent,
-                currency,
-                name,
-                updated,
-                "Yahoo quote",
-                false,
-                "Yahoo (free)");
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Falha no Yahoo quote para {Symbol}", symbol);
-            return null;
-        }
-    }
-
-    private async Task<MarketQuoteResponse?> TryGetStooqQuoteAsync(string symbol, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var stooqSymbol = ToStooqSymbol(symbol);
-            var url = $"q/l/?s={Uri.EscapeDataString(stooqSymbol)}&f=sd2t2ohlcv&h&e=csv";
-            using var response = await _stooqClient.GetAsync(url, cancellationToken);
-            if (!response.IsSuccessStatusCode)
+            var history = new List<MarketHistoryPointResponse>();
+            if (includeHistory && first.TryGetProperty("historicalDataPrice", out var hist) && hist.ValueKind == JsonValueKind.Array)
             {
-                logger.LogWarning("Stooq quote retornou status {Status} para {Symbol}", (int)response.StatusCode, symbol);
-                return null;
-            }
-
-            var csv = await response.Content.ReadAsStringAsync(cancellationToken);
-            var lines = csv.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (lines.Length < 2) return null;
-
-            var cols = lines[1].Split(',');
-            if (cols.Length < 7) return null;
-            var closeRaw = cols[6];
-            if (!decimal.TryParse(closeRaw, NumberStyles.Any, CultureInfo.InvariantCulture, out var close))
-            {
-                return null;
-            }
-
-            DateTimeOffset? updated = null;
-            if (DateOnly.TryParse(cols[1], CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
-            {
-                updated = new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
-            }
-
-            return new MarketQuoteResponse(
-                symbol,
-                close,
-                null,
-                "BRL",
-                symbol,
-                updated,
-                "Stooq CSV",
-                false,
-                "Stooq (free)");
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Falha no Stooq quote para {Symbol}", symbol);
-            return null;
-        }
-    }
-
-    private async Task<(string? name, string? sector, string? industry, string? website)?> TryGetYahooQuoteSummaryAsync(string yahooSymbol, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var modules = Uri.EscapeDataString("assetProfile,price");
-            using var response = await _yahooClient.GetAsync($"v10/finance/quoteSummary/{Uri.EscapeDataString(yahooSymbol)}?modules={modules}", cancellationToken);
-            if (!response.IsSuccessStatusCode)
-            {
-                logger.LogWarning("Yahoo quoteSummary retornou status {Status} para {Symbol}", (int)response.StatusCode, yahooSymbol);
-                return null;
-            }
-
-            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            using var json = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
-
-            var resultArray = json.RootElement.GetProperty("quoteSummary").GetProperty("result");
-            if (resultArray.ValueKind != JsonValueKind.Array || resultArray.GetArrayLength() == 0) return null;
-
-            var first = resultArray[0];
-            var priceNode = first.TryGetProperty("price", out var p) ? p : default;
-            var profileNode = first.TryGetProperty("assetProfile", out var ap) ? ap : default;
-
-            var name = priceNode.ValueKind == JsonValueKind.Object
-                ? ReadString(priceNode, "longName") ?? ReadString(priceNode, "shortName")
-                : null;
-
-            var sector = profileNode.ValueKind == JsonValueKind.Object ? ReadString(profileNode, "sector") : null;
-            var industry = profileNode.ValueKind == JsonValueKind.Object ? ReadString(profileNode, "industry") : null;
-            var website = profileNode.ValueKind == JsonValueKind.Object ? ReadString(profileNode, "website") : null;
-
-            return (name, sector, industry, website);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Falha no Yahoo quoteSummary para {Symbol}", yahooSymbol);
-            return null;
-        }
-    }
-
-    private async Task<MarketHistoryResponse?> TryGetYahooHistoryAsync(string symbol, string period, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var yahooSymbol = ToYahooSymbol(symbol);
-            var normalizedPeriod = NormalizePeriod(period);
-            using var response = await _yahooClient.GetAsync($"v8/finance/chart/{Uri.EscapeDataString(yahooSymbol)}?interval=1d&range={normalizedPeriod}", cancellationToken);
-            if (!response.IsSuccessStatusCode)
-            {
-                logger.LogWarning("Yahoo history retornou status {Status} para {Symbol}", (int)response.StatusCode, symbol);
-                return null;
-            }
-
-            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-            using var json = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
-
-            var result = json.RootElement.GetProperty("chart").GetProperty("result");
-            if (result.ValueKind != JsonValueKind.Array || result.GetArrayLength() == 0) return null;
-
-            var first = result[0];
-            var timestamps = first.GetProperty("timestamp").EnumerateArray().ToArray();
-            var closes = first.GetProperty("indicators").GetProperty("quote")[0].GetProperty("close").EnumerateArray().ToArray();
-            var size = Math.Min(timestamps.Length, closes.Length);
-
-            var points = new List<MarketHistoryPointResponse>(size);
-            for (var i = 0; i < size; i++)
-            {
-                if (closes[i].ValueKind is JsonValueKind.Null or JsonValueKind.Undefined) continue;
-                if (!closes[i].TryGetDecimal(out var close) && closes[i].TryGetDouble(out var closeDouble))
+                foreach (var item in hist.EnumerateArray())
                 {
-                    close = (decimal)closeDouble;
+                    if (!item.TryGetProperty("date", out var d) || d.ValueKind != JsonValueKind.Number || !d.TryGetInt64(out var ts)) continue;
+                    var close = ReadDecimal(item, "close");
+                    if (close is null) continue;
+                    var date = DateOnly.FromDateTime(DateTimeOffset.FromUnixTimeSeconds(ts).DateTime);
+                    history.Add(new MarketHistoryPointResponse(date, close.Value));
                 }
-
-                if (timestamps[i].ValueKind != JsonValueKind.Number || !timestamps[i].TryGetInt64(out var ts)) continue;
-
-                var date = DateOnly.FromDateTime(DateTimeOffset.FromUnixTimeSeconds(ts).DateTime);
-                points.Add(new MarketHistoryPointResponse(date, close));
             }
 
-            return new MarketHistoryResponse(
-                symbol,
-                normalizedPeriod,
-                "Yahoo chart",
-                false,
-                "Yahoo (free)",
-                points);
+            return (price, change, currency, name, marketTime, logo, "BRAPI /api/quote", history);
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Falha no Yahoo history para {Symbol}", symbol);
+            logger.LogWarning(ex, "Falha ao consultar BRAPI para {Symbol}", symbol);
             return null;
         }
     }
@@ -307,35 +189,12 @@ public sealed class FreeMarketDataProvider(
         return symbol.Trim().ToUpperInvariant();
     }
 
-    private static string ToYahooSymbol(string symbol)
-    {
-        if (symbol.Contains('.')) return symbol;
-        return symbol.EndsWith(".SA", StringComparison.OrdinalIgnoreCase) ? symbol : $"{symbol}.SA";
-    }
-
-    private static string ToStooqSymbol(string symbol)
-    {
-        var raw = symbol.Replace(".SA", string.Empty, StringComparison.OrdinalIgnoreCase).ToLowerInvariant();
-        return $"{raw}.sa";
-    }
-
     private static string NormalizePeriod(string period)
-    {
-        return period?.Trim().ToLowerInvariant() switch
+        => period?.Trim().ToLowerInvariant() switch
         {
             "1mo" or "3mo" or "6mo" or "1y" or "2y" or "5y" => period.Trim().ToLowerInvariant(),
             _ => "6mo"
         };
-    }
-
-    private static string? BuildLogoUrl(string? website)
-    {
-        if (string.IsNullOrWhiteSpace(website)) return null;
-        if (!Uri.TryCreate(website, UriKind.Absolute, out var uri)) return null;
-        var host = uri.Host;
-        if (string.IsNullOrWhiteSpace(host)) return null;
-        return $"https://logo.clearbit.com/{host}";
-    }
 
     private static decimal? ReadDecimal(JsonElement node, string property)
     {
@@ -345,15 +204,17 @@ public sealed class FreeMarketDataProvider(
         return null;
     }
 
-    private static long? ReadLong(JsonElement node, string property)
-    {
-        if (!node.TryGetProperty(property, out var value) || value.ValueKind != JsonValueKind.Number) return null;
-        return value.TryGetInt64(out var number) ? number : null;
-    }
-
     private static string? ReadString(JsonElement node, string property)
     {
         if (!node.TryGetProperty(property, out var value) || value.ValueKind != JsonValueKind.String) return null;
         return value.GetString();
+    }
+
+    private static DateTimeOffset? ReadDateTimeOffset(JsonElement node, string property)
+    {
+        var raw = ReadString(node, property);
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        if (DateTimeOffset.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var dto)) return dto;
+        return null;
     }
 }

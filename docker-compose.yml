@@ -31,6 +31,8 @@ services:
       OTEL_TRACES_EXPORTER: none
       OTEL_METRICS_EXPORTER: none
       OTEL_LOGS_EXPORTER: none
+      MarketData__Provider: free
+      MarketData__BrapiToken: ${BRAPI_TOKEN}
     depends_on:
       postgres:
         condition: service_healthy
