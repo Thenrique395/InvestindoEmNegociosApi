@@ -32,17 +32,17 @@ public sealed class FreeMarketDataProvider(
             return stooq with { ProviderLabel = "Stooq (free)" };
         }
 
-        // Degrada para resposta estimada para nao quebrar o frontend com 503
+        // Degrada para resposta sem cobertura (sem inventar valor)
         return new MarketQuoteResponse(
             normalized,
             null,
             null,
             "BRL",
-            normalized,
+            null,
             DateTimeOffset.UtcNow,
-            "Fallback sem cotacao",
-            true,
-            "FAKE - TEMPORARIAMENTE");
+            "Sem cotacao na fonte gratuita",
+            false,
+            "Sem cobertura");
     }
 
     public async Task<MarketProfileResponse> GetProfileAsync(string symbol, CancellationToken cancellationToken = default)
@@ -68,16 +68,31 @@ public sealed class FreeMarketDataProvider(
                 "Yahoo (free)");
         }
 
+        var quoteOnly = await TryGetYahooQuoteAsync(normalized, cancellationToken);
+        if (quoteOnly is not null)
+        {
+            return new MarketProfileResponse(
+                normalized,
+                quoteOnly.Name,
+                null,
+                null,
+                null,
+                null,
+                "Yahoo quote",
+                false,
+                "Yahoo (free)");
+        }
+
         return new MarketProfileResponse(
             normalized,
-            normalized,
             null,
             null,
             null,
             null,
-            "Fallback sem perfil",
-            true,
-            "FAKE - TEMPORARIAMENTE");
+            null,
+            "Sem cobertura de perfil na fonte gratuita",
+            false,
+            "Sem cobertura");
     }
 
     public async Task<MarketHistoryResponse> GetHistoryAsync(string symbol, string period = "6mo", CancellationToken cancellationToken = default)
@@ -92,9 +107,9 @@ public sealed class FreeMarketDataProvider(
         return new MarketHistoryResponse(
             normalized,
             NormalizePeriod(period),
-            "Fallback sem historico",
-            true,
-            "FAKE - TEMPORARIAMENTE",
+            "Sem historico na fonte gratuita",
+            false,
+            "Sem cobertura",
             []);
     }
 

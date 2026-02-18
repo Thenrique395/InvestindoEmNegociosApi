@@ -408,7 +408,6 @@ app.MapScalarApiReference("/docs", options =>
     options.Theme = ScalarTheme.BluePlanet;
     options.DefaultHttpClient = new(ScalarTarget.CSharp, ScalarClient.HttpClient);
 });
-app.MapGet("/docs/", () => Results.Redirect("/docs"));
 
 app.UseExceptionHandler(exceptionApp =>
 {
