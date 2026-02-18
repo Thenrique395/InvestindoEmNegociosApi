@@ -19,7 +19,7 @@ public sealed record ImportUserDataResult(int ImportedRecords);
 
 public sealed class UserDataSnapshot
 {
-    public string Version { get; init; } = "1.0";
+    public string Version { get; init; } = "1.1";
     public DateTime ExportedAtUtc { get; init; } = DateTime.UtcNow;
     public Guid SourceUserId { get; init; }
     public UserProfileData? Profile { get; init; }
@@ -31,6 +31,7 @@ public sealed class UserDataSnapshot
     public List<MoneyInstallmentData> Installments { get; init; } = [];
     public List<MoneyPaymentData> Payments { get; init; } = [];
     public InvestmentGoalData? InvestmentGoal { get; init; }
+    public InvestmentAllocationTargetData? InvestmentAllocationTarget { get; init; }
     public List<InvestmentPositionData> InvestmentPositions { get; init; } = [];
     public List<InvestmentMovementData> InvestmentMovements { get; init; } = [];
     public UserOnboardingData? Onboarding { get; init; }
@@ -130,6 +131,15 @@ public sealed record MoneyPaymentData(
 );
 
 public sealed record InvestmentGoalData(Guid Id, decimal TargetAmount, DateTime CreatedAt, DateTime UpdatedAt);
+
+public sealed record InvestmentAllocationTargetData(
+    Guid Id,
+    decimal Rf,
+    decimal Acoes,
+    decimal Fundos,
+    decimal Cripto,
+    DateTime CreatedAt,
+    DateTime UpdatedAt);
 
 public sealed record InvestmentPositionData(
     Guid Id,

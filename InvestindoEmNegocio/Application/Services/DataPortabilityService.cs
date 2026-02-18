@@ -71,6 +71,17 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
                 .Where(x => x.UserId == userId)
                 .Select(x => new InvestmentGoalData(x.Id, x.TargetAmount, x.CreatedAt, x.UpdatedAt))
                 .FirstOrDefaultAsync(cancellationToken),
+            InvestmentAllocationTarget = await dbContext.InvestmentAllocationTargets.AsNoTracking()
+                .Where(x => x.UserId == userId)
+                .Select(x => new InvestmentAllocationTargetData(
+                    x.Id,
+                    x.Rf,
+                    x.Acoes,
+                    x.Fundos,
+                    x.Cripto,
+                    x.CreatedAt,
+                    x.UpdatedAt))
+                .FirstOrDefaultAsync(cancellationToken),
             InvestmentPositions = await dbContext.InvestmentPositions.AsNoTracking()
                 .Where(x => x.UserId == userId)
                 .Select(x => new InvestmentPositionData(x.Id, x.Type, x.Asset, x.Quantity, x.AvgPrice, x.OpenedAt,
@@ -313,6 +324,22 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
             }
         }
 
+        if (snapshot.InvestmentAllocationTarget is not null)
+        {
+            var t = snapshot.InvestmentAllocationTarget;
+            var existingTarget = await dbContext.InvestmentAllocationTargets.FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken);
+            if (existingTarget is null)
+            {
+                var target = new InvestmentAllocationTarget(userId, t.Rf, t.Acoes, t.Fundos, t.Cripto);
+                await dbContext.InvestmentAllocationTargets.AddAsync(target, cancellationToken);
+                importedRecords++;
+            }
+            else
+            {
+                existingTarget.SetAllocation(t.Rf, t.Acoes, t.Fundos, t.Cripto);
+            }
+        }
+
         foreach (var p in snapshot.InvestmentPositions)
         {
             var position = new InvestmentPosition(
@@ -406,6 +433,7 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
         dbContext.UserNotifications.RemoveRange(dbContext.UserNotifications.Where(x => x.UserId == userId));
         dbContext.InvestmentPositions.RemoveRange(dbContext.InvestmentPositions.Where(x => x.UserId == userId));
         dbContext.InvestmentGoals.RemoveRange(dbContext.InvestmentGoals.Where(x => x.UserId == userId));
+        dbContext.InvestmentAllocationTargets.RemoveRange(dbContext.InvestmentAllocationTargets.Where(x => x.UserId == userId));
         dbContext.MoneyPlans.RemoveRange(dbContext.MoneyPlans.Where(x => x.UserId == userId));
         dbContext.Goals.RemoveRange(dbContext.Goals.Where(x => x.UserId == userId));
         dbContext.Cards.RemoveRange(dbContext.Cards.Where(x => x.UserId == userId));
