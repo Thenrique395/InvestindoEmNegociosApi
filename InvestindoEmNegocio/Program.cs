@@ -32,6 +32,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Scalar.AspNetCore;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.ResponseCompression;
 
 var builder = WebApplication.CreateBuilder(args);
 const string CorsPolicy = "AllowFrontend";
@@ -143,6 +144,15 @@ builder.Host.UseSerilog((context, services, configuration) =>
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddMemoryCache();
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[]
+    {
+        "application/json",
+        "application/problem+json"
+    });
+});
 builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer((document, _, _) =>
@@ -433,6 +443,7 @@ app.UseExceptionHandler(exceptionApp =>
 });
 
 app.UseHttpsRedirection();
+app.UseResponseCompression();
 app.UseStaticFiles();
 
 app.UseMiddleware<CorrelationIdMiddleware>();

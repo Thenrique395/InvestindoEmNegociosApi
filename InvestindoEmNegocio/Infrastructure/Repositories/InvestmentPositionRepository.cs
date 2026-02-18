@@ -17,6 +17,7 @@ public class InvestmentPositionRepository : IInvestmentPositionRepository
     public async Task<List<InvestmentPosition>> ListByUserAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         return await _context.InvestmentPositions
+            .AsNoTracking()
             .Include(x => x.Movements.OrderByDescending(m => m.Date))
             .Where(x => x.UserId == userId)
             .OrderByDescending(x => x.CreatedAt)
