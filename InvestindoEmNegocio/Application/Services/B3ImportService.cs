@@ -325,6 +325,20 @@ public sealed class B3ImportService(
             return string.Empty;
         }
 
+        // Prefer explicit B3 ticker pattern found anywhere in the parsed product text.
+        // This avoids OCR/regex glue issues like "DOVISC11", "DOHGLG11" or "ADOALUP4".
+        var tickerMatch = Regex.Match(value, @"[A-Z]{4,6}\d{1,2}");
+        if (tickerMatch.Success)
+        {
+            var ticker = tickerMatch.Value;
+            if (ticker.EndsWith('L') || ticker.EndsWith('F'))
+            {
+                ticker = ticker[..^1];
+            }
+
+            return ticker;
+        }
+
         var code = value.Contains(" - ", StringComparison.Ordinal)
             ? value[..value.IndexOf(" - ", StringComparison.Ordinal)].Trim()
             : value.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;

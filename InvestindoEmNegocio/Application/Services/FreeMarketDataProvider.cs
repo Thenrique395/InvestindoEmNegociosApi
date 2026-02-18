@@ -242,8 +242,20 @@ public sealed class FreeMarketDataProvider(
 
     private HttpRequestMessage CreateBrapiRequest(string path)
     {
-        var req = new HttpRequestMessage(HttpMethod.Get, path);
         var token = _options.BrapiToken?.Trim();
+        var finalPath = path;
+
+        // Mantém compatibilidade com os dois formatos aceitos pela BRAPI:
+        // Authorization Bearer e query string token=.
+        if (!string.IsNullOrWhiteSpace(token) &&
+            !finalPath.Contains("token=", StringComparison.OrdinalIgnoreCase))
+        {
+            finalPath = finalPath.Contains('?', StringComparison.Ordinal)
+                ? $"{finalPath}&token={Uri.EscapeDataString(token)}"
+                : $"{finalPath}?token={Uri.EscapeDataString(token)}";
+        }
+
+        var req = new HttpRequestMessage(HttpMethod.Get, finalPath);
         if (!string.IsNullOrWhiteSpace(token))
         {
             req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
