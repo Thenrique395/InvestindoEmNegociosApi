@@ -41,22 +41,6 @@ services:
       interval: 10s
       timeout: 3s
       retries: 10
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=proxy
-      - traefik.http.routers.backend.rule=Host(`${API_HOST}`)
-      - traefik.http.routers.backend.entrypoints=websecure
-      - traefik.http.routers.backend.tls=true
-      - traefik.http.routers.backend.tls.certresolver=letsencrypt
-      - traefik.http.services.backend.loadbalancer.server.port=5059
-    networks:
-      - default
-      - proxy
 
 volumes:
   pg_data:
-
-networks:
-  proxy:
-    external: true
-    name: proxy
