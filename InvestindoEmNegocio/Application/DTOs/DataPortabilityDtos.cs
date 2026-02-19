@@ -7,6 +7,7 @@ public sealed class DataPortabilityOptions
 {
     public bool Enabled { get; set; } = false;
     public int MaxImportSizeMb { get; set; } = 20;
+    public int ExportCacheSeconds { get; set; } = 30;
 }
 
 public sealed class ImportUserDataRequest

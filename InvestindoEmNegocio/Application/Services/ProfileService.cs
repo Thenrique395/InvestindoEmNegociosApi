@@ -4,17 +4,32 @@ using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Repositories;
 using System.Text.RegularExpressions;
 using System.Linq;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Application.Services;
 
-public class ProfileService(IUserProfileRepository profileRepository, ILogger<ProfileService> logger) : IProfileService
+public class ProfileService(
+    IUserProfileRepository profileRepository,
+    IMemoryCache cache,
+    ILogger<ProfileService> logger) : IProfileService
 {
     private readonly ILogger<ProfileService> _logger = logger;
     public async Task<UserProfileDto?> GetAsync(Guid userId, CancellationToken cancellationToken = default)
     {
+        var cacheKey = CacheKey(userId);
+        if (cache.TryGetValue(cacheKey, out UserProfileDto? cached))
+        {
+            return cached;
+        }
+
         var profile = await profileRepository.GetByUserIdAsync(userId, cancellationToken);
-        return profile is null ? null : Map(profile);
+        var mapped = profile is null ? null : Map(profile);
+        if (mapped is not null)
+        {
+            cache.Set(cacheKey, mapped, TimeSpan.FromSeconds(15));
+        }
+        return mapped;
     }
 
     public async Task<UserProfileDto> UpsertAsync(Guid userId, UpsertUserProfileRequest request,
@@ -27,6 +42,7 @@ public class ProfileService(IUserProfileRepository profileRepository, ILogger<Pr
                 request.AvatarUrl, request.City, request.State, request.Country, request.Language);
             await profileRepository.AddAsync(profile, cancellationToken);
             await profileRepository.SaveChangesAsync(cancellationToken);
+            cache.Remove(CacheKey(userId));
             _logger.LogInformation("User profile created {UserId}", userId);
             return Map(profile);
         }
@@ -34,6 +50,7 @@ public class ProfileService(IUserProfileRepository profileRepository, ILogger<Pr
         existing.SetData(request.FullName, request.Document, request.Phone, request.BirthDate, request.AvatarUrl,
             request.City, request.State, request.Country, request.Language);
         await profileRepository.SaveChangesAsync(cancellationToken);
+        cache.Remove(CacheKey(userId));
         _logger.LogInformation("User profile updated {UserId}", userId);
         return Map(existing);
     }
@@ -57,9 +74,12 @@ public class ProfileService(IUserProfileRepository profileRepository, ILogger<Pr
             existing.Language,
             existing.Currency);
         await profileRepository.SaveChangesAsync(cancellationToken);
+        cache.Remove(CacheKey(userId));
         _logger.LogInformation("User avatar updated {UserId}", userId);
         return Map(existing);
     }
+
+    private static string CacheKey(Guid userId) => $"profile:{userId:N}";
 
     private static UserProfileDto Map(UserProfile profile)
     {

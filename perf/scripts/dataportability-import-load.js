@@ -5,7 +5,17 @@ import { authHeaders, login } from '../lib/auth.js';
 
 requireAuthEnv();
 
-const importFilePath = config.importTest.file;
+function normalizeImportPath(pathValue) {
+  if (pathValue.startsWith('./perf/')) {
+    return pathValue.replace('./perf/', '../');
+  }
+  if (pathValue.startsWith('perf/')) {
+    return pathValue.replace('perf/', '../');
+  }
+  return pathValue;
+}
+
+const importFilePath = normalizeImportPath(config.importTest.file);
 const replaceExisting = config.importTest.replaceExisting;
 const importFileContent = open(importFilePath, 'b');
 

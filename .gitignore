@@ -6,3 +6,4 @@ riderModule.iml
 /InvestindoEmNegocio/wwwroot/uploads/avatars/*
 !/InvestindoEmNegocio/wwwroot/uploads/avatars/.gitkeep
 perf/config/local.json
+perf/results/*.json

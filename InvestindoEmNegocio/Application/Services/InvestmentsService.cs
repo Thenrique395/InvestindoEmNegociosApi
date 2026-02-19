@@ -3,6 +3,7 @@ using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Application.Services;
@@ -14,15 +15,18 @@ public class InvestmentsService : IInvestmentsService
     private readonly IInvestmentAllocationTargetRepository _allocationTargetRepository;
     private readonly IInvestmentPositionRepository _positionRepository;
     private readonly ILogger<InvestmentsService> _logger;
+    private readonly IMemoryCache _cache;
 
     public InvestmentsService(IInvestmentGoalRepository goalRepository,
         IInvestmentAllocationTargetRepository allocationTargetRepository,
         IInvestmentPositionRepository positionRepository,
+        IMemoryCache cache,
         ILogger<InvestmentsService> logger)
     {
         _goalRepository = goalRepository;
         _allocationTargetRepository = allocationTargetRepository;
         _positionRepository = positionRepository;
+        _cache = cache;
         _logger = logger;
     }
 
@@ -85,8 +89,16 @@ public class InvestmentsService : IInvestmentsService
     public async Task<List<InvestmentPositionDto>> ListPositionsAsync(Guid userId,
         CancellationToken cancellationToken = default)
     {
+        var cacheKey = PositionsCacheKey(userId);
+        if (_cache.TryGetValue(cacheKey, out List<InvestmentPositionDto>? cached) && cached is not null)
+        {
+            return cached;
+        }
+
         var positions = await _positionRepository.ListByUserAsync(userId, cancellationToken);
-        return positions.Select(Map).ToList();
+        var mapped = positions.Select(Map).ToList();
+        _cache.Set(cacheKey, mapped, TimeSpan.FromSeconds(20));
+        return mapped;
     }
 
     public async Task<InvestmentPositionDto?> GetPositionAsync(Guid userId, Guid id,
@@ -113,6 +125,7 @@ public class InvestmentsService : IInvestmentsService
 
         await _positionRepository.AddAsync(position, cancellationToken);
         await _positionRepository.SaveChangesAsync(cancellationToken);
+        InvalidatePositionsCache(userId);
         _logger.LogInformation("Investment position created {UserId} {PositionId}", userId, position.Id);
         return Map(position);
     }
@@ -135,6 +148,7 @@ public class InvestmentsService : IInvestmentsService
             request.Note);
 
         await _positionRepository.SaveChangesAsync(cancellationToken);
+        InvalidatePositionsCache(userId);
         _logger.LogInformation("Investment position updated {UserId} {PositionId}", userId, position.Id);
         return Map(position);
     }
@@ -145,6 +159,7 @@ public class InvestmentsService : IInvestmentsService
         if (position is null) return false;
         _positionRepository.Remove(position);
         await _positionRepository.SaveChangesAsync(cancellationToken);
+        InvalidatePositionsCache(userId);
         _logger.LogInformation("Investment position deleted {UserId} {PositionId}", userId, position.Id);
         return true;
     }
@@ -183,8 +198,16 @@ public class InvestmentsService : IInvestmentsService
         position.ApplyMovement(movement);
 
         await _positionRepository.SaveChangesAsync(cancellationToken);
+        InvalidatePositionsCache(userId);
         _logger.LogInformation("Investment movement added {UserId} {PositionId} {MovementId} {Type}", userId, position.Id, movement.Id, movement.Type);
         return Map(movement);
+    }
+
+    private static string PositionsCacheKey(Guid userId) => $"investments:positions:{userId:N}";
+
+    private void InvalidatePositionsCache(Guid userId)
+    {
+        _cache.Remove(PositionsCacheKey(userId));
     }
 
     private static InvestmentPositionDto Map(InvestmentPosition position)

@@ -5,25 +5,47 @@ using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Infrastructure.Data;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 
 namespace InvestindoEmNegocio.Application.Services;
 
-public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPortabilityService
+public sealed class DataPortabilityService(
+    InvestDbContext dbContext,
+    IMemoryCache cache,
+    IOptions<DataPortabilityOptions> options) : IDataPortabilityService
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
-        WriteIndented = true,
+        WriteIndented = false,
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         PropertyNameCaseInsensitive = true
     };
+    private static string ExportCacheKey(Guid userId) => $"dataportability:export:{userId:N}";
 
     public async Task<(string FileName, byte[] Content)> ExportAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        var positionIds = await dbContext.InvestmentPositions
-            .AsNoTracking()
+        var cacheSeconds = Math.Max(0, options.Value.ExportCacheSeconds);
+        if (cacheSeconds > 0)
+        {
+            return await cache.GetOrCreateAsync(ExportCacheKey(userId), async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(cacheSeconds);
+                return await BuildExportAsync(userId, cancellationToken);
+            });
+        }
+
+        return await BuildExportAsync(userId, cancellationToken);
+    }
+
+    private async Task<(string FileName, byte[] Content)> BuildExportAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var investmentPositions = await dbContext.InvestmentPositions.AsNoTracking()
             .Where(x => x.UserId == userId)
-            .Select(x => x.Id)
+            .Select(x => new InvestmentPositionData(x.Id, x.Type, x.Asset, x.Quantity, x.AvgPrice, x.OpenedAt,
+                x.Account, x.Category, x.Note, x.CreatedAt, x.UpdatedAt))
             .ToListAsync(cancellationToken);
+        var positionIds = investmentPositions.Select(x => x.Id).ToHashSet();
 
         var snapshot = new UserDataSnapshot
         {
@@ -82,11 +104,7 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
                     x.CreatedAt,
                     x.UpdatedAt))
                 .FirstOrDefaultAsync(cancellationToken),
-            InvestmentPositions = await dbContext.InvestmentPositions.AsNoTracking()
-                .Where(x => x.UserId == userId)
-                .Select(x => new InvestmentPositionData(x.Id, x.Type, x.Asset, x.Quantity, x.AvgPrice, x.OpenedAt,
-                    x.Account, x.Category, x.Note, x.CreatedAt, x.UpdatedAt))
-                .ToListAsync(cancellationToken),
+            InvestmentPositions = investmentPositions,
             InvestmentMovements = await dbContext.InvestmentMovements.AsNoTracking()
                 .Where(x => positionIds.Contains(x.PositionId))
                 .Select(x => new InvestmentMovementData(x.Id, x.PositionId, x.Type, x.Quantity, x.Price, x.Date, x.Note, x.CreatedAt))
@@ -427,6 +445,7 @@ public sealed class DataPortabilityService(InvestDbContext dbContext) : IDataPor
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+        cache.Remove(ExportCacheKey(userId));
         return new ImportUserDataResult(importedRecords);
     }
 

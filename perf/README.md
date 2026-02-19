@@ -95,7 +95,7 @@ k6 run \
 ## Save reports
 
 ```bash
-k6 run -e PERF_CONFIG=./perf/config/local.json perf/scripts/api-full-suite.js --summary-export=perf/results/api-full-summary.json
+k6 run -e PERF_CONFIG=./perf/config/local.json perf/scripts/api-full-suite.js --summary-export=perf/results/api-full-baseline.json
 ```
 
 ## Suggested first-pass targets

@@ -70,6 +70,7 @@ EnsureEnvFromConfig(builder.Configuration, "OTEL_METRICS_EXPORTER", "OTEL_METRIC
 EnsureEnvFromConfig(builder.Configuration, "OTEL_LOGS_EXPORTER", "OTEL_LOGS_EXPORTER");
 EnsureEnvFromConfig(builder.Configuration, "DataPortability__Enabled", "DataPortability:Enabled");
 EnsureEnvFromConfig(builder.Configuration, "DataPortability__MaxImportSizeMb", "DataPortability:MaxImportSizeMb");
+EnsureEnvFromConfig(builder.Configuration, "DataPortability__ExportCacheSeconds", "DataPortability:ExportCacheSeconds");
 EnsureEnvFromConfig(builder.Configuration, "B3Api__Enabled", "B3Api:Enabled");
 EnsureEnvFromConfig(builder.Configuration, "B3Api__BaseUrl", "B3Api:BaseUrl");
 EnsureEnvFromConfig(builder.Configuration, "B3Api__ClientId", "B3Api:ClientId");

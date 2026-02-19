@@ -1,10 +1,34 @@
-const configPath = __ENV.PERF_CONFIG || './perf/config/default.json';
+const configPathInput = __ENV.PERF_CONFIG || '../config/default.json';
+
+function candidatePaths(pathValue) {
+  const values = [pathValue];
+  if (pathValue.startsWith('./perf/')) {
+    values.push(pathValue.replace('./perf/', '../'));
+  }
+  if (pathValue.startsWith('perf/')) {
+    values.push(pathValue.replace('perf/', '../'));
+  }
+  return [...new Set(values)];
+}
 
 let fileConfig = {};
-try {
-  fileConfig = JSON.parse(open(configPath));
-} catch (error) {
-  throw new Error(`Cannot read PERF_CONFIG file at "${configPath}": ${String(error)}`);
+let configPath = configPathInput;
+let configLoaded = false;
+let lastError = null;
+
+for (const candidate of candidatePaths(configPathInput)) {
+  try {
+    fileConfig = JSON.parse(open(candidate));
+    configPath = candidate;
+    configLoaded = true;
+    break;
+  } catch (error) {
+    lastError = error;
+  }
+}
+
+if (!configLoaded) {
+  throw new Error(`Cannot read PERF_CONFIG file at "${configPathInput}": ${String(lastError)}`);
 }
 
 function envOrFile(key, fileValue, fallback = '') {
@@ -52,7 +76,7 @@ export const config = {
   },
 
   importTest: {
-    file: envOrFile('IMPORT_FILE', importConfig.file, './perf/data/user-snapshot.json'),
+    file: envOrFile('IMPORT_FILE', importConfig.file, '../data/user-snapshot.json'),
     replaceExisting: toBool(envOrFile('REPLACE_EXISTING', importConfig.replaceExisting, true), true),
     vus: toNumber(envOrFile('IMPORT_VUS', importConfig.vus, 2), 2),
     duration: envOrFile('IMPORT_DURATION', importConfig.duration, '2m'),
