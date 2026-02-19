@@ -5,3 +5,4 @@ riderModule.iml
 /_ReSharper.Caches/
 /InvestindoEmNegocio/wwwroot/uploads/avatars/*
 !/InvestindoEmNegocio/wwwroot/uploads/avatars/.gitkeep
+perf/config/local.json
