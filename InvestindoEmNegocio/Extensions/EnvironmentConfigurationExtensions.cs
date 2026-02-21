@@ -28,6 +28,7 @@ public static class EnvironmentConfigurationExtensions
                      ("B3Api__BaseUrl", "B3Api:BaseUrl"),
                      ("B3Api__ClientId", "B3Api:ClientId"),
                      ("B3Api__ClientSecret", "B3Api:ClientSecret"),
+                     ("Cors__AllowedOrigins", "Cors:AllowedOrigins"),
                      ("MarketData__Provider", "MarketData:Provider"),
                      ("MarketData__BrapiToken", "MarketData:BrapiToken")
                  })

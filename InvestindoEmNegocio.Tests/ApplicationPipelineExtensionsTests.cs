@@ -2,6 +2,7 @@ using FluentAssertions;
 using InvestindoEmNegocio.Extensions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace InvestindoEmNegocio.Tests;
@@ -59,9 +60,10 @@ public class ApplicationPipelineExtensionsTests
     public void UseAppPipeline_Should_Register_Middleware_Without_Throwing()
     {
         var builder = WebApplication.CreateBuilder();
+        var configuration = new ConfigurationBuilder().Build();
         builder.Services
             .AddApiSurface(isDevelopment: true)
-            .AddAppCors("AllowFrontend")
+            .AddAppCors(configuration, "AllowFrontend")
             .AddAppRateLimiting();
         builder.Services.AddAuthentication();
         builder.Services.AddAuthorization();

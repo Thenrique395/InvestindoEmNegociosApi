@@ -11,7 +11,7 @@ var otelSettings = builder.AddAppObservability();
 builder.Services
     .AddApiSurface(isDevelopment)
     .AddAppOptions(builder.Configuration)
-    .AddAppCors(CorsPolicy)
+    .AddAppCors(builder.Configuration, CorsPolicy)
     .AddAppRateLimiting()
     .AddPersistence(builder.Configuration)
     .AddApplicationDependencies()

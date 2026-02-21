@@ -114,9 +114,9 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddAppCors(this IServiceCollection services, string corsPolicy)
+    public static IServiceCollection AddAppCors(this IServiceCollection services, IConfiguration configuration, string corsPolicy)
     {
-        var allowedOrigins = new[]
+        var defaultOrigins = new[]
         {
             "http://localhost:4200",
             "http://127.0.0.1:4200",
@@ -131,6 +131,10 @@ public static class ServiceCollectionExtensions
             "https://127.0.0.1:4000",
             "https://35.174.50.187:4000"
         };
+        var configuredOrigins = ResolveConfiguredOrigins(configuration);
+        var allowedOrigins = (configuredOrigins.Count > 0 ? configuredOrigins.ToArray() : defaultOrigins)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
         services.AddCors(options =>
         {
@@ -144,6 +148,19 @@ public static class ServiceCollectionExtensions
         });
 
         return services;
+    }
+
+    private static List<string> ResolveConfiguredOrigins(IConfiguration configuration)
+    {
+        var fromArray = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+        var fromCsv = (configuration["Cors:AllowedOrigins"] ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        return fromArray
+            .Concat(fromCsv)
+            .Select(x => x.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToList();
     }
 
     public static IServiceCollection AddAppRateLimiting(this IServiceCollection services)

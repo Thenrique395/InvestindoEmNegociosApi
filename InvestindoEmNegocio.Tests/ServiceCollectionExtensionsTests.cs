@@ -141,8 +141,9 @@ public class ServiceCollectionExtensionsTests
     {
         var services = new ServiceCollection();
         const string policy = "AllowFrontend";
+        var configuration = new ConfigurationBuilder().Build();
 
-        services.AddAppCors(policy);
+        services.AddAppCors(configuration, policy);
         var provider = services.BuildServiceProvider();
 
         var cors = provider.GetRequiredService<IOptions<CorsOptions>>().Value;
@@ -152,6 +153,31 @@ public class ServiceCollectionExtensionsTests
         configuredPolicy!.Origins.Should().Contain("https://35.174.50.187:4000");
         configuredPolicy.Origins.Should().Contain("http://localhost:4200");
         configuredPolicy.SupportsCredentials.Should().BeTrue();
+    }
+
+    [Fact]
+    public void AddAppCors_Should_Use_Configured_Origins_When_Present()
+    {
+        var services = new ServiceCollection();
+        const string policy = "AllowFrontend";
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Cors:AllowedOrigins:0"] = "https://app.35.174.50.187.sslip.io",
+                ["Cors:AllowedOrigins:1"] = "https://api.35.174.50.187.sslip.io"
+            })
+            .Build();
+
+        services.AddAppCors(configuration, policy);
+        var provider = services.BuildServiceProvider();
+
+        var cors = provider.GetRequiredService<IOptions<CorsOptions>>().Value;
+        var configuredPolicy = cors.GetPolicy(policy);
+
+        configuredPolicy.Should().NotBeNull();
+        configuredPolicy!.Origins.Should().Contain("https://app.35.174.50.187.sslip.io");
+        configuredPolicy.Origins.Should().Contain("https://api.35.174.50.187.sslip.io");
+        configuredPolicy.Origins.Should().NotContain("http://localhost:4200");
     }
 
     [Fact]
