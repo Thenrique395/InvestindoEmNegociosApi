@@ -5,6 +5,7 @@ using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 
 namespace InvestindoEmNegocio.Tests;
@@ -86,6 +87,63 @@ public class AdminParametersServiceTests
         result.CardCloseDaysBefore.Should().Be(7);
         result.GoalInactivityDays.Should().Be(15);
         notificationSettingsRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreatePaymentMethodAsync_Should_Throw_AppProblem_When_Save_Fails()
+    {
+        var paymentMethodRepository = new Mock<IPaymentMethodRepository>();
+        paymentMethodRepository
+            .Setup(x => x.ListAllAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        paymentMethodRepository
+            .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateException("db error"));
+
+        var sut = BuildSut(paymentMethodRepository: paymentMethodRepository);
+
+        Func<Task> act = async () => await sut.CreatePaymentMethodAsync("PIX", CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<AppProblemException>();
+        exception.Which.StatusCode.Should().Be(409);
+    }
+
+    [Fact]
+    public async Task CreateCardBrandAsync_Should_Throw_AppProblem_When_Save_Fails()
+    {
+        var cardBrandRepository = new Mock<ICardBrandRepository>();
+        cardBrandRepository
+            .Setup(x => x.ListAllAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        cardBrandRepository
+            .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateException("db error"));
+
+        var sut = BuildSut(cardBrandRepository: cardBrandRepository);
+
+        Func<Task> act = async () => await sut.CreateCardBrandAsync(new CreateCardBrandRequest("Visa", "visa"), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<AppProblemException>();
+        exception.Which.StatusCode.Should().Be(409);
+    }
+
+    [Fact]
+    public async Task CreateInstitutionAsync_Should_Throw_AppProblem_When_Save_Fails()
+    {
+        var institutionRepository = new Mock<IInstitutionRepository>();
+        institutionRepository
+            .Setup(x => x.ExistsAsync("BANCO X", InstitutionType.Bank, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        institutionRepository
+            .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateException("db error"));
+
+        var sut = BuildSut(institutionRepository: institutionRepository);
+
+        Func<Task> act = async () => await sut.CreateInstitutionAsync(new CreateInstitutionRequest("Banco X", "Bank"), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<AppProblemException>();
+        exception.Which.StatusCode.Should().Be(409);
     }
 
     private static AdminParametersService BuildSut(

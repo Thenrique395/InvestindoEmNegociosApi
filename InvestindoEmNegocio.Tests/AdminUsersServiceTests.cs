@@ -50,4 +50,63 @@ public class AdminUsersServiceTests
         repository.Verify(x => x.Remove(targetUser), Times.Once);
         repository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Fact]
+    public async Task UpdateRoleAsync_Should_Throw_When_User_Not_Found()
+    {
+        var repository = new Mock<IUserRepository>();
+        repository
+            .Setup(x => x.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+        var sut = new AdminUsersService(repository.Object);
+
+        Func<Task> act = async () => await sut.UpdateRoleAsync(Guid.NewGuid(), "Admin", CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<AppProblemException>();
+        exception.Which.StatusCode.Should().Be(404);
+    }
+
+    [Fact]
+    public async Task UpdateStatusAsync_Should_Throw_When_User_Not_Found()
+    {
+        var repository = new Mock<IUserRepository>();
+        repository
+            .Setup(x => x.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+        var sut = new AdminUsersService(repository.Object);
+
+        Func<Task> act = async () => await sut.UpdateStatusAsync(Guid.NewGuid(), true, Guid.NewGuid(), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<AppProblemException>();
+        exception.Which.StatusCode.Should().Be(404);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_Should_Throw_When_Current_User_Tries_To_Delete_Himself()
+    {
+        var userId = Guid.NewGuid();
+        var sut = new AdminUsersService(Mock.Of<IUserRepository>());
+
+        Func<Task> act = async () => await sut.DeleteAsync(userId, userId, CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<AppProblemException>();
+        exception.Which.StatusCode.Should().Be(400);
+    }
+
+    [Fact]
+    public async Task ListAsync_Should_Map_Users()
+    {
+        var user = new User("Tester", "tester@local", "hash");
+        var repository = new Mock<IUserRepository>();
+        repository
+            .Setup(x => x.ListAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync([user]);
+        var sut = new AdminUsersService(repository.Object);
+
+        var result = await sut.ListAsync(CancellationToken.None);
+
+        result.Should().ContainSingle();
+        result[0].Id.Should().Be(user.Id);
+        result[0].Email.Should().Be("tester@local");
+    }
 }
