@@ -5,7 +5,6 @@ using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
-using InvestindoEmNegocio.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using UglyToad.PdfPig;
@@ -13,7 +12,7 @@ using UglyToad.PdfPig;
 namespace InvestindoEmNegocio.Application.Services;
 
 public sealed class B3ImportService(
-    InvestDbContext dbContext,
+    IInvestDbContext dbContext,
     IMemoryCache memoryCache,
     ILogger<B3ImportService> logger) : IB3ImportService
 {
@@ -97,7 +96,7 @@ public sealed class B3ImportService(
         var importStrategy = ParseStrategy(strategy);
         var imported = 0;
 
-        await using var tx = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var tx = await dbContext.BeginTransactionAsync(cancellationToken);
 
         var userPositions = await dbContext.InvestmentPositions
             .Include(x => x.Movements)

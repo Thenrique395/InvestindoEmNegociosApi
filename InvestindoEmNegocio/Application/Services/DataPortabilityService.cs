@@ -4,14 +4,13 @@ using Microsoft.EntityFrameworkCore;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
-using InvestindoEmNegocio.Infrastructure.Data;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
 namespace InvestindoEmNegocio.Application.Services;
 
 public sealed class DataPortabilityService(
-    InvestDbContext dbContext,
+    IInvestDbContext dbContext,
     IMemoryCache cache,
     IOptions<DataPortabilityOptions> options) : IDataPortabilityService
 {
@@ -130,7 +129,7 @@ public sealed class DataPortabilityService(
         var snapshot = await JsonSerializer.DeserializeAsync<UserDataSnapshot>(stream, JsonOptions, cancellationToken)
             ?? throw new InvalidOperationException("Arquivo de importação inválido.");
 
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await dbContext.BeginTransactionAsync(cancellationToken);
 
         if (replaceExisting)
         {

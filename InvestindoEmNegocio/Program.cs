@@ -301,6 +301,7 @@ builder.Services.AddDbContext<InvestDbContext>(options =>
     {
         npgsqlOptions.MigrationsAssembly(typeof(InvestDbContext).Assembly.GetName().Name);
     }));
+builder.Services.AddScoped<IInvestDbContext>(sp => sp.GetRequiredService<InvestDbContext>());
 
 builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy())

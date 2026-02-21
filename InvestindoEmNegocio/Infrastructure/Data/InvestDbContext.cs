@@ -1,9 +1,11 @@
+using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace InvestindoEmNegocio.Infrastructure.Data;
 
-public class InvestDbContext : DbContext
+public class InvestDbContext : DbContext, IInvestDbContext
 {
     public InvestDbContext(DbContextOptions<InvestDbContext> options) : base(options)
     {
@@ -30,6 +32,9 @@ public class InvestDbContext : DbContext
     public DbSet<Institution> Institutions => Set<Institution>();
     public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
     public DbSet<NotificationSettings> NotificationSettings => Set<NotificationSettings>();
+
+    public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default) =>
+        Database.BeginTransactionAsync(cancellationToken);
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
