@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Application.Services;
+using InvestindoEmNegocio.Extensions;
 using InvestindoEmNegocio.Domain.Repositories;
 using InvestindoEmNegocio.Infrastructure.Auth;
 using InvestindoEmNegocio.Infrastructure.Data;
@@ -29,8 +30,6 @@ using OpenTelemetry.Exporter;
 using Serilog.Sinks.OpenTelemetry;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Mvc;
 using Scalar.AspNetCore;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.ResponseCompression;
@@ -426,32 +425,7 @@ app.MapScalarApiReference("/docs", options =>
     options.DefaultHttpClient = new(ScalarTarget.CSharp, ScalarClient.HttpClient);
 });
 
-app.UseExceptionHandler(exceptionApp =>
-{
-    exceptionApp.Run(async context =>
-    {
-        var exceptionHandler = context.Features.Get<IExceptionHandlerFeature>();
-        var problemDetails = new ProblemDetails
-        {
-            Status = StatusCodes.Status500InternalServerError,
-            Title = "Erro interno do servidor.",
-            Detail = app.Environment.IsDevelopment()
-                ? exceptionHandler?.Error.Message
-                : null,
-            Instance = context.Request.Path
-        };
-
-        problemDetails.Extensions["traceId"] = context.TraceIdentifier;
-        if (app.Environment.IsDevelopment() && exceptionHandler?.Error is not null)
-        {
-            problemDetails.Extensions["exception"] = exceptionHandler.Error.GetType().Name;
-        }
-
-        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-        context.Response.ContentType = "application/problem+json";
-        await context.Response.WriteAsJsonAsync(problemDetails);
-    });
-});
+app.UseGlobalProblemDetails(app.Environment.IsDevelopment());
 
 app.UseHttpsRedirection();
 app.UseResponseCompression();

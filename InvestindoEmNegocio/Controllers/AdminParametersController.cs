@@ -1,5 +1,4 @@
 using InvestindoEmNegocio.Application.DTOs;
-using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,29 +21,15 @@ public class AdminParametersController(IAdminParametersService adminParametersSe
     [HttpPut("payment-methods/{id:int}/status")]
     public async Task<IActionResult> UpdatePaymentMethodStatus(int id, [FromBody] UpdateActiveRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var response = await adminParametersService.UpdatePaymentMethodStatusAsync(id, request.IsActive, cancellationToken);
-            return Ok(response);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var response = await adminParametersService.UpdatePaymentMethodStatusAsync(id, request.IsActive, cancellationToken);
+        return Ok(response);
     }
 
     [HttpPost("payment-methods")]
     public async Task<IActionResult> CreatePaymentMethod([FromBody] CreatePaymentMethodRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var response = await adminParametersService.CreatePaymentMethodAsync(request.Name, cancellationToken);
-            return Ok(response);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var response = await adminParametersService.CreatePaymentMethodAsync(request.Name, cancellationToken);
+        return Ok(response);
     }
 
     [HttpGet("card-brands")]
@@ -57,29 +42,15 @@ public class AdminParametersController(IAdminParametersService adminParametersSe
     [HttpPut("card-brands/{id:int}/status")]
     public async Task<IActionResult> UpdateCardBrandStatus(int id, [FromBody] UpdateActiveRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var response = await adminParametersService.UpdateCardBrandStatusAsync(id, request.IsActive, cancellationToken);
-            return Ok(response);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var response = await adminParametersService.UpdateCardBrandStatusAsync(id, request.IsActive, cancellationToken);
+        return Ok(response);
     }
 
     [HttpPost("card-brands")]
     public async Task<IActionResult> CreateCardBrand([FromBody] CreateCardBrandRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var response = await adminParametersService.CreateCardBrandAsync(request, cancellationToken);
-            return Ok(response);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var response = await adminParametersService.CreateCardBrandAsync(request, cancellationToken);
+        return Ok(response);
     }
 
     [HttpGet("institutions")]
@@ -92,29 +63,15 @@ public class AdminParametersController(IAdminParametersService adminParametersSe
     [HttpPost("institutions")]
     public async Task<IActionResult> CreateInstitution([FromBody] CreateInstitutionRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var response = await adminParametersService.CreateInstitutionAsync(request, cancellationToken);
-            return Ok(response);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var response = await adminParametersService.CreateInstitutionAsync(request, cancellationToken);
+        return Ok(response);
     }
 
     [HttpPut("institutions/{id:int}/status")]
     public async Task<IActionResult> UpdateInstitutionStatus(int id, [FromBody] UpdateActiveRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var response = await adminParametersService.UpdateInstitutionStatusAsync(id, request.IsActive, cancellationToken);
-            return Ok(response);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var response = await adminParametersService.UpdateInstitutionStatusAsync(id, request.IsActive, cancellationToken);
+        return Ok(response);
     }
 
     [HttpGet("notification-settings")]

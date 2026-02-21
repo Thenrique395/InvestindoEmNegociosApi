@@ -7,7 +7,8 @@ namespace InvestindoEmNegocio.Application.Services;
 
 public sealed class AuthFacadeService(
     IAuthService authService,
-    IAuditService auditService) : IAuthFacadeService
+    IAuditService auditService,
+    ILogger<AuthFacadeService> logger) : IAuthFacadeService
 {
     public async Task<AuthResponse> RegisterAsync(RegisterUserRequest request, CancellationToken cancellationToken = default)
     {
@@ -17,10 +18,12 @@ public sealed class AuthFacadeService(
         }
         catch (ArgumentException ex)
         {
+            logger.LogWarning(ex, "Falha de validação ao registrar usuário para {Email}", request.Email);
             throw new AppProblemException("Registro inválido", ex.Message, StatusCodes.Status400BadRequest);
         }
         catch (InvalidOperationException ex)
         {
+            logger.LogWarning(ex, "Conflito de registro para {Email}", request.Email);
             throw new AppProblemException("Registro inválido", ex.Message, StatusCodes.Status409Conflict);
         }
     }
@@ -35,14 +38,17 @@ public sealed class AuthFacadeService(
         }
         catch (InvalidOperationException ex)
         {
+            logger.LogWarning(ex, "Conta bloqueada para {Email}", request.Email);
             throw new AppProblemException("Conta bloqueada", ex.Message, StatusCodes.Status423Locked);
         }
         catch (ArgumentException ex)
         {
+            logger.LogWarning(ex, "Falha de validação no login para {Email}", request.Email);
             throw new AppProblemException("Login inválido", ex.Message, StatusCodes.Status400BadRequest);
         }
         catch (UnauthorizedAccessException)
         {
+            logger.LogWarning("Credenciais inválidas para {Email}", request.Email);
             throw new AppProblemException("Credenciais inválidas", "E-mail ou senha incorretos.", StatusCodes.Status401Unauthorized);
         }
     }
@@ -56,6 +62,7 @@ public sealed class AuthFacadeService(
         }
         catch (UnauthorizedAccessException ex)
         {
+            logger.LogWarning(ex, "Tentativa de troca de senha sem autorização para {UserId}", userId);
             throw new AppProblemException("Senha inválida", ex.Message, StatusCodes.Status401Unauthorized);
         }
     }
@@ -68,6 +75,7 @@ public sealed class AuthFacadeService(
         }
         catch (UnauthorizedAccessException ex)
         {
+            logger.LogWarning(ex, "Refresh token inválido");
             throw new AppProblemException("Token inválido", ex.Message, StatusCodes.Status401Unauthorized);
         }
     }

@@ -1,5 +1,4 @@
 using InvestindoEmNegocio.Application.DTOs;
-using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,42 +21,21 @@ public class AdminCategoriesController(IAdminCategoriesService adminCategoriesSe
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] AdminCategoryRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var created = await adminCategoriesService.CreateAsync(request, cancellationToken);
-            return CreatedAtAction(nameof(List), created);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var created = await adminCategoriesService.CreateAsync(request, cancellationToken);
+        return CreatedAtAction(nameof(List), created);
     }
 
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] AdminCategoryRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var response = await adminCategoriesService.UpdateAsync(id, request, cancellationToken);
-            return Ok(response);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var response = await adminCategoriesService.UpdateAsync(id, request, cancellationToken);
+        return Ok(response);
     }
 
     [HttpPut("{id:guid}/status")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateActiveRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var response = await adminCategoriesService.UpdateStatusAsync(id, request.IsActive, cancellationToken);
-            return Ok(response);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var response = await adminCategoriesService.UpdateStatusAsync(id, request.IsActive, cancellationToken);
+        return Ok(response);
     }
 }

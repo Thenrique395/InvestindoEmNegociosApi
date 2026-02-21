@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
-using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -68,10 +67,6 @@ public class ProfileController(
 
             var profile = await profileService.UpdateAvatarAsync(userId, avatarUrl, cancellationToken);
             return Ok(profile);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
         }
         catch (ArgumentException ex)
         {

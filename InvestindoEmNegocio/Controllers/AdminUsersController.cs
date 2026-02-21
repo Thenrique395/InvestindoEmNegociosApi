@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
-using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,45 +22,24 @@ public class AdminUsersController(IAdminUsersService adminUsersService) : Contro
     [HttpPut("{id:guid}/role")]
     public async Task<IActionResult> UpdateRole(Guid id, [FromBody] UpdateUserRoleRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var response = await adminUsersService.UpdateRoleAsync(id, request.Role, cancellationToken);
-            return Ok(response);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var response = await adminUsersService.UpdateRoleAsync(id, request.Role, cancellationToken);
+        return Ok(response);
     }
 
     [HttpPut("{id:guid}/status")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateUserStatusRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var currentUserId = GetUserId();
-            var response = await adminUsersService.UpdateStatusAsync(id, request.IsActive, currentUserId, cancellationToken);
-            return Ok(response);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var currentUserId = GetUserId();
+        var response = await adminUsersService.UpdateStatusAsync(id, request.IsActive, currentUserId, cancellationToken);
+        return Ok(response);
     }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        try
-        {
-            var currentUserId = GetUserId();
-            await adminUsersService.DeleteAsync(id, currentUserId, cancellationToken);
-            return NoContent();
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var currentUserId = GetUserId();
+        await adminUsersService.DeleteAsync(id, currentUserId, cancellationToken);
+        return NoContent();
     }
 
     private Guid GetUserId()

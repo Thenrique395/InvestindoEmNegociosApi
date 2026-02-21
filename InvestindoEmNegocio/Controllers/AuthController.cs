@@ -1,5 +1,4 @@
 using InvestindoEmNegocio.Application.DTOs;
-using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,46 +19,25 @@ public class AuthController(IAuthFacadeService authFacadeService) : ControllerBa
     // Cria um novo usuário e retorna o token de cadastro (sem realizar login automático no front).
     public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterUserRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var response = await authFacadeService.RegisterAsync(request, cancellationToken);
-            return CreatedAtAction(nameof(Register), new { id = response.UserId }, response);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var response = await authFacadeService.RegisterAsync(request, cancellationToken);
+        return CreatedAtAction(nameof(Register), new { id = response.UserId }, response);
     }
 
     [HttpPost("change-password")]
     [Authorize]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var userId = GetUserId();
-            await authFacadeService.ChangePasswordAsync(userId, request, GetIpAddress(), GetUserAgent(), cancellationToken);
-            return NoContent();
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var userId = GetUserId();
+        await authFacadeService.ChangePasswordAsync(userId, request, GetIpAddress(), GetUserAgent(), cancellationToken);
+        return NoContent();
     }
 
     [HttpPost("refresh")]
     [AllowAnonymous]
     public async Task<ActionResult<AuthResponse>> Refresh([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var response = await authFacadeService.RefreshAsync(request, cancellationToken);
-            return Ok(response);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var response = await authFacadeService.RefreshAsync(request, cancellationToken);
+        return Ok(response);
     }
 
     [HttpPost("logout")]
@@ -81,15 +59,8 @@ public class AuthController(IAuthFacadeService authFacadeService) : ControllerBa
     // Autentica um usuário existente e devolve token JWT para as próximas requisições.
     public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var response = await authFacadeService.LoginAsync(request, GetIpAddress(), GetUserAgent(), cancellationToken);
-            return Ok(response);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var response = await authFacadeService.LoginAsync(request, GetIpAddress(), GetUserAgent(), cancellationToken);
+        return Ok(response);
     }
 
     private string? GetIpAddress()

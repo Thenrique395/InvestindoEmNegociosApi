@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
-using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Infrastructure.Api;
 using Microsoft.AspNetCore.Authorization;
@@ -48,15 +47,8 @@ public class InvestmentsController(
     public async Task<ActionResult<InvestmentAllocationTargetDto>> UpsertAllocationTarget([FromBody] UpsertInvestmentAllocationTargetRequest request, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        try
-        {
-            var target = await investmentsFacadeService.UpsertAllocationTargetAsync(userId, request, cancellationToken);
-            return Ok(target);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var target = await investmentsFacadeService.UpsertAllocationTargetAsync(userId, request, cancellationToken);
+        return Ok(target);
     }
 
     [HttpGet("positions")]
@@ -102,61 +94,33 @@ public class InvestmentsController(
     public async Task<IActionResult> CreatePosition([FromBody] CreateInvestmentPositionRequest request, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        try
-        {
-            var position = await investmentsFacadeService.CreatePositionAsync(userId, request, cancellationToken);
-            return Ok(position);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var position = await investmentsFacadeService.CreatePositionAsync(userId, request, cancellationToken);
+        return Ok(position);
     }
 
     [HttpPut("positions/{id:guid}")]
     public async Task<IActionResult> UpdatePosition(Guid id, [FromBody] CreateInvestmentPositionRequest request, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        try
-        {
-            var position = await investmentsFacadeService.UpdatePositionAsync(userId, id, request, cancellationToken);
-            if (position is null) return NotFound();
-            return Ok(position);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var position = await investmentsFacadeService.UpdatePositionAsync(userId, id, request, cancellationToken);
+        if (position is null) return NotFound();
+        return Ok(position);
     }
 
     [HttpDelete("positions/{id:guid}")]
     public async Task<IActionResult> DeletePosition(Guid id, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        try
-        {
-            await investmentsFacadeService.DeletePositionAsync(userId, id, GetIpAddress(), GetUserAgent(), cancellationToken);
-            return NoContent();
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        await investmentsFacadeService.DeletePositionAsync(userId, id, GetIpAddress(), GetUserAgent(), cancellationToken);
+        return NoContent();
     }
 
     [HttpPost("positions/{id:guid}/movements")]
     public async Task<IActionResult> AddMovement(Guid id, [FromBody] CreateInvestmentMovementRequest request, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        try
-        {
-            var movement = await investmentsFacadeService.AddMovementAsync(userId, id, request, cancellationToken);
-            return Ok(movement);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var movement = await investmentsFacadeService.AddMovementAsync(userId, id, request, cancellationToken);
+        return Ok(movement);
     }
 
     [HttpGet("benchmarks")]
@@ -169,43 +133,22 @@ public class InvestmentsController(
     [HttpGet("market/quote")]
     public async Task<ActionResult<MarketQuoteResponse>> GetMarketQuote([FromQuery] string symbol, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var response = await investmentsFacadeService.GetMarketQuoteAsync(symbol, cancellationToken);
-            return Ok(response);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var response = await investmentsFacadeService.GetMarketQuoteAsync(symbol, cancellationToken);
+        return Ok(response);
     }
 
     [HttpGet("market/profile")]
     public async Task<ActionResult<MarketProfileResponse>> GetMarketProfile([FromQuery] string symbol, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var response = await investmentsFacadeService.GetMarketProfileAsync(symbol, cancellationToken);
-            return Ok(response);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var response = await investmentsFacadeService.GetMarketProfileAsync(symbol, cancellationToken);
+        return Ok(response);
     }
 
     [HttpGet("market/history")]
     public async Task<ActionResult<MarketHistoryResponse>> GetMarketHistory([FromQuery] string symbol, [FromQuery] string period = "6mo", CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var response = await investmentsFacadeService.GetMarketHistoryAsync(symbol, period, cancellationToken);
-            return Ok(response);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var response = await investmentsFacadeService.GetMarketHistoryAsync(symbol, period, cancellationToken);
+        return Ok(response);
     }
 
     [HttpPost("import/b3/extract")]
@@ -224,32 +167,18 @@ public class InvestmentsController(
             return BadRequest(new ProblemDetails { Title = "Arquivo inválido", Detail = "Formato não suportado. Use PDF.", Status = StatusCodes.Status400BadRequest });
         }
 
-        try
-        {
-            var userId = GetUserId();
-            await using var stream = file.OpenReadStream();
-            var response = await investmentsFacadeService.ExtractB3Async(userId, stream, cancellationToken);
-            return Ok(response);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var userId = GetUserId();
+        await using var stream = file.OpenReadStream();
+        var response = await investmentsFacadeService.ExtractB3Async(userId, stream, cancellationToken);
+        return Ok(response);
     }
 
     [HttpPost("import/b3/confirm")]
     public async Task<ActionResult<B3ConfirmImportResponse>> ConfirmB3([FromBody] ConfirmB3ImportRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var userId = GetUserId();
-            var response = await investmentsFacadeService.ConfirmB3Async(userId, request, cancellationToken);
-            return Ok(response);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var userId = GetUserId();
+        var response = await investmentsFacadeService.ConfirmB3Async(userId, request, cancellationToken);
+        return Ok(response);
     }
 
     [HttpGet("b3/consent")]
@@ -271,16 +200,9 @@ public class InvestmentsController(
     [HttpPost("b3/sync")]
     public async Task<ActionResult<B3SyncResponse>> SyncB3([FromBody] B3SyncRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            var userId = GetUserId();
-            var response = await investmentsFacadeService.SyncB3Async(userId, request, cancellationToken);
-            return Ok(response);
-        }
-        catch (AppProblemException ex)
-        {
-            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
-        }
+        var userId = GetUserId();
+        var response = await investmentsFacadeService.SyncB3Async(userId, request, cancellationToken);
+        return Ok(response);
     }
 
     private Guid GetUserId()
