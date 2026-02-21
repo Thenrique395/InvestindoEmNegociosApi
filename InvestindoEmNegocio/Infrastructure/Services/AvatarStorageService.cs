@@ -22,18 +22,11 @@ public sealed class AvatarStorageService(IWebHostEnvironment env) : IAvatarStora
         CancellationToken cancellationToken = default)
     {
         if (!AllowedTypes.Contains(contentType))
-        {
-            throw new AppProblemException(
-                "Arquivo inválido",
-                "Formato não suportado. Use PNG, JPG ou WEBP.",
-                StatusCodes.Status400BadRequest);
-        }
+            throw new AppProblemException("Arquivo inválido", "Formato não suportado. Use PNG, JPG ou WEBP.", StatusCodes.Status400BadRequest);
 
         var webRoot = env.WebRootPath;
         if (string.IsNullOrWhiteSpace(webRoot))
-        {
             webRoot = Path.Combine(env.ContentRootPath, "wwwroot");
-        }
 
         var uploadsPath = Path.Combine(webRoot, "uploads", "avatars");
         Directory.CreateDirectory(uploadsPath);
