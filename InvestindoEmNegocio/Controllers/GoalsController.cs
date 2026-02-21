@@ -1,6 +1,7 @@
 using System;
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Infrastructure.Api;
@@ -37,7 +38,7 @@ public class GoalsController(IGoalsService goalsService, IAuditService auditServ
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new ProblemDetails { Title = "Meta inválida", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+            throw new AppProblemException("Meta inválida", ex.Message, StatusCodes.Status400BadRequest);
         }
     }
 
@@ -92,7 +93,7 @@ public class GoalsController(IGoalsService goalsService, IAuditService auditServ
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new ProblemDetails { Title = "Meta inválida", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+            throw new AppProblemException("Meta inválida", ex.Message, StatusCodes.Status400BadRequest);
         }
     }
 
@@ -109,7 +110,7 @@ public class GoalsController(IGoalsService goalsService, IAuditService auditServ
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new ProblemDetails { Title = "Meta inválida", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+            throw new AppProblemException("Meta inválida", ex.Message, StatusCodes.Status400BadRequest);
         }
     }
 

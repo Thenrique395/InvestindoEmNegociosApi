@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Infrastructure.Api;
 using Microsoft.AspNetCore.Authorization;
@@ -159,12 +160,18 @@ public class InvestmentsController(
         var file = request.File;
         if (file is null || file.Length == 0)
         {
-            return BadRequest(new ProblemDetails { Title = "Arquivo inválido", Detail = "Envie o relatório da B3 em PDF.", Status = StatusCodes.Status400BadRequest });
+            throw new AppProblemException(
+                "Arquivo inválido",
+                "Envie o relatório da B3 em PDF.",
+                StatusCodes.Status400BadRequest);
         }
 
         if (!string.Equals(file.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
         {
-            return BadRequest(new ProblemDetails { Title = "Arquivo inválido", Detail = "Formato não suportado. Use PDF.", Status = StatusCodes.Status400BadRequest });
+            throw new AppProblemException(
+                "Arquivo inválido",
+                "Formato não suportado. Use PDF.",
+                StatusCodes.Status400BadRequest);
         }
 
         var userId = GetUserId();

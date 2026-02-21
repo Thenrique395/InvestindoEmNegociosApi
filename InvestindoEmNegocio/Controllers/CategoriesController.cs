@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Infrastructure.Api;
@@ -51,11 +52,11 @@ public class CategoriesController(ICategoriesService categoriesService, IAuditSe
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new ProblemDetails { Title = "Categoria inválida", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+            throw new AppProblemException("Categoria inválida", ex.Message, StatusCodes.Status400BadRequest);
         }
         catch (InvalidOperationException ex)
         {
-            return Conflict(ex.Message);
+            throw new AppProblemException("Conflito de categoria", ex.Message, StatusCodes.Status409Conflict);
         }
     }
 
@@ -72,11 +73,11 @@ public class CategoriesController(ICategoriesService categoriesService, IAuditSe
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new ProblemDetails { Title = "Categoria inválida", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+            throw new AppProblemException("Categoria inválida", ex.Message, StatusCodes.Status400BadRequest);
         }
         catch (InvalidOperationException ex)
         {
-            return Conflict(ex.Message);
+            throw new AppProblemException("Conflito de categoria", ex.Message, StatusCodes.Status409Conflict);
         }
     }
 

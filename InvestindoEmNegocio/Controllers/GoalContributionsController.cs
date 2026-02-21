@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Infrastructure.Api;
 using Microsoft.AspNetCore.Authorization;
@@ -49,11 +50,11 @@ public class GoalContributionsController(IGoalContributionsService contributions
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(ex.Message);
+            throw new AppProblemException("Contribuição inválida", ex.Message, StatusCodes.Status400BadRequest);
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(ex.Message);
+            throw new AppProblemException("Contribuição inválida", ex.Message, StatusCodes.Status400BadRequest);
         }
     }
 

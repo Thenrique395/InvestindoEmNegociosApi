@@ -1,9 +1,10 @@
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Repositories;
-using System.Text.RegularExpressions;
 using System.Linq;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
@@ -35,24 +36,32 @@ public class ProfileService(
     public async Task<UserProfileDto> UpsertAsync(Guid userId, UpsertUserProfileRequest request,
         CancellationToken cancellationToken = default)
     {
-        var existing = await profileRepository.GetByUserIdAsync(userId, cancellationToken);
-        if (existing is null)
+        try
         {
-            var profile = new UserProfile(userId, request.FullName, request.Document, request.Phone, request.BirthDate,
-                request.AvatarUrl, request.City, request.State, request.Country, request.Language);
-            await profileRepository.AddAsync(profile, cancellationToken);
+            var existing = await profileRepository.GetByUserIdAsync(userId, cancellationToken);
+            if (existing is null)
+            {
+                var profile = new UserProfile(userId, request.FullName, request.Document, request.Phone, request.BirthDate,
+                    request.AvatarUrl, request.City, request.State, request.Country, request.Language);
+                await profileRepository.AddAsync(profile, cancellationToken);
+                await profileRepository.SaveChangesAsync(cancellationToken);
+                cache.Remove(CacheKey(userId));
+                _logger.LogInformation("User profile created {UserId}", userId);
+                return Map(profile);
+            }
+
+            existing.SetData(request.FullName, request.Document, request.Phone, request.BirthDate, request.AvatarUrl,
+                request.City, request.State, request.Country, request.Language);
             await profileRepository.SaveChangesAsync(cancellationToken);
             cache.Remove(CacheKey(userId));
-            _logger.LogInformation("User profile created {UserId}", userId);
-            return Map(profile);
+            _logger.LogInformation("User profile updated {UserId}", userId);
+            return Map(existing);
         }
-
-        existing.SetData(request.FullName, request.Document, request.Phone, request.BirthDate, request.AvatarUrl,
-            request.City, request.State, request.Country, request.Language);
-        await profileRepository.SaveChangesAsync(cancellationToken);
-        cache.Remove(CacheKey(userId));
-        _logger.LogInformation("User profile updated {UserId}", userId);
-        return Map(existing);
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Profile upsert inválido para {UserId}", userId);
+            throw new AppProblemException("Perfil inválido", ex.Message, StatusCodes.Status400BadRequest);
+        }
     }
 
     public async Task<UserProfileDto> UpdateAvatarAsync(Guid userId, string avatarUrl,
@@ -60,23 +69,36 @@ public class ProfileService(
     {
         var existing = await profileRepository.GetByUserIdAsync(userId, cancellationToken);
         if (existing is null)
-            throw new ArgumentException("Perfil não encontrado. Preencha seus dados antes de enviar a foto.");
+        {
+            throw new AppProblemException(
+                "Perfil não encontrado",
+                "Preencha seus dados antes de enviar a foto.",
+                StatusCodes.Status404NotFound);
+        }
         
-        existing.SetData(
-            existing.FullName,
-            existing.Document,
-            existing.Phone,
-            existing.BirthDate,
-            avatarUrl,
-            existing.City,
-            existing.State,
-            existing.Country,
-            existing.Language,
-            existing.Currency);
-        await profileRepository.SaveChangesAsync(cancellationToken);
-        cache.Remove(CacheKey(userId));
-        _logger.LogInformation("User avatar updated {UserId}", userId);
-        return Map(existing);
+        try
+        {
+            existing.SetData(
+                existing.FullName,
+                existing.Document,
+                existing.Phone,
+                existing.BirthDate,
+                avatarUrl,
+                existing.City,
+                existing.State,
+                existing.Country,
+                existing.Language,
+                existing.Currency);
+            await profileRepository.SaveChangesAsync(cancellationToken);
+            cache.Remove(CacheKey(userId));
+            _logger.LogInformation("User avatar updated {UserId}", userId);
+            return Map(existing);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Atualização de avatar inválida para {UserId}", userId);
+            throw new AppProblemException("Perfil inválido", ex.Message, StatusCodes.Status400BadRequest);
+        }
     }
 
     private static string CacheKey(Guid userId) => $"profile:{userId:N}";

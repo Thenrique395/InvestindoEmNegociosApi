@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -29,15 +30,8 @@ public class ProfileController(
     public async Task<ActionResult<UserProfileDto>> Upsert([FromBody] UpsertUserProfileRequest request, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        try
-        {
-            var profile = await profileService.UpsertAsync(userId, request, cancellationToken);
-            return Ok(profile);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new ProblemDetails { Title = "Perfil inválido", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
-        }
+        var profile = await profileService.UpsertAsync(userId, request, cancellationToken);
+        return Ok(profile);
     }
 
     [HttpPost("avatar")]
@@ -49,29 +43,25 @@ public class ProfileController(
         var avatar = request.Avatar;
         if (avatar is null || avatar.Length == 0)
         {
-            return BadRequest(new ProblemDetails { Title = "Arquivo inválido", Detail = "Envie uma imagem válida.", Status = StatusCodes.Status400BadRequest });
+            throw new AppProblemException(
+                "Arquivo inválido",
+                "Envie uma imagem válida.",
+                StatusCodes.Status400BadRequest);
         }
 
-        try
-        {
-            var userId = GetUserId();
-            await using var stream = avatar.OpenReadStream();
-            var baseUrl = $"{Request.Scheme}://{Request.Host}";
-            var avatarUrl = await avatarStorageService.SaveAsync(
-                userId,
-                stream,
-                avatar.FileName,
-                avatar.ContentType,
-                baseUrl,
-                cancellationToken);
+        var userId = GetUserId();
+        await using var stream = avatar.OpenReadStream();
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var avatarUrl = await avatarStorageService.SaveAsync(
+            userId,
+            stream,
+            avatar.FileName,
+            avatar.ContentType,
+            baseUrl,
+            cancellationToken);
 
-            var profile = await profileService.UpdateAvatarAsync(userId, avatarUrl, cancellationToken);
-            return Ok(profile);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new ProblemDetails { Title = "Perfil inválido", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
-        }
+        var profile = await profileService.UpdateAvatarAsync(userId, avatarUrl, cancellationToken);
+        return Ok(profile);
     }
 
     private Guid GetUserId()

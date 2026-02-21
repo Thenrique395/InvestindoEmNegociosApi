@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Infrastructure.Api;
@@ -63,7 +64,7 @@ public class InstallmentsController(IInstallmentsService installmentsService, IA
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(ex.Message);
+            throw new AppProblemException("Parcela inválida", ex.Message, StatusCodes.Status400BadRequest);
         }
     }
 
@@ -81,7 +82,7 @@ public class InstallmentsController(IInstallmentsService installmentsService, IA
         }
         catch (UnauthorizedAccessException ex)
         {
-            return Forbid(ex.Message);
+            throw new AppProblemException("Acesso negado", ex.Message, StatusCodes.Status403Forbidden);
         }
     }
 

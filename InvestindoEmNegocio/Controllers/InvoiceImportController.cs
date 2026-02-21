@@ -1,4 +1,5 @@
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,12 +24,18 @@ public sealed class InvoiceImportController(
         var file = request.File;
         if (file is null || file.Length == 0)
         {
-            return BadRequest(new ProblemDetails { Title = "Arquivo inválido", Detail = "Envie um PDF válido.", Status = StatusCodes.Status400BadRequest });
+            throw new AppProblemException(
+                "Arquivo inválido",
+                "Envie um PDF válido.",
+                StatusCodes.Status400BadRequest);
         }
 
         if (!string.Equals(file.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
         {
-            return BadRequest(new ProblemDetails { Title = "Arquivo inválido", Detail = "Formato não suportado. Use PDF.", Status = StatusCodes.Status400BadRequest });
+            throw new AppProblemException(
+                "Arquivo inválido",
+                "Formato não suportado. Use PDF.",
+                StatusCodes.Status400BadRequest);
         }
 
         try
@@ -40,22 +47,18 @@ public sealed class InvoiceImportController(
         catch (PdfDocumentFormatException ex)
         {
             logger.LogWarning(ex, "Falha ao ler PDF (formato inválido).");
-            return UnprocessableEntity(new ProblemDetails
-            {
-                Title = "Falha ao ler PDF",
-                Detail = "O PDF parece inválido ou protegido.",
-                Status = StatusCodes.Status422UnprocessableEntity
-            });
+            throw new AppProblemException(
+                "Falha ao ler PDF",
+                "O PDF parece inválido ou protegido.",
+                StatusCodes.Status422UnprocessableEntity);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Erro ao processar fatura.");
-            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
-            {
-                Title = "Erro interno do servidor.",
-                Detail = "Nao foi possivel processar o PDF.",
-                Status = StatusCodes.Status500InternalServerError
-            });
+            throw new AppProblemException(
+                "Erro interno do servidor.",
+                "Nao foi possivel processar o PDF.",
+                StatusCodes.Status500InternalServerError);
         }
     }
 }

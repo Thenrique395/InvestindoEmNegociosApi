@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -27,7 +28,10 @@ public sealed class DataPortabilityController(
     {
         if (request.File is null)
         {
-            return BadRequest(new ProblemDetails { Title = "Arquivo inválido", Detail = "Envie um arquivo JSON para importação.", Status = StatusCodes.Status400BadRequest });
+            throw new AppProblemException(
+                "Arquivo inválido",
+                "Envie um arquivo JSON para importação.",
+                StatusCodes.Status400BadRequest);
         }
 
         await using var stream = request.File.OpenReadStream();

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Infrastructure.Api;
 using Microsoft.AspNetCore.Authorization;
@@ -54,7 +55,7 @@ public class CardsController(ICardsService cardsService, IAuditService auditServ
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new ProblemDetails { Title = "Cartão inválido", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+            throw new AppProblemException("Cartão inválido", ex.Message, StatusCodes.Status400BadRequest);
         }
     }
 
@@ -71,7 +72,7 @@ public class CardsController(ICardsService cardsService, IAuditService auditServ
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new ProblemDetails { Title = "Cartão inválido", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+            throw new AppProblemException("Cartão inválido", ex.Message, StatusCodes.Status400BadRequest);
         }
     }
 

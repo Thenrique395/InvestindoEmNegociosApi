@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Infrastructure.Api;
@@ -37,8 +38,7 @@ public class PlansController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new ProblemDetails
-                { Title = "Plano inválido", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+            throw new AppProblemException("Plano inválido", ex.Message, StatusCodes.Status400BadRequest);
         }
     }
 
@@ -93,8 +93,7 @@ public class PlansController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new ProblemDetails
-                { Title = "Plano inválido", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+            throw new AppProblemException("Plano inválido", ex.Message, StatusCodes.Status400BadRequest);
         }
     }
 
