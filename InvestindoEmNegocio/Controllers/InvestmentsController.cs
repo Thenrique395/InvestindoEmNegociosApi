@@ -1,11 +1,11 @@
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Infrastructure.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
-using UglyToad.PdfPig.Core;
 
 namespace InvestindoEmNegocio.Controllers;
 
@@ -15,12 +15,9 @@ namespace InvestindoEmNegocio.Controllers;
 [Authorize]
 public class InvestmentsController(
     IInvestmentsService investmentsService,
+    IInvestmentsFacadeService investmentsFacadeService,
     IInvestmentBenchmarksService benchmarksService,
-    IMarketDataService marketDataService,
-    IAuditService auditService,
-    IB3ImportService b3ImportService,
-    IB3SyncService b3SyncService,
-    ILogger<InvestmentsController> logger) : ControllerBase
+    IB3SyncService b3SyncService) : ControllerBase
 {
     [HttpGet("goal")]
     public async Task<ActionResult<InvestmentGoalDto>> GetGoal(CancellationToken cancellationToken)
@@ -53,17 +50,12 @@ public class InvestmentsController(
         var userId = GetUserId();
         try
         {
-            var target = await investmentsService.UpsertAllocationTargetAsync(userId, request, cancellationToken);
+            var target = await investmentsFacadeService.UpsertAllocationTargetAsync(userId, request, cancellationToken);
             return Ok(target);
         }
-        catch (ArgumentException ex)
+        catch (AppProblemException ex)
         {
-            return BadRequest(new ProblemDetails
-            {
-                Title = "Alocação alvo inválida",
-                Detail = ex.Message,
-                Status = StatusCodes.Status400BadRequest
-            });
+            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
         }
     }
 
@@ -112,12 +104,12 @@ public class InvestmentsController(
         var userId = GetUserId();
         try
         {
-            var position = await investmentsService.CreatePositionAsync(userId, request, cancellationToken);
+            var position = await investmentsFacadeService.CreatePositionAsync(userId, request, cancellationToken);
             return Ok(position);
         }
-        catch (ArgumentException ex)
+        catch (AppProblemException ex)
         {
-            return BadRequest(new ProblemDetails { Title = "Posição inválida", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
         }
     }
 
@@ -127,13 +119,13 @@ public class InvestmentsController(
         var userId = GetUserId();
         try
         {
-            var position = await investmentsService.UpdatePositionAsync(userId, id, request, cancellationToken);
+            var position = await investmentsFacadeService.UpdatePositionAsync(userId, id, request, cancellationToken);
             if (position is null) return NotFound();
             return Ok(position);
         }
-        catch (ArgumentException ex)
+        catch (AppProblemException ex)
         {
-            return BadRequest(new ProblemDetails { Title = "Posição inválida", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
         }
     }
 
@@ -141,10 +133,15 @@ public class InvestmentsController(
     public async Task<IActionResult> DeletePosition(Guid id, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var removed = await investmentsService.DeletePositionAsync(userId, id, cancellationToken);
-        if (!removed) return NotFound();
-        await auditService.LogAsync(userId, "DELETE", "InvestmentPosition", id.ToString(), GetIpAddress(), GetUserAgent(), null, cancellationToken);
-        return NoContent();
+        try
+        {
+            await investmentsFacadeService.DeletePositionAsync(userId, id, GetIpAddress(), GetUserAgent(), cancellationToken);
+            return NoContent();
+        }
+        catch (AppProblemException ex)
+        {
+            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
+        }
     }
 
     [HttpPost("positions/{id:guid}/movements")]
@@ -153,12 +150,12 @@ public class InvestmentsController(
         var userId = GetUserId();
         try
         {
-            var movement = await investmentsService.AddMovementAsync(userId, id, request, cancellationToken);
+            var movement = await investmentsFacadeService.AddMovementAsync(userId, id, request, cancellationToken);
             return Ok(movement);
         }
-        catch (ArgumentException ex)
+        catch (AppProblemException ex)
         {
-            return BadRequest(new ProblemDetails { Title = "Movimento inválido", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
         }
     }
 
@@ -172,69 +169,42 @@ public class InvestmentsController(
     [HttpGet("market/quote")]
     public async Task<ActionResult<MarketQuoteResponse>> GetMarketQuote([FromQuery] string symbol, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(symbol))
-            return BadRequest(new ProblemDetails { Title = "Símbolo obrigatório", Detail = "Informe o símbolo, ex.: VALE3.", Status = StatusCodes.Status400BadRequest });
-
         try
         {
-            var response = await marketDataService.GetQuoteAsync(symbol, cancellationToken);
+            var response = await investmentsFacadeService.GetMarketQuoteAsync(symbol, cancellationToken);
             return Ok(response);
         }
-        catch (Exception ex)
+        catch (AppProblemException ex)
         {
-            logger.LogWarning(ex, "Falha ao buscar cotação de mercado para {Symbol}", symbol);
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, new ProblemDetails
-            {
-                Title = "Market data indisponível",
-                Detail = "Não foi possível obter cotação no momento.",
-                Status = StatusCodes.Status503ServiceUnavailable
-            });
+            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
         }
     }
 
     [HttpGet("market/profile")]
     public async Task<ActionResult<MarketProfileResponse>> GetMarketProfile([FromQuery] string symbol, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(symbol))
-            return BadRequest(new ProblemDetails { Title = "Símbolo obrigatório", Detail = "Informe o símbolo, ex.: VALE3.", Status = StatusCodes.Status400BadRequest });
-
         try
         {
-            var response = await marketDataService.GetProfileAsync(symbol, cancellationToken);
+            var response = await investmentsFacadeService.GetMarketProfileAsync(symbol, cancellationToken);
             return Ok(response);
         }
-        catch (Exception ex)
+        catch (AppProblemException ex)
         {
-            logger.LogWarning(ex, "Falha ao buscar perfil de mercado para {Symbol}", symbol);
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, new ProblemDetails
-            {
-                Title = "Market data indisponível",
-                Detail = "Não foi possível obter perfil do ativo no momento.",
-                Status = StatusCodes.Status503ServiceUnavailable
-            });
+            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
         }
     }
 
     [HttpGet("market/history")]
     public async Task<ActionResult<MarketHistoryResponse>> GetMarketHistory([FromQuery] string symbol, [FromQuery] string period = "6mo", CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(symbol))
-            return BadRequest(new ProblemDetails { Title = "Símbolo obrigatório", Detail = "Informe o símbolo, ex.: VALE3.", Status = StatusCodes.Status400BadRequest });
-
         try
         {
-            var response = await marketDataService.GetHistoryAsync(symbol, period, cancellationToken);
+            var response = await investmentsFacadeService.GetMarketHistoryAsync(symbol, period, cancellationToken);
             return Ok(response);
         }
-        catch (Exception ex)
+        catch (AppProblemException ex)
         {
-            logger.LogWarning(ex, "Falha ao buscar histórico de mercado para {Symbol}", symbol);
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, new ProblemDetails
-            {
-                Title = "Market data indisponível",
-                Detail = "Não foi possível obter histórico do ativo no momento.",
-                Status = StatusCodes.Status503ServiceUnavailable
-            });
+            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
         }
     }
 
@@ -258,32 +228,12 @@ public class InvestmentsController(
         {
             var userId = GetUserId();
             await using var stream = file.OpenReadStream();
-            var response = await b3ImportService.ExtractAsync(userId, stream, cancellationToken);
+            var response = await investmentsFacadeService.ExtractB3Async(userId, stream, cancellationToken);
             return Ok(response);
         }
-        catch (PdfDocumentFormatException ex)
+        catch (AppProblemException ex)
         {
-            logger.LogWarning(ex, "Falha ao ler relatorio B3 (PDF inválido).");
-            return UnprocessableEntity(new ProblemDetails
-            {
-                Title = "Falha ao ler PDF",
-                Detail = "O arquivo parece inválido ou protegido.",
-                Status = StatusCodes.Status422UnprocessableEntity
-            });
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new ProblemDetails { Title = "Relatório inválido", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Erro ao extrair relatorio B3.");
-            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
-            {
-                Title = "Erro interno do servidor.",
-                Detail = "Nao foi possivel ler o relatório da B3.",
-                Status = StatusCodes.Status500InternalServerError
-            });
+            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
         }
     }
 
@@ -293,26 +243,12 @@ public class InvestmentsController(
         try
         {
             var userId = GetUserId();
-            var response = await b3ImportService.ConfirmAsync(userId, request, cancellationToken);
+            var response = await investmentsFacadeService.ConfirmB3Async(userId, request, cancellationToken);
             return Ok(response);
         }
-        catch (ArgumentException ex)
+        catch (AppProblemException ex)
         {
-            return BadRequest(new ProblemDetails { Title = "Importação inválida", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return Unauthorized(new ProblemDetails { Title = "Acesso negado", Detail = ex.Message, Status = StatusCodes.Status401Unauthorized });
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Erro ao confirmar importacao B3.");
-            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
-            {
-                Title = "Erro interno do servidor.",
-                Detail = "Nao foi possivel concluir a importação da B3.",
-                Status = StatusCodes.Status500InternalServerError
-            });
+            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
         }
     }
 
@@ -338,22 +274,12 @@ public class InvestmentsController(
         try
         {
             var userId = GetUserId();
-            var response = await b3SyncService.SyncAsync(userId, request, cancellationToken);
+            var response = await investmentsFacadeService.SyncB3Async(userId, request, cancellationToken);
             return Ok(response);
         }
-        catch (ArgumentException ex)
+        catch (AppProblemException ex)
         {
-            return BadRequest(new ProblemDetails { Title = "Sincronização inválida", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Erro ao sincronizar B3.");
-            return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
-            {
-                Title = "Erro interno do servidor.",
-                Detail = "Nao foi possivel sincronizar dados da B3.",
-                Status = StatusCodes.Status500InternalServerError
-            });
+            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
         }
     }
 

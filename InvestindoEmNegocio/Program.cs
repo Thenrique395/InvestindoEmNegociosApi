@@ -334,6 +334,7 @@ builder.Services.AddScoped<IAuthFacadeService, AuthFacadeService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IInvestmentsService, InvestmentsService>();
+builder.Services.AddScoped<IInvestmentsFacadeService, InvestmentsFacadeService>();
 builder.Services.AddScoped<IOnboardingService, OnboardingService>();
 builder.Services.AddScoped<ICardsService, CardsService>();
 builder.Services.AddScoped<ICategoriesService, CategoriesService>();
