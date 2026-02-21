@@ -218,6 +218,12 @@ public class ApiErrorContractIntegrationTests
         public Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request, string? ipAddress, string? userAgent, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
 
+        public Task ForgotPasswordAsync(ForgotPasswordRequest request, string? ipAddress, string? userAgent, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task ResetPasswordAsync(ResetPasswordRequest request, string? ipAddress, string? userAgent, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
         public Task<AuthResponse> RefreshAsync(RefreshTokenRequest request, CancellationToken cancellationToken = default) =>
             Task.FromResult(new AuthResponse(Guid.NewGuid(), "User", "user@mail.com", "User", "token", "refresh", DateTime.UtcNow.AddHours(1)));
 

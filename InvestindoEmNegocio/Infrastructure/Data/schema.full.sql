@@ -224,6 +224,17 @@ CREATE TABLE refresh_tokens (
     CONSTRAINT "FK_refresh_tokens_users_UserId" FOREIGN KEY ("UserId") REFERENCES users ("Id") ON DELETE CASCADE
 );
 
+CREATE TABLE password_reset_tokens (
+    "Id" uuid NOT NULL,
+    "UserId" uuid NOT NULL,
+    "TokenHash" character varying(200) NOT NULL,
+    "ExpiresAt" timestamp with time zone NOT NULL,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    "UsedAt" timestamp with time zone,
+    CONSTRAINT "PK_password_reset_tokens" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_password_reset_tokens_users_UserId" FOREIGN KEY ("UserId") REFERENCES users ("Id") ON DELETE CASCADE
+);
+
 CREATE TABLE money_plans (
     "Id" uuid NOT NULL,
     "UserId" uuid NOT NULL,
@@ -323,6 +334,10 @@ CREATE UNIQUE INDEX "IX_refresh_tokens_TokenHash" ON refresh_tokens ("TokenHash"
 
 CREATE INDEX "IX_refresh_tokens_UserId" ON refresh_tokens ("UserId");
 
+CREATE UNIQUE INDEX "IX_password_reset_tokens_TokenHash" ON password_reset_tokens ("TokenHash");
+
+CREATE INDEX "IX_password_reset_tokens_UserId" ON password_reset_tokens ("UserId");
+
 CREATE INDEX "IX_user_notifications_UserId_CreatedAt" ON user_notifications ("UserId", "CreatedAt");
 
 CREATE UNIQUE INDEX "IX_user_notifications_UserId_ReferenceKey" ON user_notifications ("UserId", "ReferenceKey");
@@ -332,5 +347,4 @@ CREATE UNIQUE INDEX "IX_user_onboarding_UserId" ON user_onboarding ("UserId");
 CREATE UNIQUE INDEX "IX_user_profiles_UserId" ON user_profiles ("UserId");
 
 CREATE UNIQUE INDEX "IX_users_Email" ON users ("Email");
-
 

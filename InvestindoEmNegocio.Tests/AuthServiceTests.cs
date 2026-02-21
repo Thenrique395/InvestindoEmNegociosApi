@@ -5,6 +5,7 @@ using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Repositories;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace InvestindoEmNegocio.Tests;
@@ -185,15 +186,68 @@ public class AuthServiceTests
         userRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact]
+    public async Task ForgotPasswordAsync_Should_Not_Throw_When_User_Does_Not_Exist()
+    {
+        var userRepository = new Mock<IUserRepository>();
+        userRepository
+            .Setup(x => x.GetByEmailAsync("missing@local", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+        var emailSender = new Mock<IEmailSender>();
+
+        var sut = BuildSut(userRepository: userRepository, emailSender: emailSender);
+
+        await sut.ForgotPasswordAsync(new ForgotPasswordRequest("missing@local"), CancellationToken.None);
+
+        emailSender.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ResetPasswordAsync_Should_Mark_Token_Used_And_Revoke_Refresh_Tokens()
+    {
+        var user = new User("User", "user@local", BCrypt.Net.BCrypt.HashPassword("Password123!"));
+        var rawResetToken = "plain-reset-token";
+        var tokenHash = Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(rawResetToken)));
+        var resetToken = new PasswordResetToken(user.Id, tokenHash, DateTime.UtcNow.AddMinutes(30));
+
+        var userRepository = new Mock<IUserRepository>();
+        userRepository.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+
+        var passwordResetRepository = new Mock<IPasswordResetTokenRepository>();
+        passwordResetRepository.Setup(x => x.GetByTokenHashAsync(tokenHash, It.IsAny<CancellationToken>())).ReturnsAsync(resetToken);
+
+        var refreshRepository = new Mock<IRefreshTokenRepository>();
+
+        var sut = BuildSut(
+            userRepository: userRepository,
+            refreshTokenRepository: refreshRepository,
+            passwordResetTokenRepository: passwordResetRepository);
+
+        await sut.ResetPasswordAsync(new ResetPasswordRequest(rawResetToken, "NovaSenha123!"), CancellationToken.None);
+
+        resetToken.IsUsed.Should().BeTrue();
+        refreshRepository.Verify(x => x.RevokeActiveByUserAsync(user.Id, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Once);
+        refreshRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     private static AuthService BuildSut(
         Mock<IUserRepository>? userRepository = null,
         Mock<IRefreshTokenRepository>? refreshTokenRepository = null,
-        Mock<IJwtTokenGenerator>? jwtTokenGenerator = null)
+        Mock<IPasswordResetTokenRepository>? passwordResetTokenRepository = null,
+        Mock<IJwtTokenGenerator>? jwtTokenGenerator = null,
+        Mock<IEmailSender>? emailSender = null)
     {
         return new AuthService(
             userRepository?.Object ?? Mock.Of<IUserRepository>(),
             refreshTokenRepository?.Object ?? Mock.Of<IRefreshTokenRepository>(),
+            passwordResetTokenRepository?.Object ?? Mock.Of<IPasswordResetTokenRepository>(),
             jwtTokenGenerator?.Object ?? CreateDefaultTokenGenerator().Object,
+            emailSender?.Object ?? Mock.Of<IEmailSender>(),
+            Options.Create(new PasswordResetOptions
+            {
+                FrontendResetUrl = "http://localhost:4200/reset-password",
+                TokenExpiryMinutes = 30
+            }),
             NullLogger<AuthService>.Instance);
     }
 

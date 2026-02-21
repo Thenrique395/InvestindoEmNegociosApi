@@ -5,6 +5,8 @@ using System.Security.Cryptography;
 using System.Text;
 using InvestindoEmNegocio.Domain.Entities;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using System.Net;
 
 namespace InvestindoEmNegocio.Application.Services;
 
@@ -13,7 +15,10 @@ using BCryptNet = BCrypt.Net.BCrypt;
 public class AuthService(
     IUserRepository userRepository,
     IRefreshTokenRepository refreshTokenRepository,
+    IPasswordResetTokenRepository passwordResetTokenRepository,
     IJwtTokenGenerator jwtTokenGenerator,
+    IEmailSender emailSender,
+    IOptions<PasswordResetOptions> passwordResetOptions,
     ILogger<AuthService> logger)
     : IAuthService
 {
@@ -22,6 +27,7 @@ public class AuthService(
     private const int MaxFailedLoginAttempts = 5;
     private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(30);
+    private const int MinPasswordLength = 8;
 
     public async Task<AuthResponse> RegisterAsync(RegisterUserRequest request, CancellationToken cancellationToken = default)
     {
@@ -103,6 +109,65 @@ public class AuthService(
         _logger.LogInformation("Password changed {UserId}", user.Id);
     }
 
+    public async Task ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default)
+    {
+        var user = await userRepository.GetByEmailAsync(request.Email.Trim().ToLowerInvariant(), cancellationToken);
+        if (user is null)
+        {
+            _logger.LogInformation("Password reset requested for unknown email {Email}", request.Email);
+            return;
+        }
+
+        var rawToken = GeneratePasswordResetToken();
+        var tokenHash = HashToken(rawToken);
+        var now = DateTime.UtcNow;
+        var ttlMinutes = Math.Clamp(passwordResetOptions.Value.TokenExpiryMinutes, 5, 120);
+        var expiresAt = now.AddMinutes(ttlMinutes);
+
+        await passwordResetTokenRepository.AddAsync(new PasswordResetToken(user.Id, tokenHash, expiresAt), cancellationToken);
+        await passwordResetTokenRepository.SaveChangesAsync(cancellationToken);
+
+        var resetLink = BuildResetLink(rawToken);
+        var subject = "Recuperacao de senha";
+        var html = $"""
+                    <p>Ola {WebUtility.HtmlEncode(user.Name)},</p>
+                    <p>Recebemos uma solicitacao para redefinir sua senha.</p>
+                    <p><a href="{WebUtility.HtmlEncode(resetLink)}">Clique aqui para criar uma nova senha</a></p>
+                    <p>Este link expira em {ttlMinutes} minutos.</p>
+                    <p>Se voce nao fez esta solicitacao, ignore este e-mail.</p>
+                    """;
+        var text = $"Recebemos uma solicitacao de redefinicao de senha. Acesse: {resetLink}. Este link expira em {ttlMinutes} minutos.";
+
+        await emailSender.SendAsync(user.Email, subject, html, text, cancellationToken);
+        _logger.LogInformation("Password reset token issued {UserId}", user.Id);
+    }
+
+    public async Task ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default)
+    {
+        if (request.NewPassword.Length < MinPasswordLength)
+            throw new ArgumentException($"Nova senha deve ter no mínimo {MinPasswordLength} caracteres.");
+
+        var now = DateTime.UtcNow;
+        var tokenHash = HashToken(request.Token);
+        var stored = await passwordResetTokenRepository.GetByTokenHashAsync(tokenHash, cancellationToken);
+        if (stored is null || stored.IsUsed || stored.IsExpired(now))
+            throw new UnauthorizedAccessException("Token de recuperação inválido ou expirado.");
+
+        var user = await userRepository.GetByIdAsync(stored.UserId, cancellationToken);
+        if (user is null)
+            throw new UnauthorizedAccessException("Usuário não encontrado.");
+
+        var newHash = BCryptNet.HashPassword(request.NewPassword, BcryptWorkFactor);
+        user.ChangePassword(newHash);
+        stored.MarkAsUsed(now);
+        await userRepository.SaveChangesAsync(cancellationToken);
+        await passwordResetTokenRepository.SaveChangesAsync(cancellationToken);
+
+        await refreshTokenRepository.RevokeActiveByUserAsync(user.Id, now, cancellationToken);
+        await refreshTokenRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Password reset completed {UserId}", user.Id);
+    }
+
     public async Task<AuthResponse> RefreshAsync(RefreshTokenRequest request, CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
@@ -163,9 +228,25 @@ public class AuthService(
         return Convert.ToBase64String(bytes);
     }
 
+    private static string GeneratePasswordResetToken()
+    {
+        var bytes = RandomNumberGenerator.GetBytes(48);
+        return Convert.ToBase64String(bytes);
+    }
+
     private static string HashToken(string token)
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
         return Convert.ToBase64String(bytes);
+    }
+
+    private string BuildResetLink(string token)
+    {
+        var baseUrl = passwordResetOptions.Value.FrontendResetUrl?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            baseUrl = "http://localhost:4200/reset-password";
+
+        var separator = baseUrl.Contains('?', StringComparison.Ordinal) ? "&" : "?";
+        return $"{baseUrl}{separator}token={Uri.EscapeDataString(token)}";
     }
 }

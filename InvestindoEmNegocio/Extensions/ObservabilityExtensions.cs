@@ -18,10 +18,6 @@ public static class ObservabilityExtensions
         var endpoint = ResolveOtlpEndpoint(endpointValue);
         var protocol = ResolveOtlpProtocol(protocolValue);
 
-        if (string.IsNullOrWhiteSpace(endpointValue))
-            Console.WriteLine("OTEL_EXPORTER_OTLP_ENDPOINT não definido. OTEL não enviará dados.");
-        
-
         var resource = ResourceBuilder.CreateDefault().AddService(serviceName);
 
         builder.Host.UseSerilog((context, services, configuration) =>

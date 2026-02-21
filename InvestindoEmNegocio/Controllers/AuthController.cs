@@ -32,6 +32,22 @@ public class AuthController(IAuthFacadeService authFacadeService) : ControllerBa
         return NoContent();
     }
 
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken cancellationToken)
+    {
+        await authFacadeService.ForgotPasswordAsync(request, GetIpAddress(), GetUserAgent(), cancellationToken);
+        return Accepted();
+    }
+
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request, CancellationToken cancellationToken)
+    {
+        await authFacadeService.ResetPasswordAsync(request, GetIpAddress(), GetUserAgent(), cancellationToken);
+        return NoContent();
+    }
+
     [HttpPost("refresh")]
     [AllowAnonymous]
     public async Task<ActionResult<AuthResponse>> Refresh([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)

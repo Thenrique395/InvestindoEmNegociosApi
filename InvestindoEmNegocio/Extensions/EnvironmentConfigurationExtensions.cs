@@ -30,7 +30,16 @@ public static class EnvironmentConfigurationExtensions
                      ("B3Api__ClientSecret", "B3Api:ClientSecret"),
                      ("Cors__AllowedOrigins", "Cors:AllowedOrigins"),
                      ("MarketData__Provider", "MarketData:Provider"),
-                     ("MarketData__BrapiToken", "MarketData:BrapiToken")
+                     ("MarketData__BrapiToken", "MarketData:BrapiToken"),
+                     ("PasswordReset__FrontendResetUrl", "PasswordReset:FrontendResetUrl"),
+                     ("PasswordReset__TokenExpiryMinutes", "PasswordReset:TokenExpiryMinutes"),
+                     ("Smtp__Host", "Smtp:Host"),
+                     ("Smtp__Port", "Smtp:Port"),
+                     ("Smtp__EnableSsl", "Smtp:EnableSsl"),
+                     ("Smtp__Username", "Smtp:Username"),
+                     ("Smtp__Password", "Smtp:Password"),
+                     ("Smtp__FromEmail", "Smtp:FromEmail"),
+                     ("Smtp__FromName", "Smtp:FromName")
                  })
         {
             EnsureEnvFromConfig(builder.Configuration, envKey, configKey);

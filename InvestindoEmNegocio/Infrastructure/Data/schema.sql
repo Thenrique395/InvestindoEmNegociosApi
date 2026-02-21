@@ -69,6 +69,23 @@ CREATE TABLE IF NOT EXISTS investment_allocation_targets (
 CREATE UNIQUE INDEX IF NOT EXISTS "IX_investment_allocation_targets_UserId"
     ON investment_allocation_targets ("UserId");
 
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    "Id" uuid NOT NULL,
+    "UserId" uuid NOT NULL,
+    "TokenHash" character varying(200) NOT NULL,
+    "ExpiresAt" timestamp with time zone NOT NULL,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    "UsedAt" timestamp with time zone NULL,
+    CONSTRAINT "PK_password_reset_tokens" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_password_reset_tokens_users_UserId" FOREIGN KEY ("UserId") REFERENCES users ("Id") ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_password_reset_tokens_TokenHash"
+    ON password_reset_tokens ("TokenHash");
+
+CREATE INDEX IF NOT EXISTS "IX_password_reset_tokens_UserId"
+    ON password_reset_tokens ("UserId");
+
 DO $$
 BEGIN
     IF EXISTS (

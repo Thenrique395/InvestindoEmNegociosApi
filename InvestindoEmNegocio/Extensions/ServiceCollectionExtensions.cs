@@ -111,6 +111,8 @@ public static class ServiceCollectionExtensions
         services.Configure<DataPortabilityOptions>(configuration.GetSection("DataPortability"));
         services.Configure<B3ApiOptions>(configuration.GetSection("B3Api"));
         services.Configure<MarketDataOptions>(configuration.GetSection(MarketDataOptions.SectionName));
+        services.Configure<PasswordResetOptions>(configuration.GetSection(PasswordResetOptions.SectionName));
+        services.Configure<SmtpEmailOptions>(configuration.GetSection(SmtpEmailOptions.SectionName));
         return services;
     }
 
@@ -218,6 +220,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IInvestmentPositionRepository, InvestmentPositionRepository>();
         services.AddScoped<IUserOnboardingRepository, UserOnboardingRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
         services.AddScoped<IInstitutionRepository, InstitutionRepository>();
         services.AddScoped<IUserNotificationRepository, UserNotificationRepository>();
@@ -225,6 +228,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IAuthFacadeService, AuthFacadeService>();
+        services.AddScoped<IEmailSender, SmtpEmailSender>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IProfileService, ProfileService>();
         services.AddScoped<IInvestmentsService, InvestmentsService>();
