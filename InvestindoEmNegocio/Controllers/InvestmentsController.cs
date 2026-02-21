@@ -75,9 +75,7 @@ public class InvestmentsController(
         list = await investmentsService.EnrichWithMarketAsync(list, cancellationToken);
 
         if (isPaged)
-        {
             ListQueryHelper.WritePaginationHeaders(Response, total, page, pageSize);
-        }
 
         return Ok(list);
     }
@@ -159,20 +157,16 @@ public class InvestmentsController(
     {
         var file = request.File;
         if (file is null || file.Length == 0)
-        {
             throw new AppProblemException(
                 "Arquivo inválido",
                 "Envie o relatório da B3 em PDF.",
                 StatusCodes.Status400BadRequest);
-        }
 
         if (!string.Equals(file.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
-        {
             throw new AppProblemException(
                 "Arquivo inválido",
                 "Formato não suportado. Use PDF.",
                 StatusCodes.Status400BadRequest);
-        }
 
         var userId = GetUserId();
         await using var stream = file.OpenReadStream();
@@ -215,18 +209,14 @@ public class InvestmentsController(
     private Guid GetUserId()
     {
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
-        return Guid.TryParse(claim, out var id)
-            ? id
-            : throw new UnauthorizedAccessException("Usuário não autenticado.");
+        return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Usuário não autenticado.");
     }
 
     private string? GetIpAddress()
     {
         var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault();
         if (!string.IsNullOrWhiteSpace(forwarded))
-        {
             return forwarded.Split(',')[0].Trim();
-        }
 
         return HttpContext.Connection.RemoteIpAddress?.ToString();
     }
@@ -235,5 +225,4 @@ public class InvestmentsController(
     {
         return Request.Headers["User-Agent"].ToString();
     }
-
 }

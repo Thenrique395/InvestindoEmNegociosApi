@@ -5,28 +5,21 @@ using Microsoft.EntityFrameworkCore;
 
 namespace InvestindoEmNegocio.Infrastructure.Repositories;
 
-public class InvestmentAllocationTargetRepository : IInvestmentAllocationTargetRepository
+public class InvestmentAllocationTargetRepository(InvestDbContext context) : IInvestmentAllocationTargetRepository
 {
-    private readonly InvestDbContext _context;
-
-    public InvestmentAllocationTargetRepository(InvestDbContext context)
-    {
-        _context = context;
-    }
-
     public async Task<InvestmentAllocationTarget?> GetByUserAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        return await _context.InvestmentAllocationTargets
+        return await context.InvestmentAllocationTargets
             .FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken);
     }
 
     public async Task AddAsync(InvestmentAllocationTarget target, CancellationToken cancellationToken = default)
     {
-        await _context.InvestmentAllocationTargets.AddAsync(target, cancellationToken);
+        await context.InvestmentAllocationTargets.AddAsync(target, cancellationToken);
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        await _context.SaveChangesAsync(cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
     }
 }

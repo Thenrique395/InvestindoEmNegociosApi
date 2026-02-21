@@ -3,8 +3,11 @@
 ## Escopo atual
 
 - Suite unitária: `InvestindoEmNegocio.Tests`
-- Resultado atual: `115/115` testes passando
-- Observação: este plano usa cobertura **funcional/comportamental** por serviço (não é relatório de cobertura por linha).
+- Resultado atual: `256/256` testes passando
+- Cobertura por linha (XPlat Code Coverage): **80.04%**
+- Último relatório: `InvestindoEmNegocio/InvestindoEmNegocio.Tests/TestResults/637c9eea-cadc-4226-b2a2-f26f212543df/coverage.cobertura.xml`
+- Comando de referência:
+  - `dotnet test InvestindoEmNegocio.Tests/InvestindoEmNegocio.Tests.csproj --configuration Release --collect:"XPlat Code Coverage"`
 
 ## Prioridade 1 (crítico)
 
@@ -44,8 +47,8 @@ Serviços de operações centrais do domínio (planos, parcelas, metas, notifica
 
 - `PlansService`, `InstallmentsService`, `GoalsService`, `GoalContributionsService`, `NotificationsService` (cobertos)
 - Focos restantes:
-  - fluxos de borda em datas (virada de mês, vencido vs futuro);
-  - cenários de concorrência lógica (duplo pagamento, dupla marcação como lida);
+  - ampliar casos de borda de calendário (fim/início de mês em múltiplos timezones);
+  - ampliar cenários de concorrência lógica em nível de integração transacional;
   - validações de transição de estado (`Planned -> InProgress -> Completed/Canceled`).
 
 ## Prioridade 3 (média)
@@ -54,8 +57,7 @@ Serviços de administração e parâmetros.
 
 - `AdminUsersService`, `AdminCategoriesService`, `AdminParametersService`, `LookupsService`, `PreferencesService`, `OnboardingService`, `ProfileService`, `CardsService`, `CategoriesService`, `IncomeSummaryService` (cobertos)
 - Focos restantes:
-  - avaliar necessidade de tratar e padronizar falhas de persistência (`DbUpdateException`) em serviços admin que hoje não fazem tradução para `AppProblemException` (`AdminUsersService` e `AdminCategoriesService`);
-  - validação forte de entrada em update parcial;
+  - validação forte de entrada em update parcial (admin/profile);
   - garantir mensagens/erros consistentes para contratos de API.
 
 ## Prioridade 4 (baixa)
@@ -74,7 +76,7 @@ Serviços auxiliares, observabilidade e parser.
 2. ✅ Completar `InvestmentsService` (média/quantidade e enrich de mercado).
 3. ✅ Completar `DataPortabilityService` (import completo + `replaceExisting`).
 4. ✅ Completar `B3ImportService` (`replace`, deduplicação, token de outro usuário).
-5. 🟡 Endurecer serviços de admin com testes de exceção de persistência (parcialmente concluído em `AdminParametersService`).
+5. ✅ Endurecer serviços de admin com testes de exceção de persistência + gate de CI (testes + cobertura mínima).
 
 ## Critério de pronto para backend
 
@@ -85,3 +87,8 @@ Serviços auxiliares, observabilidade e parser.
   - falha de infraestrutura esperada.
 - Contratos HTTP validados para erros (`ProblemDetails`) nos endpoints críticos.
 - Pipeline CI executando testes unitários em toda PR.
+
+## Status de cobertura (meta 80%)
+
+- ✅ Meta atingida: cobertura global >= 80%.
+- ✅ Próximo objetivo sugerido: manter mínimo de 80% como gate de PR no CI.

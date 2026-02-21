@@ -31,9 +31,7 @@ public class GoalContributionsController(IGoalContributionsService contributions
             });
 
         if (isPaged)
-        {
             ListQueryHelper.WritePaginationHeaders(Response, total, page, pageSize);
-        }
 
         return Ok(pagedItems);
     }

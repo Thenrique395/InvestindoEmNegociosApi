@@ -54,6 +54,47 @@ public class InvoiceParserFactoryTests
             i.Description.Contains("PAGAMENTO EFETUADO", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public void GenericParser_Should_Be_Used_For_Unknown_Bank_And_Extract_Core_Fields()
+    {
+        var raw = """
+            FATURA BRADESCO
+            vencimento 10/03/2026
+            fechamento 02/03/2026
+            Total a pagar R$ 456,78
+            Pagamento mínimo R$ 50,00
+            01/03 MERCADO CENTRAL 123,45
+            05/03 FARMACIA SAUDE 33,20
+            """;
+
+        var response = Parse(raw);
+
+        response.BankName.Should().Be("Bradesco");
+        response.Total.Should().Be("R$ 456,78");
+        response.MinimumPayment.Should().Be("R$ 50,00");
+        response.DueDate.Should().Be("10/03/2026");
+        response.CloseDate.Should().Be("02/03/2026");
+        response.Items.Should().HaveCountGreaterOrEqualTo(2);
+    }
+
+    [Fact]
+    public void GenericParser_Should_Extract_At_Least_One_Valid_Generic_Item()
+    {
+        var raw = """
+            fatura genérica
+            vencimento 10/03/2026
+            01/03 MERCADO CENTRAL 123,45
+            01/03 MERCADO CENTRAL 123,45
+            01/03 MERCADO CENTRAL 123,45
+            """;
+
+        var response = Parse(raw);
+
+        response.Items
+            .Should()
+            .Contain(i => i.Description.Contains("MERCADO CENTRAL", StringComparison.OrdinalIgnoreCase) && i.Amount == "R$ 123,45");
+    }
+
     private static InvoiceExtractResponse Parse(string raw)
     {
         var lines = raw

@@ -11,10 +11,7 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/[controller]")]
 [Route("api/v1/[controller]")]
 [Authorize]
-public sealed class InvoiceImportController(
-    IInvoiceImportService invoiceImportService,
-    ILogger<InvoiceImportController> logger
-) : ControllerBase
+public sealed class InvoiceImportController(IInvoiceImportService invoiceImportService, ILogger<InvoiceImportController> logger) : ControllerBase
 {
     [HttpPost("extract")]
     [Consumes("multipart/form-data")]
@@ -23,20 +20,16 @@ public sealed class InvoiceImportController(
     {
         var file = request.File;
         if (file is null || file.Length == 0)
-        {
             throw new AppProblemException(
                 "Arquivo inválido",
                 "Envie um PDF válido.",
                 StatusCodes.Status400BadRequest);
-        }
 
         if (!string.Equals(file.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
-        {
             throw new AppProblemException(
                 "Arquivo inválido",
                 "Formato não suportado. Use PDF.",
                 StatusCodes.Status400BadRequest);
-        }
 
         try
         {

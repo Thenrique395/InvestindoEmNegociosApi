@@ -85,6 +85,60 @@ public class InstallmentsServiceTests
         await act.Should().ThrowAsync<UnauthorizedAccessException>();
     }
 
+    [Fact]
+    public async Task PayAsync_Should_Update_Status_To_Paid_When_Total_Reaches_Amount()
+    {
+        var userId = Guid.NewGuid();
+        var installmentId = Guid.NewGuid();
+        var installment = new MoneyInstallment(Guid.NewGuid(), userId, 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100);
+
+        var installmentRepository = new Mock<IMoneyInstallmentRepository>();
+        installmentRepository
+            .Setup(x => x.GetByIdAsync(installmentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(installment);
+
+        var paymentRepository = new Mock<IMoneyPaymentRepository>();
+        paymentRepository
+            .Setup(x => x.SumPaidAmountAsync(installment.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(100);
+
+        var sut = BuildSut(installmentRepository: installmentRepository, paymentRepository: paymentRepository);
+
+        var result = await sut.PayAsync(userId, installmentId, new PaymentRequest(DateTime.UtcNow, 100));
+
+        result.Should().BeTrue();
+        installment.Status.Should().Be(InstallmentStatus.Paid);
+    }
+
+    [Fact]
+    public async Task PayAsync_Should_Handle_Double_Payment_And_Keep_Status_Paid()
+    {
+        var userId = Guid.NewGuid();
+        var installmentId = Guid.NewGuid();
+        var installment = new MoneyInstallment(Guid.NewGuid(), userId, 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100);
+        var paidTotals = new Queue<decimal>([60m, 120m]);
+
+        var installmentRepository = new Mock<IMoneyInstallmentRepository>();
+        installmentRepository
+            .Setup(x => x.GetByIdAsync(installmentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(installment);
+
+        var paymentRepository = new Mock<IMoneyPaymentRepository>();
+        paymentRepository
+            .Setup(x => x.SumPaidAmountAsync(installment.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => paidTotals.Dequeue());
+
+        var sut = BuildSut(installmentRepository: installmentRepository, paymentRepository: paymentRepository);
+
+        var first = await sut.PayAsync(userId, installmentId, new PaymentRequest(DateTime.UtcNow, 60));
+        var second = await sut.PayAsync(userId, installmentId, new PaymentRequest(DateTime.UtcNow, 60));
+
+        first.Should().BeTrue();
+        second.Should().BeTrue();
+        installment.Status.Should().Be(InstallmentStatus.Paid);
+        paymentRepository.Verify(x => x.AddAsync(It.IsAny<MoneyPayment>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
     private static InstallmentsService BuildSut(
         Mock<IMoneyInstallmentRepository>? installmentRepository = null,
         Mock<IMoneyPaymentRepository>? paymentRepository = null)

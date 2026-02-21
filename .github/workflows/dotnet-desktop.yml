@@ -9,7 +9,74 @@ permissions:
   packages: write
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Run unit tests with coverage
+        run: |
+          dotnet test InvestindoEmNegocio.Tests/InvestindoEmNegocio.Tests.csproj \
+            --configuration Release \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./TestResults
+
+      - name: Enforce minimum coverage thresholds
+        run: |
+          python3 - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+
+          threshold_overall = 0.45
+          threshold_services = 0.55
+
+          coverage_file = None
+          for root, _, files in os.walk("TestResults"):
+            for f in files:
+              if f == "coverage.cobertura.xml":
+                coverage_file = os.path.join(root, f)
+                break
+            if coverage_file:
+              break
+
+          if not coverage_file:
+            raise SystemExit("coverage.cobertura.xml not found in TestResults")
+
+          tree = ET.parse(coverage_file)
+          root = tree.getroot()
+
+          overall = float(root.attrib.get("line-rate", 0))
+
+          total_lines = 0
+          covered_lines = 0
+          for cls in root.findall(".//class"):
+            filename = cls.attrib.get("filename", "")
+            if "Application/Services/" not in filename and "Application\\Services\\" not in filename:
+              continue
+            for line in cls.findall("./lines/line"):
+              total_lines += 1
+              if int(line.attrib.get("hits", "0")) > 0:
+                covered_lines += 1
+
+          services = (covered_lines / total_lines) if total_lines else 0.0
+
+          print(f"Overall line coverage: {overall:.2%}")
+          print(f"Application/Services line coverage: {services:.2%}")
+
+          if overall < threshold_overall:
+            raise SystemExit(f"Overall coverage below threshold: {overall:.2%} < {threshold_overall:.2%}")
+          if services < threshold_services:
+            raise SystemExit(f"Services coverage below threshold: {services:.2%} < {threshold_services:.2%}")
+          PY
+
   build-and-deploy:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

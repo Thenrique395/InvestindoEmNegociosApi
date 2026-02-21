@@ -5,6 +5,7 @@ using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
 namespace InvestindoEmNegocio.Application.Services;
 
@@ -34,7 +35,18 @@ public sealed class AdminCategoriesService(ICategoryRepository categoryRepositor
 
         var category = new Category(null, name, appliesTo);
         await categoryRepository.AddAsync(category, cancellationToken);
-        await categoryRepository.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await categoryRepository.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            throw new AppProblemException(
+                "Falha ao salvar",
+                "Não foi possível salvar a categoria no momento.",
+                StatusCodes.Status409Conflict);
+        }
+
         return ToAdminResponse(category);
     }
 
@@ -57,7 +69,18 @@ public sealed class AdminCategoriesService(ICategoryRepository categoryRepositor
         }
 
         category.Update(name, appliesTo);
-        await categoryRepository.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await categoryRepository.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            throw new AppProblemException(
+                "Falha ao salvar",
+                "Não foi possível atualizar a categoria no momento.",
+                StatusCodes.Status409Conflict);
+        }
+
         return ToAdminResponse(category);
     }
 
@@ -69,7 +92,18 @@ public sealed class AdminCategoriesService(ICategoryRepository categoryRepositor
         if (isActive) category.Activate();
         else category.Deactivate();
 
-        await categoryRepository.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await categoryRepository.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            throw new AppProblemException(
+                "Falha ao salvar",
+                "Não foi possível atualizar a categoria no momento.",
+                StatusCodes.Status409Conflict);
+        }
+
         return ToAdminResponse(category);
     }
 

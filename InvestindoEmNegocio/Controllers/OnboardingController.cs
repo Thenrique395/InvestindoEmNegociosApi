@@ -31,8 +31,6 @@ public class OnboardingController(IOnboardingService onboardingService) : Contro
     private Guid GetUserId()
     {
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
-        return Guid.TryParse(claim, out var id)
-            ? id
-            : throw new UnauthorizedAccessException("Usuário não autenticado.");
+        return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Usuário não autenticado.");
     }
 }

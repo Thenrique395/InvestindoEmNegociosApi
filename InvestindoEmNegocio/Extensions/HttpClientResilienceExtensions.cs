@@ -14,8 +14,7 @@ public static class HttpClientResilienceExtensions
         int breakerHandledEventsAllowedBeforeBreaking,
         TimeSpan breakerDuration)
     {
-        return builder
-            .AddPolicyHandler(CreateRetryPolicy(retryCount, baseDelay))
+        return builder.AddPolicyHandler(CreateRetryPolicy(retryCount, baseDelay))
             .AddPolicyHandler(CreateCircuitBreakerPolicy(
                 breakerHandledEventsAllowedBeforeBreaking,
                 breakerDuration))
@@ -24,8 +23,7 @@ public static class HttpClientResilienceExtensions
 
     private static IAsyncPolicy<HttpResponseMessage> CreateRetryPolicy(int retryCount, TimeSpan baseDelay)
     {
-        return HttpPolicyExtensions
-            .HandleTransientHttpError()
+        return HttpPolicyExtensions.HandleTransientHttpError()
             .Or<TimeoutRejectedException>()
             .WaitAndRetryAsync(retryCount, attempt =>
             {
@@ -35,12 +33,9 @@ public static class HttpClientResilienceExtensions
             });
     }
 
-    private static IAsyncPolicy<HttpResponseMessage> CreateCircuitBreakerPolicy(
-        int handledEventsAllowedBeforeBreaking,
-        TimeSpan durationOfBreak)
+    private static IAsyncPolicy<HttpResponseMessage> CreateCircuitBreakerPolicy(int handledEventsAllowedBeforeBreaking, TimeSpan durationOfBreak)
     {
-        return HttpPolicyExtensions
-            .HandleTransientHttpError()
+        return HttpPolicyExtensions.HandleTransientHttpError()
             .Or<TimeoutRejectedException>()
             .CircuitBreakerAsync(handledEventsAllowedBeforeBreaking, durationOfBreak);
     }

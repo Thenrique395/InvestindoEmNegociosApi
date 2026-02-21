@@ -14,17 +14,8 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/[controller]")]
 [Route("api/v1/[controller]")]
 [Authorize]
-public class PlansController : ControllerBase
+public class PlansController(IPlansService plansService, IAuditService auditService) : ControllerBase
 {
-    private readonly IPlansService _plansService;
-    private readonly IAuditService _auditService;
-
-    public PlansController(IPlansService plansService, IAuditService auditService)
-    {
-        _plansService = plansService;
-        _auditService = auditService;
-    }
-
     [HttpPost]
     // Cria um plano de receita/despesa e gera parcelas conforme o tipo (à vista, parcelado ou recorrente).
     public async Task<ActionResult<PlanResponse>> Create([FromBody] CreatePlanRequest request,
@@ -33,7 +24,7 @@ public class PlansController : ControllerBase
         var userId = GetUserId();
         try
         {
-            var plan = await _plansService.CreateAsync(userId, request, cancellationToken);
+            var plan = await plansService.CreateAsync(userId, request, cancellationToken);
             return Ok(plan);
         }
         catch (ArgumentException ex)
@@ -47,7 +38,7 @@ public class PlansController : ControllerBase
     public async Task<IActionResult> List([FromQuery] MoneyType? type, [FromQuery] ListQuery query, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var data = await _plansService.ListAsync(userId, type, cancellationToken);
+        var data = await plansService.ListAsync(userId, type, cancellationToken);
         var (items, total, page, pageSize, isPaged) = ListQueryHelper.Apply(
             data,
             query,
@@ -62,9 +53,7 @@ public class PlansController : ControllerBase
             });
 
         if (isPaged)
-        {
             ListQueryHelper.WritePaginationHeaders(Response, total, page, pageSize);
-        }
 
         return Ok(items);
     }
@@ -74,7 +63,7 @@ public class PlansController : ControllerBase
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var data = await _plansService.GetByIdAsync(userId, id, cancellationToken);
+        var data = await plansService.GetByIdAsync(userId, id, cancellationToken);
         if (data is null) return NotFound();
         return Ok(data);
     }
@@ -87,7 +76,7 @@ public class PlansController : ControllerBase
         var userId = GetUserId();
         try
         {
-            var plan = await _plansService.UpdateAsync(userId, id, request, cancellationToken);
+            var plan = await plansService.UpdateAsync(userId, id, request, cancellationToken);
             if (plan is null) return NotFound();
             return Ok(plan);
         }
@@ -102,27 +91,23 @@ public class PlansController : ControllerBase
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var removed = await _plansService.DeleteAsync(userId, id, cancellationToken);
+        var removed = await plansService.DeleteAsync(userId, id, cancellationToken);
         if (!removed) return NotFound();
-        await _auditService.LogAsync(userId, "DELETE", "Plan", id.ToString(), GetIpAddress(), GetUserAgent(), null, cancellationToken);
+        await auditService.LogAsync(userId, "DELETE", "Plan", id.ToString(), GetIpAddress(), GetUserAgent(), null, cancellationToken);
         return NoContent();
     }
 
     private Guid GetUserId()
     {
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
-        return Guid.TryParse(claim, out var id)
-            ? id
-            : throw new UnauthorizedAccessException("Usuário não autenticado.");
+        return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Usuário não autenticado.");
     }
 
     private string? GetIpAddress()
     {
         var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault();
         if (!string.IsNullOrWhiteSpace(forwarded))
-        {
             return forwarded.Split(',')[0].Trim();
-        }
 
         return HttpContext.Connection.RemoteIpAddress?.ToString();
     }

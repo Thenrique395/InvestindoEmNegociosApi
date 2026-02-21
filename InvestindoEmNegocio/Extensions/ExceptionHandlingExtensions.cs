@@ -16,7 +16,7 @@ public static class ExceptionHandlingExtensions
                 var exception = exceptionHandler?.Error;
                 var statusCode = StatusCodes.Status500InternalServerError;
                 var title = "Erro interno do servidor.";
-                string? detail = includeExceptionDetails ? exception?.Message : null;
+                var detail = includeExceptionDetails ? exception?.Message : null;
 
                 if (exception is AppProblemException appProblem)
                 {
@@ -30,14 +30,15 @@ public static class ExceptionHandlingExtensions
                     Status = statusCode,
                     Title = title,
                     Detail = detail,
-                    Instance = context.Request.Path
+                    Instance = context.Request.Path,
+                    Extensions =
+                    {
+                        ["traceId"] = context.TraceIdentifier
+                    }
                 };
 
-                problemDetails.Extensions["traceId"] = context.TraceIdentifier;
                 if (includeExceptionDetails && exception is not null)
-                {
                     problemDetails.Extensions["exception"] = exception.GetType().Name;
-                }
 
                 context.Response.StatusCode = statusCode;
                 context.Response.ContentType = "application/problem+json";

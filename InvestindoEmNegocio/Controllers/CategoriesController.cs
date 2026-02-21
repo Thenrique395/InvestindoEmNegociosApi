@@ -33,9 +33,7 @@ public class CategoriesController(ICategoriesService categoriesService, IAuditSe
             });
 
         if (isPaged)
-        {
             ListQueryHelper.WritePaginationHeaders(Response, total, page, pageSize);
-        }
 
         return Ok(items);
     }
@@ -102,9 +100,7 @@ public class CategoriesController(ICategoriesService categoriesService, IAuditSe
     {
         var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault();
         if (!string.IsNullOrWhiteSpace(forwarded))
-        {
             return forwarded.Split(',')[0].Trim();
-        }
 
         return HttpContext.Connection.RemoteIpAddress?.ToString();
     }

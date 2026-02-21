@@ -8,21 +8,14 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace InvestindoEmNegocio.Infrastructure.Auth;
 
-public class JwtTokenGenerator : IJwtTokenGenerator
+public class JwtTokenGenerator(IOptions<JwtOptions> options) : IJwtTokenGenerator
 {
-    private readonly JwtOptions _options;
-
-    public JwtTokenGenerator(IOptions<JwtOptions> options)
-    {
-        _options = options.Value;
-    }
+    private readonly JwtOptions _options = options.Value;
 
     public TokenResult Generate(User user)
     {
         if (string.IsNullOrWhiteSpace(_options.SecretKey))
-        {
             throw new InvalidOperationException("JWT SecretKey não configurada.");
-        }
 
         var signingCredentials = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.SecretKey)),

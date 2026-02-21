@@ -92,6 +92,44 @@ public class ProfileServiceTests
         ex.Which.Title.Should().Be("Perfil inválido");
     }
 
+    [Fact]
+    public async Task UpdateAvatarAsync_Should_Map_ArgumentException_To_400()
+    {
+        var userId = Guid.NewGuid();
+        var profile = NewProfile(userId);
+        var repository = new Mock<IUserProfileRepository>();
+        repository
+            .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(profile);
+        repository
+            .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ArgumentException("avatar inválido"));
+        using var memoryCache = new MemoryCache(new MemoryCacheOptions());
+        var sut = new ProfileService(repository.Object, memoryCache, NullLogger<ProfileService>.Instance);
+
+        Func<Task> act = async () => await sut.UpdateAvatarAsync(userId, "http://cdn/avatar.png");
+
+        var ex = await act.Should().ThrowAsync<AppProblemException>();
+        ex.Which.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        ex.Which.Title.Should().Be("Perfil inválido");
+    }
+
+    [Fact]
+    public async Task UpsertAsync_Should_Keep_Existing_Currency_When_Updating()
+    {
+        var userId = Guid.NewGuid();
+        var profile = NewProfile(userId);
+        var repository = new Mock<IUserProfileRepository>();
+        repository.Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(profile);
+        using var memoryCache = new MemoryCache(new MemoryCacheOptions());
+        var sut = new ProfileService(repository.Object, memoryCache, NullLogger<ProfileService>.Instance);
+
+        var result = await sut.UpsertAsync(userId, NewRequest());
+
+        result.Currency.Should().Be("BRL");
+        repository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     private static UpsertUserProfileRequest NewRequest() =>
         new(
             "Henrique Santos",

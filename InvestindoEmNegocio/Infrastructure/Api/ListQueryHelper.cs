@@ -21,17 +21,11 @@ public static class ListQueryHelper
         if (!string.IsNullOrWhiteSpace(query?.SortBy) && sortSelectors.Count > 0)
         {
             if (sortSelectors.TryGetValue(query.SortBy, out var selector))
-            {
-                items = IsDescending(query.SortDir)
-                    ? items.OrderByDescending(selector)
-                    : items.OrderBy(selector);
-            }
+                items = IsDescending(query.SortDir) ? items.OrderByDescending(selector) : items.OrderBy(selector);
         }
 
         if (!isPaged)
-        {
             return (items.ToList(), total, 1, total, false);
-        }
 
         var page = Math.Max(1, query?.Page ?? 1);
         var pageSize = Math.Clamp(query?.PageSize ?? DefaultPageSize, 1, MaxPageSize);

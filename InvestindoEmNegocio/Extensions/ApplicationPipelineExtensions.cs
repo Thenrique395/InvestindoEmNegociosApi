@@ -36,9 +36,7 @@ public static class ApplicationPipelineExtensions
                 var userId = httpContext.User?.FindFirstValue(ClaimTypes.NameIdentifier)
                     ?? httpContext.User?.FindFirstValue(ClaimTypes.Name);
                 if (!string.IsNullOrWhiteSpace(userId))
-                {
                     diagnosticContext.Set("UserId", userId);
-                }
             };
         });
 
@@ -78,10 +76,7 @@ public static class ApplicationPipelineExtensions
 
     public static void LogOtelConfiguration(this WebApplication app, OtlpRuntimeSettings settings)
     {
-        Log.Information(
-            "OTEL config loaded. Endpoint: {OtelEndpoint}, Protocol: {OtelProtocol}, ServiceName: {OtelServiceName}",
-            settings.Endpoint?.ToString() ?? "<not-set>",
-            settings.Protocol,
-            settings.ServiceName);
+        Log.Information("OTEL config loaded. Endpoint: {OtelEndpoint}, Protocol: {OtelProtocol}, ServiceName: {OtelServiceName}",
+            settings.Endpoint?.ToString() ?? "<not-set>", settings.Protocol, settings.ServiceName);
     }
 }

@@ -14,6 +14,82 @@ namespace InvestindoEmNegocio.Tests;
 public class InvestmentsServiceTests
 {
     [Fact]
+    public async Task ListPositionsAsync_Should_Use_Cache_On_Second_Call()
+    {
+        var userId = Guid.NewGuid();
+        var positions = new List<InvestmentPosition>
+        {
+            new(userId, InvestmentType.ACOES, "PETR4", 10, 20, DateOnly.FromDateTime(DateTime.UtcNow), "B3", "Acoes", null)
+        };
+
+        var positionRepository = new Mock<IInvestmentPositionRepository>();
+        positionRepository
+            .Setup(x => x.ListByUserAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(positions);
+
+        var sut = BuildSut(positionRepository: positionRepository);
+
+        var first = await sut.ListPositionsAsync(userId, CancellationToken.None);
+        var second = await sut.ListPositionsAsync(userId, CancellationToken.None);
+
+        first.Should().HaveCount(1);
+        second.Should().HaveCount(1);
+        positionRepository.Verify(x => x.ListByUserAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetGoalAsync_Should_Return_Null_When_Not_Found()
+    {
+        var goalRepository = new Mock<IInvestmentGoalRepository>();
+        goalRepository
+            .Setup(x => x.GetByUserAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((InvestmentGoal?)null);
+
+        var sut = BuildSut(goalRepository: goalRepository);
+
+        var result = await sut.GetGoalAsync(Guid.NewGuid(), CancellationToken.None);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task UpsertGoalAsync_Should_Create_When_Not_Exists()
+    {
+        var userId = Guid.NewGuid();
+        var goalRepository = new Mock<IInvestmentGoalRepository>();
+        goalRepository
+            .Setup(x => x.GetByUserAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((InvestmentGoal?)null);
+
+        var sut = BuildSut(goalRepository: goalRepository);
+
+        var result = await sut.UpsertGoalAsync(userId, new UpsertInvestmentGoalRequest(15000m), CancellationToken.None);
+
+        result.TargetAmount.Should().Be(15000m);
+        goalRepository.Verify(x => x.AddAsync(It.IsAny<InvestmentGoal>(), It.IsAny<CancellationToken>()), Times.Once);
+        goalRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpsertGoalAsync_Should_Update_When_Exists()
+    {
+        var userId = Guid.NewGuid();
+        var existing = new InvestmentGoal(userId, 5000m);
+        var goalRepository = new Mock<IInvestmentGoalRepository>();
+        goalRepository
+            .Setup(x => x.GetByUserAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existing);
+
+        var sut = BuildSut(goalRepository: goalRepository);
+
+        var result = await sut.UpsertGoalAsync(userId, new UpsertInvestmentGoalRequest(9000m), CancellationToken.None);
+
+        result.TargetAmount.Should().Be(9000m);
+        goalRepository.Verify(x => x.AddAsync(It.IsAny<InvestmentGoal>(), It.IsAny<CancellationToken>()), Times.Never);
+        goalRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task GetAllocationTargetAsync_Should_Return_Default_When_Not_Configured()
     {
         var allocationRepository = new Mock<IInvestmentAllocationTargetRepository>();
@@ -44,6 +120,147 @@ public class InvestmentsServiceTests
 
         await act.Should().ThrowAsync<ArgumentException>()
             .WithMessage("*precisa ser 100%*");
+    }
+
+    [Fact]
+    public async Task UpsertAllocationTargetAsync_Should_Create_When_Not_Exists()
+    {
+        var userId = Guid.NewGuid();
+        var allocationRepository = new Mock<IInvestmentAllocationTargetRepository>();
+        allocationRepository
+            .Setup(x => x.GetByUserAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((InvestmentAllocationTarget?)null);
+
+        var sut = BuildSut(allocationRepository: allocationRepository);
+
+        var result = await sut.UpsertAllocationTargetAsync(
+            userId,
+            new UpsertInvestmentAllocationTargetRequest(40, 30, 20, 10),
+            CancellationToken.None);
+
+        result.Total.Should().Be(100m);
+        allocationRepository.Verify(x => x.AddAsync(It.IsAny<InvestmentAllocationTarget>(), It.IsAny<CancellationToken>()), Times.Once);
+        allocationRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpsertAllocationTargetAsync_Should_Update_When_Exists()
+    {
+        var userId = Guid.NewGuid();
+        var current = new InvestmentAllocationTarget(userId, 25, 25, 25, 25);
+        var allocationRepository = new Mock<IInvestmentAllocationTargetRepository>();
+        allocationRepository
+            .Setup(x => x.GetByUserAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(current);
+
+        var sut = BuildSut(allocationRepository: allocationRepository);
+
+        var result = await sut.UpsertAllocationTargetAsync(
+            userId,
+            new UpsertInvestmentAllocationTargetRequest(50, 20, 20, 10),
+            CancellationToken.None);
+
+        result.Rf.Should().Be(50m);
+        allocationRepository.Verify(x => x.AddAsync(It.IsAny<InvestmentAllocationTarget>(), It.IsAny<CancellationToken>()), Times.Never);
+        allocationRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreatePositionAsync_Should_Create_And_Invalidate_Cache()
+    {
+        var userId = Guid.NewGuid();
+        var positionRepository = new Mock<IInvestmentPositionRepository>();
+        var sut = BuildSut(positionRepository: positionRepository);
+        var request = new CreateInvestmentPositionRequest(
+            InvestmentType.ACOES,
+            "PETR4",
+            10,
+            22.5m,
+            DateOnly.FromDateTime(DateTime.UtcNow),
+            "B3",
+            "Acoes",
+            null);
+
+        var created = await sut.CreatePositionAsync(userId, request, CancellationToken.None);
+
+        created.Asset.Should().Be("PETR4");
+        positionRepository.Verify(x => x.AddAsync(It.IsAny<InvestmentPosition>(), It.IsAny<CancellationToken>()), Times.Once);
+        positionRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdatePositionAsync_Should_Return_Null_When_Position_Does_Not_Exist()
+    {
+        var userId = Guid.NewGuid();
+        var positionRepository = new Mock<IInvestmentPositionRepository>();
+        positionRepository
+            .Setup(x => x.GetByIdAsync(It.IsAny<Guid>(), userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((InvestmentPosition?)null);
+        var sut = BuildSut(positionRepository: positionRepository);
+
+        var result = await sut.UpdatePositionAsync(
+            userId,
+            Guid.NewGuid(),
+            new CreateInvestmentPositionRequest(InvestmentType.ACOES, "PETR4", 1, 10, DateOnly.FromDateTime(DateTime.UtcNow), null, null, null),
+            CancellationToken.None);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task UpdatePositionAsync_Should_Update_When_Position_Exists()
+    {
+        var userId = Guid.NewGuid();
+        var position = new InvestmentPosition(userId, InvestmentType.ACOES, "PETR4", 1, 10, DateOnly.FromDateTime(DateTime.UtcNow), null, null, null);
+        var positionRepository = new Mock<IInvestmentPositionRepository>();
+        positionRepository
+            .Setup(x => x.GetByIdAsync(position.Id, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(position);
+        var sut = BuildSut(positionRepository: positionRepository);
+
+        var updated = await sut.UpdatePositionAsync(
+            userId,
+            position.Id,
+            new CreateInvestmentPositionRequest(InvestmentType.ACOES, "PETR4", 3, 15, position.OpenedAt, "Conta", "Acoes", "nota"),
+            CancellationToken.None);
+
+        updated.Should().NotBeNull();
+        updated!.Quantity.Should().Be(3);
+        updated.AvgPrice.Should().Be(15);
+        positionRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeletePositionAsync_Should_Return_False_When_Position_Not_Found()
+    {
+        var userId = Guid.NewGuid();
+        var positionRepository = new Mock<IInvestmentPositionRepository>();
+        positionRepository
+            .Setup(x => x.GetByIdAsync(It.IsAny<Guid>(), userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((InvestmentPosition?)null);
+        var sut = BuildSut(positionRepository: positionRepository);
+
+        var deleted = await sut.DeletePositionAsync(userId, Guid.NewGuid(), CancellationToken.None);
+
+        deleted.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task DeletePositionAsync_Should_Remove_And_Return_True_When_Position_Exists()
+    {
+        var userId = Guid.NewGuid();
+        var position = new InvestmentPosition(userId, InvestmentType.ACOES, "PETR4", 2, 10, DateOnly.FromDateTime(DateTime.UtcNow), null, null, null);
+        var positionRepository = new Mock<IInvestmentPositionRepository>();
+        positionRepository
+            .Setup(x => x.GetByIdAsync(position.Id, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(position);
+        var sut = BuildSut(positionRepository: positionRepository);
+
+        var deleted = await sut.DeletePositionAsync(userId, position.Id, CancellationToken.None);
+
+        deleted.Should().BeTrue();
+        positionRepository.Verify(x => x.Remove(position), Times.Once);
+        positionRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

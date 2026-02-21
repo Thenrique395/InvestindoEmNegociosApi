@@ -67,9 +67,7 @@ public static class ServiceCollectionExtensions
                     .Any();
 
                 if (!requiresAuth || allowsAnonymous)
-                {
                     return Task.CompletedTask;
-                }
 
                 operation.Security ??= [];
                 operation.Security.Add(new OpenApiSecurityRequirement
@@ -100,9 +98,7 @@ public static class ServiceCollectionExtensions
             {
                 context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
                 if (isDevelopment && context.Exception is not null)
-                {
                     context.ProblemDetails.Extensions["exception"] = context.Exception.GetType().Name;
-                }
             };
         });
 
@@ -171,9 +167,7 @@ public static class ServiceCollectionExtensions
     {
         var connectionString = configuration.GetConnectionString("Default");
         if (string.IsNullOrWhiteSpace(connectionString))
-        {
             throw new InvalidOperationException("Connection string 'Default' não configurada.");
-        }
 
         services.AddDbContext<InvestDbContext>(options =>
             options.UseNpgsql(connectionString, npgsqlOptions =>
@@ -270,9 +264,7 @@ public static class ServiceCollectionExtensions
         {
             var opts = sp.GetRequiredService<IOptions<B3ApiOptions>>().Value;
             if (!string.IsNullOrWhiteSpace(opts.BaseUrl))
-            {
                 client.BaseAddress = new Uri(opts.BaseUrl);
-            }
 
             client.Timeout = TimeSpan.FromSeconds(opts.TimeoutSeconds <= 0 ? 30 : opts.TimeoutSeconds);
         })
@@ -302,9 +294,7 @@ public static class ServiceCollectionExtensions
                          ?? throw new InvalidOperationException("Configuração JWT não encontrada.");
 
         if (string.IsNullOrWhiteSpace(jwtOptions.SecretKey))
-        {
             throw new InvalidOperationException("JWT SecretKey não configurada.");
-        }
 
         services.AddAuthentication(options =>
             {

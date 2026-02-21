@@ -40,6 +40,39 @@ public class AdminParametersServiceTests
     }
 
     [Fact]
+    public async Task CreatePaymentMethodAsync_Should_Throw_When_Name_Is_Empty()
+    {
+        var sut = BuildSut();
+
+        Func<Task> act = async () => await sut.CreatePaymentMethodAsync("   ", CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<AppProblemException>();
+        exception.Which.StatusCode.Should().Be(400);
+    }
+
+    [Fact]
+    public async Task CreateCardBrandAsync_Should_Throw_When_Name_Or_Code_Is_Empty()
+    {
+        var sut = BuildSut();
+
+        Func<Task> act = async () => await sut.CreateCardBrandAsync(new CreateCardBrandRequest("", " "), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<AppProblemException>();
+        exception.Which.StatusCode.Should().Be(400);
+    }
+
+    [Fact]
+    public async Task CreateInstitutionAsync_Should_Throw_When_Name_Is_Empty()
+    {
+        var sut = BuildSut();
+
+        Func<Task> act = async () => await sut.CreateInstitutionAsync(new CreateInstitutionRequest(" ", "Bank"), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<AppProblemException>();
+        exception.Which.StatusCode.Should().Be(400);
+    }
+
+    [Fact]
     public async Task UpdateNotificationSettingsAsync_Should_Save_And_Return_Updated_Settings()
     {
         var settings = new NotificationSettings(

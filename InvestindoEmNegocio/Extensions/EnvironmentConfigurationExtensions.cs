@@ -6,9 +6,7 @@ public static class EnvironmentConfigurationExtensions
     {
         var envPath = Path.Combine(builder.Environment.ContentRootPath, ".env");
         if (File.Exists(envPath))
-        {
             DotNetEnv.Env.Load(envPath);
-        }
 
         foreach (var (envKey, configKey) in new (string EnvKey, string ConfigKey)[]
                  {
@@ -41,14 +39,10 @@ public static class EnvironmentConfigurationExtensions
     private static void EnsureEnvFromConfig(IConfiguration config, string envKey, string configKey)
     {
         if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(envKey)))
-        {
             return;
-        }
 
         var value = config[configKey];
         if (!string.IsNullOrWhiteSpace(value))
-        {
             Environment.SetEnvironmentVariable(envKey, value);
-        }
     }
 }

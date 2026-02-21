@@ -166,6 +166,173 @@ public class B3ImportServiceTests
         movements[0].Quantity.Should().Be(2m);
     }
 
+    [Fact]
+    public async Task ConfirmAsync_Should_Import_And_Remove_Token_When_Valid()
+    {
+        await using var dbContext = CreateDbContext();
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var sut = new B3ImportService(dbContext, cache, NullLogger<B3ImportService>.Instance);
+        var userId = Guid.NewGuid();
+        var token = "valid-token";
+        cache.Set(token, BuildCachedSnapshot(userId));
+
+        var result = await sut.ConfirmAsync(userId, new ConfirmB3ImportRequest(token), CancellationToken.None);
+
+        result.Imported.Should().Be(0);
+        cache.TryGetValue(token, out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ConfirmAsync_Should_Throw_When_Token_Is_Empty()
+    {
+        await using var dbContext = CreateDbContext();
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var sut = new B3ImportService(dbContext, cache, NullLogger<B3ImportService>.Instance);
+
+        Func<Task> act = async () => await sut.ConfirmAsync(Guid.NewGuid(), new ConfirmB3ImportRequest(""), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ArgumentException>()
+            .WithMessage("*Token de importação inválido*");
+    }
+
+    [Fact]
+    public async Task ImportSnapshotAsync_Should_Add_Income_Movements_With_Correct_Types()
+    {
+        await using var dbContext = CreateDbContext();
+        var sut = new B3ImportService(dbContext, new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
+        var userId = Guid.NewGuid();
+        var position = new InvestmentPosition(
+            userId,
+            InvestmentType.ACOES,
+            "PETR4",
+            10m,
+            30m,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(-1)),
+            "BANCO TESTE S/A",
+            "B3");
+
+        await dbContext.InvestmentPositions.AddAsync(position);
+        await dbContext.SaveChangesAsync();
+
+        var snapshot = new B3ImportSnapshot(
+            "02/2026",
+            "Holder",
+            "00000000000",
+            [],
+            [
+                new B3ExtractIncome("PETR4 - PETROBRAS", "18/02/2026", "Juros Sobre Capital Próprio", "BANCO TESTE S/A", 1m, 0.5m, 0.5m),
+                new B3ExtractIncome("PETR4 - PETROBRAS", "19/02/2026", "Dividendo", "BANCO TESTE S/A", 1m, 0.8m, 0.8m),
+                new B3ExtractIncome("PETR4 - PETROBRAS", "20/02/2026", "Rendimento", "BANCO TESTE S/A", 1m, 0.3m, 0.3m)
+            ],
+            []);
+
+        var result = await sut.ImportSnapshotAsync(userId, snapshot, "merge", CancellationToken.None);
+
+        result.Imported.Should().Be(3);
+        var movements = await dbContext.InvestmentMovements.Where(x => x.PositionId == position.Id).ToListAsync();
+        movements.Should().Contain(x => x.Type == InvestmentMovementType.JCP);
+        movements.Should().Contain(x => x.Type == InvestmentMovementType.DIVIDENDO);
+        movements.Should().Contain(x => x.Type == InvestmentMovementType.RENDIMENTO);
+    }
+
+    [Fact]
+    public async Task ImportSnapshotAsync_Should_Ignore_Position_When_AssetCode_Is_Empty()
+    {
+        await using var dbContext = CreateDbContext();
+        var sut = new B3ImportService(dbContext, new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
+
+        var snapshot = new B3ImportSnapshot(
+            "02/2026",
+            "Holder",
+            "00000000000",
+            [new B3ExtractPosition("   ", "ON", "BANCO TESTE S/A", 10m, 30m, 300m)],
+            [],
+            []);
+
+        var result = await sut.ImportSnapshotAsync(Guid.NewGuid(), snapshot, "merge", CancellationToken.None);
+
+        result.Imported.Should().Be(0);
+        (await dbContext.InvestmentPositions.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ImportSnapshotAsync_Should_Add_Sell_Trade_And_Income_With_Default_Quantity_And_Price()
+    {
+        await using var dbContext = CreateDbContext();
+        var sut = new B3ImportService(dbContext, new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
+        var userId = Guid.NewGuid();
+
+        var position = new InvestmentPosition(
+            userId,
+            InvestmentType.ACOES,
+            "PETR4",
+            10m,
+            30m,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(-1)),
+            "BANCO TESTE S/A",
+            "B3");
+
+        await dbContext.InvestmentPositions.AddAsync(position);
+        await dbContext.SaveChangesAsync();
+
+        var snapshot = new B3ImportSnapshot(
+            "02/2026",
+            "Holder",
+            "00000000000",
+            [],
+            [new B3ExtractIncome("PETR4 - PETROBRAS", "18/02/2026", "Evento não mapeado", "BANCO TESTE S/A", 0m, 0m, 0m)],
+            [new B3ExtractTrade("PETR4", "19/02/2026", "BANCO TESTE S/A", 0m, 3m, -3m, 0m, 29m)]);
+
+        var result = await sut.ImportSnapshotAsync(userId, snapshot, "qualquer-coisa", CancellationToken.None);
+
+        result.Imported.Should().Be(2);
+        var movements = await dbContext.InvestmentMovements.Where(x => x.PositionId == position.Id).ToListAsync();
+        movements.Should().Contain(x => x.Type == InvestmentMovementType.VENDA && x.Quantity == 3m && x.Price == 29m);
+        movements.Should().Contain(x => x.Type == InvestmentMovementType.RENDIMENTO && x.Quantity == 1m && x.Price == 0.01m);
+    }
+
+    [Fact]
+    public async Task ImportSnapshotAsync_Should_Update_Existing_Account_And_Category_When_Empty()
+    {
+        await using var dbContext = CreateDbContext();
+        var sut = new B3ImportService(dbContext, new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
+        var userId = Guid.NewGuid();
+
+        var existing = new InvestmentPosition(
+            userId,
+            InvestmentType.ACOES,
+            "PETR4",
+            1m,
+            10m,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(-1)),
+            string.Empty,
+            string.Empty);
+
+        await dbContext.InvestmentPositions.AddAsync(existing);
+        await dbContext.SaveChangesAsync();
+
+        var snapshot = new B3ImportSnapshot(
+            "02/2026",
+            "Holder",
+            "00000000000",
+            [new B3ExtractPosition("PETR4 - PETROBRAS", "ON", "BANCO TESTE S/A", 5m, 35m, 175m)],
+            [],
+            []);
+
+        var result = await sut.ImportSnapshotAsync(userId, snapshot, "merge", CancellationToken.None);
+
+        result.Imported.Should().Be(1);
+        var created = await dbContext.InvestmentPositions
+            .Where(x => x.Asset == "PETR4" && x.Id != existing.Id)
+            .FirstOrDefaultAsync();
+
+        created.Should().NotBeNull();
+        created!.Account.Should().Be("BANCO TESTE S/A");
+        created.Category.Should().Be("B3");
+        created.Quantity.Should().Be(5m);
+        created.AvgPrice.Should().Be(35m);
+    }
+
     private static InvestDbContext CreateDbContext()
     {
         var connection = new SqliteConnection("DataSource=:memory:");

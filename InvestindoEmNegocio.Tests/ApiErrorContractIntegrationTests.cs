@@ -75,6 +75,76 @@ public class ApiErrorContractIntegrationTests
         Assert.Equal("/api/v1/dataportability/export", problem.Instance);
     }
 
+    [Fact]
+    public async Task Auth_Register_Should_Return_ProblemDetails_When_Facade_Throws_Conflict()
+    {
+        var fakeAuthFacade = new FakeAuthFacadeService
+        {
+            OnRegisterAsync = (_, _) => Task.FromException<AuthResponse>(
+                new AppProblemException("E-mail já existe", "Já existe cadastro para este e-mail.", StatusCodes.Status409Conflict))
+        };
+
+        await using var app = await BuildTestAppAsync(services =>
+        {
+            services.AddSingleton<IAuthFacadeService>(fakeAuthFacade);
+            services.AddSingleton<IDataPortabilityFacadeService>(new FakeDataPortabilityFacadeService());
+        });
+
+        var response = await app.GetTestClient().PostAsJsonAsync("/api/v1/auth/register", new RegisterUserRequest("User", "user@mail.com", "Password123!"));
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.NotNull(problem);
+        Assert.Equal("E-mail já existe", problem!.Title);
+        Assert.Equal("/api/v1/auth/register", problem.Instance);
+    }
+
+    [Fact]
+    public async Task Auth_Login_Should_Return_500_ProblemDetails_When_Facade_Throws_Unexpected_Exception()
+    {
+        var fakeAuthFacade = new FakeAuthFacadeService
+        {
+            OnLoginAsync = (_, _, _, _) => Task.FromException<AuthResponse>(new InvalidOperationException("boom"))
+        };
+
+        await using var app = await BuildTestAppAsync(services =>
+        {
+            services.AddSingleton<IAuthFacadeService>(fakeAuthFacade);
+            services.AddSingleton<IDataPortabilityFacadeService>(new FakeDataPortabilityFacadeService());
+        });
+
+        var response = await app.GetTestClient().PostAsJsonAsync("/api/v1/auth/login", new LoginRequest("user@mail.com", "pwd"));
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.NotNull(problem);
+        Assert.Equal("Erro interno do servidor.", problem!.Title);
+        Assert.Equal("/api/v1/auth/login", problem.Instance);
+        Assert.Null(problem.Detail);
+    }
+
+    [Fact]
+    public async Task DataPortability_Import_Should_Return_400_ProblemDetails_When_File_Is_Missing()
+    {
+        await using var app = await BuildTestAppAsync(services =>
+        {
+            services.AddSingleton<IAuthFacadeService>(new FakeAuthFacadeService());
+            services.AddSingleton<IDataPortabilityFacadeService>(new FakeDataPortabilityFacadeService());
+        });
+
+        using var form = new MultipartFormDataContent();
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/dataportability/import");
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "test-token");
+        request.Content = form;
+
+        var response = await app.GetTestClient().SendAsync(request);
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.NotNull(problem);
+        Assert.Equal("One or more validation errors occurred.", problem!.Title);
+    }
+
     private static async Task<WebApplication> BuildTestAppAsync(Action<IServiceCollection> registerFakes)
     {
         var builder = WebApplication.CreateBuilder();

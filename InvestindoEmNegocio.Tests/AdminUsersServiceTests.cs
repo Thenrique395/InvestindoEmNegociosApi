@@ -4,6 +4,7 @@ using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 
 namespace InvestindoEmNegocio.Tests;
@@ -108,5 +109,36 @@ public class AdminUsersServiceTests
         result.Should().ContainSingle();
         result[0].Id.Should().Be(user.Id);
         result[0].Email.Should().Be("tester@local");
+    }
+
+    [Fact]
+    public async Task UpdateRoleAsync_Should_Throw_AppProblem_When_Save_Fails()
+    {
+        var user = new User("Tester", "tester@local", "hash");
+        var repository = new Mock<IUserRepository>();
+        repository.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        repository.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new DbUpdateException("db error"));
+        var sut = new AdminUsersService(repository.Object);
+
+        Func<Task> act = async () => await sut.UpdateRoleAsync(user.Id, "Admin", CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<AppProblemException>();
+        exception.Which.StatusCode.Should().Be(409);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_Should_Throw_AppProblem_When_Save_Fails()
+    {
+        var currentUserId = Guid.NewGuid();
+        var user = new User("Tester", "tester@local", "hash");
+        var repository = new Mock<IUserRepository>();
+        repository.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        repository.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new DbUpdateException("db error"));
+        var sut = new AdminUsersService(repository.Object);
+
+        Func<Task> act = async () => await sut.DeleteAsync(user.Id, currentUserId, CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<AppProblemException>();
+        exception.Which.StatusCode.Should().Be(409);
     }
 }

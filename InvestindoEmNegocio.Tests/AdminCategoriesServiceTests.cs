@@ -5,6 +5,7 @@ using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 
 namespace InvestindoEmNegocio.Tests;
@@ -115,5 +116,35 @@ public class AdminCategoriesServiceTests
         result.Should().ContainSingle();
         result[0].Name.Should().Be("Moradia");
         result[0].AppliesTo.Should().Be("Expense");
+    }
+
+    [Fact]
+    public async Task CreateAsync_Should_Throw_AppProblem_When_Save_Fails()
+    {
+        var repository = new Mock<ICategoryRepository>();
+        repository.Setup(x => x.DefaultNameExistsAsync("Moradia", null, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        repository.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new DbUpdateException("db error"));
+        var sut = new AdminCategoriesService(repository.Object);
+
+        Func<Task> act = async () => await sut.CreateAsync(new AdminCategoryRequest("Moradia", "Expense"), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<AppProblemException>();
+        exception.Which.StatusCode.Should().Be(409);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_Should_Throw_AppProblem_When_Save_Fails()
+    {
+        var category = new Category(null, "Moradia", MoneyType.Expense);
+        var repository = new Mock<ICategoryRepository>();
+        repository.Setup(x => x.GetDefaultByIdAsync(category.Id, It.IsAny<CancellationToken>())).ReturnsAsync(category);
+        repository.Setup(x => x.DefaultNameExistsAsync("Moradia 2", category.Id, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        repository.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new DbUpdateException("db error"));
+        var sut = new AdminCategoriesService(repository.Object);
+
+        Func<Task> act = async () => await sut.UpdateAsync(category.Id, new AdminCategoryRequest("Moradia 2", "Expense"), CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<AppProblemException>();
+        exception.Which.StatusCode.Should().Be(409);
     }
 }

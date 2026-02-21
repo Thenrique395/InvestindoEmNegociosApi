@@ -3,6 +3,32 @@ obj/
 /packages/
 riderModule.iml
 /_ReSharper.Caches/
+/TestResults/
+**/TestResults/
+coverage.cobertura.xml
+coverage.opencover.xml
+*.trx
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.user
+*.suo
+*.DotSettings.user
+
+# Local env and secrets
+.env
+.env.*
+!.env.example
+
+# Temporary study/download artifacts
+Introdução à Arquitetura e Design de Software - Casa do Codigo.htm
+Introdução à Arquitetura e Design de Software - Casa do Codigo_files/
+*Casa do Codigo*.htm
+*Casa do Codigo*_files/
+docs/*.pdf
+
 /InvestindoEmNegocio/wwwroot/uploads/avatars/*
 !/InvestindoEmNegocio/wwwroot/uploads/avatars/.gitkeep
 perf/config/local.json

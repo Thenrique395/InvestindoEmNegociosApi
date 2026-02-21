@@ -48,9 +48,7 @@ public sealed class DataPortabilityController(
     {
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
         if (Guid.TryParse(claim, out var id))
-        {
             return id;
-        }
 
         throw new UnauthorizedAccessException("Usuário não autenticado.");
     }

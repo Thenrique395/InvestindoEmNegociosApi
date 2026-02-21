@@ -37,9 +37,7 @@ public class LookupsController : ControllerBase
     {
         InstitutionType? parsedType = null;
         if (!string.IsNullOrWhiteSpace(type) && Enum.TryParse<InstitutionType>(type, true, out var typeValue))
-        {
             parsedType = typeValue;
-        }
 
         var data = await _lookupsService.GetInstitutionsAsync(parsedType, cancellationToken);
         var response = data.Select(i => new InstitutionLookupResponse(i.Id, i.Name, i.Type.ToString())).ToList();

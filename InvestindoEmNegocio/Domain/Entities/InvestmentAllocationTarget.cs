@@ -30,8 +30,11 @@ public class InvestmentAllocationTarget
 
     private static decimal NormalizePercent(decimal value)
     {
-        if (value < 0) return 0;
-        if (value > 100) return 100;
-        return decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+        return value switch
+        {
+            < 0 => 0,
+            > 100 => 100,
+            _ => decimal.Round(value, 2, MidpointRounding.AwayFromZero)
+        };
     }
 }

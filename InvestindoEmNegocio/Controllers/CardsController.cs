@@ -36,9 +36,7 @@ public class CardsController(ICardsService cardsService, IAuditService auditServ
             });
 
         if (isPaged)
-        {
             ListQueryHelper.WritePaginationHeaders(Response, total, page, pageSize);
-        }
 
         return Ok(items);
     }
@@ -106,9 +104,7 @@ public class CardsController(ICardsService cardsService, IAuditService auditServ
     {
         var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault();
         if (!string.IsNullOrWhiteSpace(forwarded))
-        {
             return forwarded.Split(',')[0].Trim();
-        }
 
         return HttpContext.Connection.RemoteIpAddress?.ToString();
     }

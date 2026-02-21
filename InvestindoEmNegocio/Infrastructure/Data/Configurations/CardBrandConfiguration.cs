@@ -24,7 +24,5 @@ public class CardBrandConfiguration : IEntityTypeConfiguration<CardBrand>
 
         builder.Property(b => b.IsActive)
             .IsRequired();
-
-        // Seeds handled via migration
     }
 }

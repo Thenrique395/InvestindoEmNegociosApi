@@ -34,9 +34,7 @@ public class InstallmentsController(IInstallmentsService installmentsService, IA
             });
 
         if (isPaged)
-        {
             ListQueryHelper.WritePaginationHeaders(Response, total, page, pageSize);
-        }
 
         return Ok(items);
     }
@@ -96,9 +94,7 @@ public class InstallmentsController(IInstallmentsService installmentsService, IA
     {
         var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault();
         if (!string.IsNullOrWhiteSpace(forwarded))
-        {
             return forwarded.Split(',')[0].Trim();
-        }
 
         return HttpContext.Connection.RemoteIpAddress?.ToString();
     }

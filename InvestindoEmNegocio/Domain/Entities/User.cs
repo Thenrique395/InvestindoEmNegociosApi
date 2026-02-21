@@ -16,7 +16,6 @@ public class User
     public int FailedLoginAttempts { get; private set; }
     public DateTime? LockoutUntil { get; private set; }
 
-    // Required by EF Core
     private User()
     {
         Name = string.Empty;

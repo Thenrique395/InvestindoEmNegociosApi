@@ -77,6 +77,280 @@ public class PlansServiceTests
         result.Should().BeNull();
     }
 
+    [Fact]
+    public async Task CreateAsync_Should_Throw_When_Recurring_Has_InstallmentsCount()
+    {
+        var sut = BuildSut();
+
+        var request = new CreatePlanRequest(
+            MoneyType.Expense,
+            "Plano recorrente inválido",
+            100,
+            ScheduleType.Recurring,
+            DateOnly.FromDateTime(DateTime.UtcNow.Date),
+            FrequencyType.Monthly,
+            InstallmentsCount: 2);
+
+        Func<Task> act = async () => await sut.CreateAsync(Guid.NewGuid(), request);
+
+        await act.Should().ThrowAsync<ArgumentException>()
+            .WithMessage("*RECURRING não aceita installmentsCount*");
+    }
+
+    [Fact]
+    public async Task CreateAsync_Should_Throw_When_Installments_Has_Invalid_Count()
+    {
+        var sut = BuildSut();
+
+        var request = new CreatePlanRequest(
+            MoneyType.Expense,
+            "Plano parcelado inválido",
+            100,
+            ScheduleType.Installments,
+            DateOnly.FromDateTime(DateTime.UtcNow.Date),
+            Frequency: null,
+            InstallmentsCount: 1);
+
+        Func<Task> act = async () => await sut.CreateAsync(Guid.NewGuid(), request);
+
+        await act.Should().ThrowAsync<ArgumentException>()
+            .WithMessage("*INSTALLMENTS requer installmentsCount >= 2*");
+    }
+
+    [Fact]
+    public async Task CreateAsync_Should_Generate_OneTime_Installment()
+    {
+        var installmentRepository = new Mock<IMoneyInstallmentRepository>();
+        var sut = BuildSut(installmentRepository: installmentRepository);
+
+        var request = new CreatePlanRequest(
+            MoneyType.Income,
+            "Plano único",
+            350,
+            ScheduleType.OneTime,
+            new DateOnly(2026, 2, 21),
+            Frequency: null,
+            InstallmentsCount: 1);
+
+        var result = await sut.CreateAsync(Guid.NewGuid(), request);
+
+        result.Schedule.Should().Be(ScheduleType.OneTime);
+        installmentRepository.Verify(x => x.AddAsync(
+            It.Is<MoneyInstallment>(i => i.InstallmentNo == 1 && i.Amount == 350m),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateAsync_Should_Generate_Installments_Plan()
+    {
+        var installmentRepository = new Mock<IMoneyInstallmentRepository>();
+        var sut = BuildSut(installmentRepository: installmentRepository);
+
+        var request = new CreatePlanRequest(
+            MoneyType.Expense,
+            "Plano parcelado",
+            200,
+            ScheduleType.Installments,
+            new DateOnly(2026, 1, 10),
+            Frequency: null,
+            InstallmentsCount: 3);
+
+        var result = await sut.CreateAsync(Guid.NewGuid(), request);
+
+        result.Schedule.Should().Be(ScheduleType.Installments);
+        installmentRepository.Verify(x => x.AddRangeAsync(
+            It.Is<IEnumerable<MoneyInstallment>>(items =>
+                items.Count() == 3 &&
+                items.First().InstallmentNo == 1 &&
+                items.Last().InstallmentNo == 3),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateAsync_Should_Throw_When_Installments_Has_Frequency()
+    {
+        var sut = BuildSut();
+        var request = new CreatePlanRequest(
+            MoneyType.Expense,
+            "Inválido",
+            100,
+            ScheduleType.Installments,
+            DateOnly.FromDateTime(DateTime.UtcNow.Date),
+            FrequencyType.Monthly,
+            InstallmentsCount: 2);
+
+        Func<Task> act = async () => await sut.CreateAsync(Guid.NewGuid(), request);
+
+        await act.Should().ThrowAsync<ArgumentException>()
+            .WithMessage("*INSTALLMENTS não aceita frequency*");
+    }
+
+    [Fact]
+    public async Task CreateAsync_Should_Throw_When_OneTime_Has_Frequency()
+    {
+        var sut = BuildSut();
+        var request = new CreatePlanRequest(
+            MoneyType.Expense,
+            "Inválido",
+            100,
+            ScheduleType.OneTime,
+            DateOnly.FromDateTime(DateTime.UtcNow.Date),
+            FrequencyType.Monthly,
+            InstallmentsCount: 1);
+
+        Func<Task> act = async () => await sut.CreateAsync(Guid.NewGuid(), request);
+
+        await act.Should().ThrowAsync<ArgumentException>()
+            .WithMessage("*ONE_TIME não aceita frequency*");
+    }
+
+    [Fact]
+    public async Task CreateAsync_Should_Throw_When_Recurring_Has_No_Frequency()
+    {
+        var sut = BuildSut();
+        var request = new CreatePlanRequest(
+            MoneyType.Expense,
+            "Inválido",
+            100,
+            ScheduleType.Recurring,
+            DateOnly.FromDateTime(DateTime.UtcNow.Date),
+            Frequency: null,
+            InstallmentsCount: null);
+
+        Func<Task> act = async () => await sut.CreateAsync(Guid.NewGuid(), request);
+
+        await act.Should().ThrowAsync<ArgumentException>()
+            .WithMessage("*RECURRING requer frequency*");
+    }
+
+    [Fact]
+    public async Task ListAsync_Should_Return_Mapped_Plans()
+    {
+        var userId = Guid.NewGuid();
+        var planRepository = new Mock<IMoneyPlanRepository>();
+        var plans = new List<MoneyPlan>
+        {
+            new(userId, MoneyType.Expense, "Plano A", 100, ScheduleType.OneTime, new DateOnly(2026, 1, 1), null, 1, null, null, null),
+            new(userId, MoneyType.Income, "Plano B", 200, ScheduleType.Recurring, new DateOnly(2026, 1, 1), FrequencyType.Monthly, null, null, null, null)
+        };
+
+        planRepository.Setup(x => x.ListByUserAsync(userId, null, It.IsAny<CancellationToken>())).ReturnsAsync(plans);
+        var sut = BuildSut(planRepository: planRepository);
+
+        var result = await sut.ListAsync(userId, null);
+
+        result.Should().HaveCount(2);
+        result.Select(x => x.Title).Should().Contain(["Plano A", "Plano B"]);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_Should_Return_Null_When_Plan_Does_Not_Exist()
+    {
+        var userId = Guid.NewGuid();
+        var planRepository = new Mock<IMoneyPlanRepository>();
+        planRepository.Setup(x => x.GetByIdAsync(It.IsAny<Guid>(), userId, It.IsAny<CancellationToken>())).ReturnsAsync((MoneyPlan?)null);
+        var sut = BuildSut(planRepository: planRepository);
+
+        var result = await sut.GetByIdAsync(userId, Guid.NewGuid());
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_Should_Return_Details_With_Installments()
+    {
+        var userId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        var plan = new MoneyPlan(userId, MoneyType.Expense, "Plano", 100, ScheduleType.OneTime, new DateOnly(2026, 1, 1), null, 1, null, null, null);
+        plan.GetType().GetProperty("Id")!.SetValue(plan, planId);
+
+        var installments = new List<MoneyInstallment>
+        {
+            new(planId, userId, 1, new DateOnly(2026, 1, 10), 100)
+        };
+
+        var planRepository = new Mock<IMoneyPlanRepository>();
+        planRepository.Setup(x => x.GetByIdAsync(planId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(plan);
+        var installmentRepository = new Mock<IMoneyInstallmentRepository>();
+        installmentRepository.Setup(x => x.ListByPlanAsync(planId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(installments);
+
+        var sut = BuildSut(planRepository: planRepository, installmentRepository: installmentRepository);
+        var result = await sut.GetByIdAsync(userId, planId);
+
+        result.Should().NotBeNull();
+        result!.Installments.Should().HaveCount(1);
+        result.Plan.Title.Should().Be("Plano");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_Should_Regenerate_Installments_And_Remove_Old_Payments()
+    {
+        var userId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        var plan = new MoneyPlan(userId, MoneyType.Expense, "Plano", 100, ScheduleType.OneTime, new DateOnly(2026, 1, 1), null, 1, null, null, null);
+        plan.GetType().GetProperty("Id")!.SetValue(plan, planId);
+
+        var oldInstallments = new List<MoneyInstallment>
+        {
+            new(planId, userId, 1, new DateOnly(2026, 1, 10), 100),
+            new(planId, userId, 2, new DateOnly(2026, 2, 10), 100)
+        };
+
+        var oldPayments = new List<MoneyPayment>
+        {
+            new(oldInstallments[0].Id, userId, new DateTime(2026, 1, 10, 0, 0, 0, DateTimeKind.Utc), 100, 1, "ok")
+        };
+
+        var planRepository = new Mock<IMoneyPlanRepository>();
+        planRepository.Setup(x => x.GetByIdAsync(planId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(plan);
+
+        var installmentRepository = new Mock<IMoneyInstallmentRepository>();
+        installmentRepository.Setup(x => x.ListByPlanAsync(planId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(oldInstallments);
+
+        var paymentRepository = new Mock<IMoneyPaymentRepository>();
+        paymentRepository
+            .Setup(x => x.ListByInstallmentIdsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(oldPayments);
+
+        var sut = BuildSut(planRepository, installmentRepository, paymentRepository);
+
+        var request = new CreatePlanRequest(
+            MoneyType.Expense,
+            "Plano atualizado",
+            150,
+            ScheduleType.Installments,
+            new DateOnly(2026, 3, 1),
+            Frequency: null,
+            InstallmentsCount: 3);
+
+        var result = await sut.UpdateAsync(userId, planId, request);
+
+        result.Should().NotBeNull();
+        result!.Title.Should().Be("Plano atualizado");
+        paymentRepository.Verify(x => x.RemoveRange(oldPayments), Times.Once);
+        installmentRepository.Verify(x => x.RemoveRange(oldInstallments), Times.Once);
+        installmentRepository.Verify(x => x.AddRangeAsync(It.Is<IEnumerable<MoneyInstallment>>(l => l.Count() == 3), It.IsAny<CancellationToken>()), Times.Once);
+        planRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_Should_Remove_Plan_When_Found()
+    {
+        var userId = Guid.NewGuid();
+        var plan = new MoneyPlan(userId, MoneyType.Expense, "Plano", 100, ScheduleType.OneTime, new DateOnly(2026, 1, 1), null, 1, null, null, null);
+
+        var planRepository = new Mock<IMoneyPlanRepository>();
+        planRepository.Setup(x => x.GetByIdAsync(It.IsAny<Guid>(), userId, It.IsAny<CancellationToken>())).ReturnsAsync(plan);
+
+        var sut = BuildSut(planRepository: planRepository);
+
+        var result = await sut.DeleteAsync(userId, Guid.NewGuid());
+
+        result.Should().BeTrue();
+        planRepository.Verify(x => x.Remove(plan), Times.Once);
+        planRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     private static PlansService BuildSut(
         Mock<IMoneyPlanRepository>? planRepository = null,
         Mock<IMoneyInstallmentRepository>? installmentRepository = null,

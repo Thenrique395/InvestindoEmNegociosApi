@@ -5,12 +5,8 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace InvestindoEmNegocio.Infrastructure.Data;
 
-public class InvestDbContext : DbContext, IInvestDbContext
+public class InvestDbContext(DbContextOptions<InvestDbContext> options) : DbContext(options), IInvestDbContext
 {
-    public InvestDbContext(DbContextOptions<InvestDbContext> options) : base(options)
-    {
-    }
-
     public DbSet<User> Users => Set<User>();
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
     public DbSet<PaymentMethod> PaymentMethods => Set<PaymentMethod>();

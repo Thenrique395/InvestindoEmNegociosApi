@@ -19,9 +19,8 @@ public static class ObservabilityExtensions
         var protocol = ResolveOtlpProtocol(protocolValue);
 
         if (string.IsNullOrWhiteSpace(endpointValue))
-        {
             Console.WriteLine("OTEL_EXPORTER_OTLP_ENDPOINT não definido. OTEL não enviará dados.");
-        }
+        
 
         var resource = ResourceBuilder.CreateDefault().AddService(serviceName);
 
@@ -58,9 +57,7 @@ public static class ObservabilityExtensions
                 .AddOtlpExporter(options =>
                 {
                     if (endpoint is not null)
-                    {
                         options.Endpoint = endpoint;
-                    }
 
                     options.Protocol = protocol;
                 }))
@@ -72,9 +69,7 @@ public static class ObservabilityExtensions
                 .AddOtlpExporter(options =>
                 {
                     if (endpoint is not null)
-                    {
                         options.Endpoint = endpoint;
-                    }
 
                     options.Protocol = protocol;
                 }));
@@ -85,9 +80,7 @@ public static class ObservabilityExtensions
     private static OtlpExportProtocol ResolveOtlpProtocol(string? protocolValue)
     {
         if (string.IsNullOrWhiteSpace(protocolValue))
-        {
             return OtlpExportProtocol.Grpc;
-        }
 
         return protocolValue.Trim().ToLowerInvariant() switch
         {
@@ -100,13 +93,9 @@ public static class ObservabilityExtensions
     private static Uri? ResolveOtlpEndpoint(string? endpointValue)
     {
         if (string.IsNullOrWhiteSpace(endpointValue))
-        {
             return null;
-        }
 
-        return Uri.TryCreate(endpointValue, UriKind.Absolute, out var endpoint)
-            ? endpoint
-            : null;
+        return Uri.TryCreate(endpointValue, UriKind.Absolute, out var endpoint) ? endpoint : null;
     }
 }
 

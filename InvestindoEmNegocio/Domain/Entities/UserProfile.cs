@@ -24,7 +24,6 @@ public class UserProfile
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
 
-    // EF
     private UserProfile() { }
 
     public UserProfile(Guid userId, string fullName, string document, string phone, DateTime? birthDate, string avatarUrl = "", string city = "", string state = "", string country = "", string language = "pt-BR", string currency = "BRL")
@@ -68,9 +67,7 @@ public class UserProfile
     {
         var digits = new string(phone.Where(char.IsDigit).ToArray());
         if (digits.Length != 13)
-        {
             return phone.Trim();
-        }
 
         var country = digits.Substring(0, 2);
         var area = digits.Substring(2, 2);

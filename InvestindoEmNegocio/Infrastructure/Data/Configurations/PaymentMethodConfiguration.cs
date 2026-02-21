@@ -19,7 +19,5 @@ public class PaymentMethodConfiguration : IEntityTypeConfiguration<PaymentMethod
         builder.Property(p => p.IsActive)
             .IsRequired()
             .HasDefaultValue(true);
-
-        // Seeds handled via migration
     }
 }

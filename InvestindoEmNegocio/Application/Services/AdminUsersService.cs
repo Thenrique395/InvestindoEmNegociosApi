@@ -4,6 +4,7 @@ using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
 namespace InvestindoEmNegocio.Application.Services;
 
@@ -28,7 +29,18 @@ public sealed class AdminUsersService(IUserRepository userRepository) : IAdminUs
             ?? throw new AppProblemException("Usuário não encontrado", "Usuário não encontrado.", StatusCodes.Status404NotFound);
 
         user.SetRole(parsedRole);
-        await userRepository.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await userRepository.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            throw new AppProblemException(
+                "Falha ao salvar",
+                "Não foi possível atualizar o usuário no momento.",
+                StatusCodes.Status409Conflict);
+        }
+
         return new UserSummaryResponse(user.Id, user.Name, user.Email, user.Role.ToString(), user.IsActive, user.CreatedAt);
     }
 
@@ -45,7 +57,18 @@ public sealed class AdminUsersService(IUserRepository userRepository) : IAdminUs
         if (isActive) user.Activate();
         else user.Deactivate();
 
-        await userRepository.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await userRepository.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            throw new AppProblemException(
+                "Falha ao salvar",
+                "Não foi possível atualizar o usuário no momento.",
+                StatusCodes.Status409Conflict);
+        }
+
         return new UserSummaryResponse(user.Id, user.Name, user.Email, user.Role.ToString(), user.IsActive, user.CreatedAt);
     }
 
@@ -60,6 +83,16 @@ public sealed class AdminUsersService(IUserRepository userRepository) : IAdminUs
             ?? throw new AppProblemException("Usuário não encontrado", "Usuário não encontrado.", StatusCodes.Status404NotFound);
 
         userRepository.Remove(user);
-        await userRepository.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await userRepository.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            throw new AppProblemException(
+                "Falha ao salvar",
+                "Não foi possível excluir o usuário no momento.",
+                StatusCodes.Status409Conflict);
+        }
     }
 }

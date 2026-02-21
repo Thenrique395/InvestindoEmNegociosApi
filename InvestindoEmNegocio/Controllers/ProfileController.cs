@@ -11,9 +11,7 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/[controller]")]
 [Route("api/v1/[controller]")]
 [Authorize]
-public class ProfileController(
-    IProfileService profileService,
-    IAvatarStorageService avatarStorageService) : ControllerBase
+public class ProfileController(IProfileService profileService, IAvatarStorageService avatarStorageService) : ControllerBase
 {
     [HttpGet]
     // Retorna o perfil do usuário autenticado (204 se ainda não existir).
@@ -42,12 +40,11 @@ public class ProfileController(
     {
         var avatar = request.Avatar;
         if (avatar is null || avatar.Length == 0)
-        {
             throw new AppProblemException(
                 "Arquivo inválido",
                 "Envie uma imagem válida.",
                 StatusCodes.Status400BadRequest);
-        }
+        
 
         var userId = GetUserId();
         await using var stream = avatar.OpenReadStream();
@@ -68,9 +65,7 @@ public class ProfileController(
     {
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
         if (Guid.TryParse(claim, out var id))
-        {
             return id;
-        }
         throw new UnauthorizedAccessException("Usuário não autenticado.");
     }
 }
