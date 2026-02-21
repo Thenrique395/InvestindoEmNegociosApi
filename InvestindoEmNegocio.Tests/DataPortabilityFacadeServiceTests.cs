@@ -1,4 +1,5 @@
 using System.Text.Json;
+using FluentAssertions;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
@@ -7,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Moq;
 
 namespace InvestindoEmNegocio.Tests;
 
@@ -15,105 +17,86 @@ public class DataPortabilityFacadeServiceTests
     [Fact]
     public async Task ExportAsync_Should_Throw_404_When_Feature_Is_Disabled()
     {
-        var sut = BuildService(enabled: false);
+        var sut = BuildService(enabled: false, portability: new Mock<IDataPortabilityService>());
 
-        var ex = await Assert.ThrowsAsync<AppProblemException>(() => sut.ExportAsync(Guid.NewGuid()));
+        Func<Task> act = async () => await sut.ExportAsync(Guid.NewGuid());
 
-        Assert.Equal(StatusCodes.Status404NotFound, ex.StatusCode);
-        Assert.Equal("Funcionalidade desabilitada", ex.Title);
+        var ex = await act.Should().ThrowAsync<AppProblemException>();
+        ex.Which.StatusCode.Should().Be(StatusCodes.Status404NotFound);
+        ex.Which.Title.Should().Be("Funcionalidade desabilitada");
     }
 
     [Fact]
     public async Task ImportAsync_Should_Throw_400_When_File_Length_Is_Invalid()
     {
-        var sut = BuildService(enabled: true);
+        var sut = BuildService(enabled: true, portability: new Mock<IDataPortabilityService>());
         await using var stream = new MemoryStream([1, 2, 3]);
 
-        var ex = await Assert.ThrowsAsync<AppProblemException>(() =>
-            sut.ImportAsync(Guid.NewGuid(), stream, 0, replaceExisting: false));
+        Func<Task> act = async () => await sut.ImportAsync(Guid.NewGuid(), stream, 0, replaceExisting: false);
 
-        Assert.Equal(StatusCodes.Status400BadRequest, ex.StatusCode);
-        Assert.Equal("Arquivo inválido", ex.Title);
+        var ex = await act.Should().ThrowAsync<AppProblemException>();
+        ex.Which.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        ex.Which.Title.Should().Be("Arquivo inválido");
     }
 
     [Fact]
     public async Task ImportAsync_Should_Map_JsonException_To_400()
     {
-        var portability = new FakeDataPortabilityService
-        {
-            OnImportAsync = (_, _, _, _) => Task.FromException<ImportUserDataResult>(new JsonException("json inválido"))
-        };
-        var sut = BuildService(enabled: true, maxImportMb: 1, portability);
+        var portability = new Mock<IDataPortabilityService>();
+        portability
+            .Setup(x => x.ImportAsync(It.IsAny<Guid>(), It.IsAny<Stream>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new JsonException("json inválido"));
+        var sut = BuildService(enabled: true, portability: portability, maxImportMb: 1);
         await using var stream = new MemoryStream([1]);
 
-        var ex = await Assert.ThrowsAsync<AppProblemException>(() =>
-            sut.ImportAsync(Guid.NewGuid(), stream, 1, replaceExisting: true));
+        Func<Task> act = async () => await sut.ImportAsync(Guid.NewGuid(), stream, 1, replaceExisting: true);
 
-        Assert.Equal(StatusCodes.Status400BadRequest, ex.StatusCode);
-        Assert.Equal("Arquivo JSON inválido", ex.Title);
+        var ex = await act.Should().ThrowAsync<AppProblemException>();
+        ex.Which.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        ex.Which.Title.Should().Be("Arquivo JSON inválido");
     }
 
     [Fact]
     public async Task ImportAsync_Should_Map_DbUpdateException_To_400()
     {
-        var portability = new FakeDataPortabilityService
-        {
-            OnImportAsync = (_, _, _, _) => Task.FromException<ImportUserDataResult>(new DbUpdateException("db fail"))
-        };
-        var sut = BuildService(enabled: true, maxImportMb: 1, portability);
+        var portability = new Mock<IDataPortabilityService>();
+        portability
+            .Setup(x => x.ImportAsync(It.IsAny<Guid>(), It.IsAny<Stream>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateException("db fail"));
+        var sut = BuildService(enabled: true, portability: portability, maxImportMb: 1);
         await using var stream = new MemoryStream([1]);
 
-        var ex = await Assert.ThrowsAsync<AppProblemException>(() =>
-            sut.ImportAsync(Guid.NewGuid(), stream, 1, replaceExisting: false));
+        Func<Task> act = async () => await sut.ImportAsync(Guid.NewGuid(), stream, 1, replaceExisting: false);
 
-        Assert.Equal(StatusCodes.Status400BadRequest, ex.StatusCode);
-        Assert.Equal("Falha ao importar dados", ex.Title);
+        var ex = await act.Should().ThrowAsync<AppProblemException>();
+        ex.Which.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        ex.Which.Title.Should().Be("Falha ao importar dados");
     }
 
     [Fact]
     public async Task ImportAsync_Should_Return_Result_When_Valid()
     {
         var expected = new ImportUserDataResult(12);
-        var portability = new FakeDataPortabilityService
-        {
-            OnImportAsync = (_, _, _, _) => Task.FromResult(expected)
-        };
-        var sut = BuildService(enabled: true, maxImportMb: 10, portability);
+        var portability = new Mock<IDataPortabilityService>();
+        portability
+            .Setup(x => x.ImportAsync(It.IsAny<Guid>(), It.IsAny<Stream>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expected);
+        var sut = BuildService(enabled: true, portability: portability, maxImportMb: 10);
         await using var stream = new MemoryStream([1, 2]);
 
         var result = await sut.ImportAsync(Guid.NewGuid(), stream, fileLength: 2, replaceExisting: true);
 
-        Assert.Equal(expected.ImportedRecords, result.ImportedRecords);
+        result.Should().BeEquivalentTo(expected);
     }
 
-    private static DataPortabilityFacadeService BuildService(
-        bool enabled,
-        int maxImportMb = 20,
-        FakeDataPortabilityService? portability = null)
+    private static DataPortabilityFacadeService BuildService(bool enabled, Mock<IDataPortabilityService> portability, int maxImportMb = 20)
     {
-        portability ??= new FakeDataPortabilityService();
         var options = Options.Create(new DataPortabilityOptions
         {
             Enabled = enabled,
             MaxImportSizeMb = maxImportMb
         });
 
-        return new DataPortabilityFacadeService(portability, options, NullLogger<DataPortabilityFacadeService>.Instance);
-    }
-
-    private sealed class FakeDataPortabilityService : IDataPortabilityService
-    {
-        public Func<Guid, CancellationToken, Task<(string FileName, byte[] Content)>>? OnExportAsync { get; init; }
-        public Func<Guid, Stream, bool, CancellationToken, Task<ImportUserDataResult>>? OnImportAsync { get; init; }
-
-        public Task<(string FileName, byte[] Content)> ExportAsync(Guid userId, CancellationToken cancellationToken = default) =>
-            OnExportAsync?.Invoke(userId, cancellationToken) ?? Task.FromResult<(string FileName, byte[] Content)>(("export.json", []));
-
-        public Task<ImportUserDataResult> ImportAsync(
-            Guid userId,
-            Stream stream,
-            bool replaceExisting,
-            CancellationToken cancellationToken = default) =>
-            OnImportAsync?.Invoke(userId, stream, replaceExisting, cancellationToken) ?? Task.FromResult(new ImportUserDataResult(1));
+        return new DataPortabilityFacadeService(portability.Object, options, NullLogger<DataPortabilityFacadeService>.Instance);
     }
 }

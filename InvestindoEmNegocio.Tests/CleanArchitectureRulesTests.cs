@@ -1,4 +1,5 @@
 using System.Reflection;
+using FluentAssertions;
 using NetArchTest.Rules;
 
 namespace InvestindoEmNegocio.Tests;
@@ -63,6 +64,6 @@ public class CleanArchitectureRulesTests
             ? string.Join(", ", result.FailingTypeNames)
             : "sem tipos listados";
 
-        Assert.Fail($"Regra de arquitetura quebrada: {failingTypes}");
+        false.Should().BeTrue($"Regra de arquitetura quebrada: {failingTypes}");
     }
 }

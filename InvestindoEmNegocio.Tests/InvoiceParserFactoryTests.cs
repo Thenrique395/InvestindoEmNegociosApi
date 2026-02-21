@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using FluentAssertions;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Services;
 
@@ -17,22 +18,22 @@ public class InvoiceParserFactoryTests
             """;
 
         var response = Parse(raw);
-        Assert.NotEmpty(response.Items);
+        response.Items.Should().NotBeEmpty();
 
         var alice = response.Items.FirstOrDefault(i => i.Description.Contains("ALICESANTOS", StringComparison.OrdinalIgnoreCase));
-        Assert.True(alice is not null, DumpItems(response.Items));
-        Assert.Equal("02/12", alice!.Date);
-        Assert.Equal("R$ 118,32", alice.Amount);
-        Assert.True(alice.IsInstallment, DumpItems(response.Items));
-        Assert.Equal(2, alice.InstallmentCurrent);
-        Assert.Equal(4, alice.InstallmentTotal);
+        alice.Should().NotBeNull(DumpItems(response.Items));
+        alice!.Date.Should().Be("02/12");
+        alice.Amount.Should().Be("R$ 118,32");
+        alice.IsInstallment.Should().BeTrue(DumpItems(response.Items));
+        alice.InstallmentCurrent.Should().Be(2);
+        alice.InstallmentTotal.Should().Be(4);
 
         var shopee = response.Items.FirstOrDefault(i => i.Description.Contains("BENECASALOJAOF", StringComparison.OrdinalIgnoreCase));
-        Assert.True(shopee is not null, DumpItems(response.Items));
-        Assert.Equal("R$ 60,61", shopee!.Amount);
-        Assert.True(shopee.IsInstallment, DumpItems(response.Items));
-        Assert.Equal(2, shopee.InstallmentCurrent);
-        Assert.Equal(3, shopee.InstallmentTotal);
+        shopee.Should().NotBeNull(DumpItems(response.Items));
+        shopee!.Amount.Should().Be("R$ 60,61");
+        shopee.IsInstallment.Should().BeTrue(DumpItems(response.Items));
+        shopee.InstallmentCurrent.Should().Be(2);
+        shopee.InstallmentTotal.Should().Be(3);
     }
 
     [Fact]
@@ -49,7 +50,8 @@ public class InvoiceParserFactoryTests
 
         var response = Parse(raw);
 
-        Assert.DoesNotContain(response.Items, i => i.Description.Contains("PAGAMENTO EFETUADO", StringComparison.OrdinalIgnoreCase));
+        response.Items.Should().NotContain(i =>
+            i.Description.Contains("PAGAMENTO EFETUADO", StringComparison.OrdinalIgnoreCase));
     }
 
     private static InvoiceExtractResponse Parse(string raw)

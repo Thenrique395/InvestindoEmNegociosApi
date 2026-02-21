@@ -244,14 +244,28 @@ public static class ServiceCollectionExtensions
         {
             client.BaseAddress = new Uri("https://api.bcb.gov.br/");
             client.Timeout = TimeSpan.FromSeconds(20);
-        });
+        })
+        .AddExternalApiResilience(
+            timeoutPerTry: TimeSpan.FromSeconds(8),
+            retryCount: 3,
+            baseDelay: TimeSpan.FromMilliseconds(200),
+            breakerHandledEventsAllowedBeforeBreaking: 5,
+            breakerDuration: TimeSpan.FromSeconds(30));
+
         services.AddHttpClient("MarketBrapi", client =>
         {
             client.BaseAddress = new Uri("https://brapi.dev/");
             client.Timeout = TimeSpan.FromSeconds(20);
             client.DefaultRequestHeaders.UserAgent.ParseAdd("InvestindoEmNegocio/1.0 (+market-data)");
             client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
-        });
+        })
+        .AddExternalApiResilience(
+            timeoutPerTry: TimeSpan.FromSeconds(8),
+            retryCount: 3,
+            baseDelay: TimeSpan.FromMilliseconds(250),
+            breakerHandledEventsAllowedBeforeBreaking: 5,
+            breakerDuration: TimeSpan.FromSeconds(30));
+
         services.AddHttpClient<IB3Connector, B3ApiClient>((sp, client) =>
         {
             var opts = sp.GetRequiredService<IOptions<B3ApiOptions>>().Value;
@@ -261,7 +275,13 @@ public static class ServiceCollectionExtensions
             }
 
             client.Timeout = TimeSpan.FromSeconds(opts.TimeoutSeconds <= 0 ? 30 : opts.TimeoutSeconds);
-        });
+        })
+        .AddExternalApiResilience(
+            timeoutPerTry: TimeSpan.FromSeconds(12),
+            retryCount: 3,
+            baseDelay: TimeSpan.FromMilliseconds(300),
+            breakerHandledEventsAllowedBeforeBreaking: 4,
+            breakerDuration: TimeSpan.FromSeconds(45));
         services.AddScoped<IB3SyncService, B3SyncService>();
         services.AddScoped<IDataPortabilityService, DataPortabilityService>();
         services.AddScoped<IDataPortabilityFacadeService, DataPortabilityFacadeService>();
