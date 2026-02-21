@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
-using InvestindoEmNegocio.Domain.Enums;
-using InvestindoEmNegocio.Domain.Repositories;
+using InvestindoEmNegocio.Application.Exceptions;
+using InvestindoEmNegocio.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,101 +11,57 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/admin/users")]
 [Route("api/v1/admin/users")]
 [Authorize(Roles = "Admin")]
-public class AdminUsersController(IUserRepository userRepository) : ControllerBase
+public class AdminUsersController(IAdminUsersService adminUsersService) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List(CancellationToken cancellationToken)
     {
-        var users = await userRepository.ListAsync(cancellationToken);
-        var response = users
-            .Select(u => new UserSummaryResponse(u.Id, u.Name, u.Email, u.Role.ToString(), u.IsActive, u.CreatedAt))
-            .ToList();
-        return Ok(response);
+        var users = await adminUsersService.ListAsync(cancellationToken);
+        return Ok(users);
     }
 
     [HttpPut("{id:guid}/role")]
     public async Task<IActionResult> UpdateRole(Guid id, [FromBody] UpdateUserRoleRequest request, CancellationToken cancellationToken)
     {
-        if (!Enum.TryParse<UserRole>(request.Role, true, out var role))
+        try
         {
-            return BadRequest(new ProblemDetails
-            {
-                Title = "Role inválida",
-                Detail = "Role informada não é válida.",
-                Status = StatusCodes.Status400BadRequest
-            });
+            var response = await adminUsersService.UpdateRoleAsync(id, request.Role, cancellationToken);
+            return Ok(response);
         }
-
-        var user = await userRepository.GetByIdAsync(id, cancellationToken);
-        if (user is null)
+        catch (AppProblemException ex)
         {
-            return NotFound();
+            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
         }
-
-        user.SetRole(role);
-        await userRepository.SaveChangesAsync(cancellationToken);
-
-        var response = new UserSummaryResponse(user.Id, user.Name, user.Email, user.Role.ToString(), user.IsActive, user.CreatedAt);
-        return Ok(response);
     }
 
     [HttpPut("{id:guid}/status")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateUserStatusRequest request, CancellationToken cancellationToken)
     {
-        var currentUserId = GetUserId();
-        if (id == currentUserId && !request.IsActive)
+        try
         {
-            return BadRequest(new ProblemDetails
-            {
-                Title = "Ação inválida",
-                Detail = "Você não pode bloquear seu próprio acesso.",
-                Status = StatusCodes.Status400BadRequest
-            });
+            var currentUserId = GetUserId();
+            var response = await adminUsersService.UpdateStatusAsync(id, request.IsActive, currentUserId, cancellationToken);
+            return Ok(response);
         }
-
-        var user = await userRepository.GetByIdAsync(id, cancellationToken);
-        if (user is null)
+        catch (AppProblemException ex)
         {
-            return NotFound();
+            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
         }
-
-        if (request.IsActive)
-        {
-            user.Activate();
-        }
-        else
-        {
-            user.Deactivate();
-        }
-
-        await userRepository.SaveChangesAsync(cancellationToken);
-        var response = new UserSummaryResponse(user.Id, user.Name, user.Email, user.Role.ToString(), user.IsActive, user.CreatedAt);
-        return Ok(response);
     }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        var currentUserId = GetUserId();
-        if (id == currentUserId)
+        try
         {
-            return BadRequest(new ProblemDetails
-            {
-                Title = "Ação inválida",
-                Detail = "Você não pode excluir seu próprio usuário.",
-                Status = StatusCodes.Status400BadRequest
-            });
+            var currentUserId = GetUserId();
+            await adminUsersService.DeleteAsync(id, currentUserId, cancellationToken);
+            return NoContent();
         }
-
-        var user = await userRepository.GetByIdAsync(id, cancellationToken);
-        if (user is null)
+        catch (AppProblemException ex)
         {
-            return NotFound();
+            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
         }
-
-        userRepository.Remove(user);
-        await userRepository.SaveChangesAsync(cancellationToken);
-        return NoContent();
     }
 
     private Guid GetUserId()

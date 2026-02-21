@@ -14,18 +14,21 @@ public class InvestmentsService : IInvestmentsService
     private readonly IInvestmentGoalRepository _goalRepository;
     private readonly IInvestmentAllocationTargetRepository _allocationTargetRepository;
     private readonly IInvestmentPositionRepository _positionRepository;
+    private readonly IMarketDataService _marketDataService;
     private readonly ILogger<InvestmentsService> _logger;
     private readonly IMemoryCache _cache;
 
     public InvestmentsService(IInvestmentGoalRepository goalRepository,
         IInvestmentAllocationTargetRepository allocationTargetRepository,
         IInvestmentPositionRepository positionRepository,
+        IMarketDataService marketDataService,
         IMemoryCache cache,
         ILogger<InvestmentsService> logger)
     {
         _goalRepository = goalRepository;
         _allocationTargetRepository = allocationTargetRepository;
         _positionRepository = positionRepository;
+        _marketDataService = marketDataService;
         _cache = cache;
         _logger = logger;
     }
@@ -203,6 +206,51 @@ public class InvestmentsService : IInvestmentsService
         return Map(movement);
     }
 
+    public async Task<List<InvestmentPositionDto>> EnrichWithMarketAsync(List<InvestmentPositionDto> items, CancellationToken cancellationToken = default)
+    {
+        if (items.Count == 0) return items;
+
+        var symbols = items
+            .Select(i => ExtractTicker(i.Asset))
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (symbols.Length == 0) return items;
+
+        IReadOnlyDictionary<string, MarketSnapshotResponse> snapshots;
+        try
+        {
+            snapshots = await _marketDataService.GetSnapshotsAsync(symbols, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Falha ao enriquecer posições com dados de mercado.");
+            return items;
+        }
+
+        if (snapshots.Count == 0) return items;
+
+        return items.Select(item =>
+        {
+            var symbol = ExtractTicker(item.Asset);
+            if (string.IsNullOrWhiteSpace(symbol) || !snapshots.TryGetValue(symbol, out var snap))
+                return item;
+
+            return item with
+            {
+                MarketSymbol = snap.Symbol,
+                MarketPrice = snap.Price,
+                MarketChangePercent = snap.ChangePercent,
+                MarketName = snap.Name,
+                MarketLogoUrl = snap.LogoUrl,
+                MarketSource = snap.Source,
+                MarketProvider = snap.ProviderLabel
+            };
+        }).ToList();
+    }
+
     private static string PositionsCacheKey(Guid userId) => $"investments:positions:{userId:N}";
 
     private void InvalidatePositionsCache(Guid userId)
@@ -255,6 +303,13 @@ public class InvestmentsService : IInvestmentsService
 
     private static bool IsOutputMovement(InvestmentMovementType type) =>
         type is InvestmentMovementType.RESGATE or InvestmentMovementType.VENDA;
+
+    private static string? ExtractTicker(string asset)
+    {
+        if (string.IsNullOrWhiteSpace(asset)) return null;
+        var match = System.Text.RegularExpressions.Regex.Match(asset.ToUpperInvariant(), "[A-Z]{4}[0-9]{1,2}");
+        return match.Success ? match.Value : null;
+    }
 
     private static InvestmentAllocationTargetDto MapAllocation(decimal rf, decimal acoes, decimal fundos, decimal cripto)
     {

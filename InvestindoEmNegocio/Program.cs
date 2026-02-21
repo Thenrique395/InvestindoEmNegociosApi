@@ -8,6 +8,7 @@ using InvestindoEmNegocio.Infrastructure.Auth;
 using InvestindoEmNegocio.Infrastructure.Data;
 using InvestindoEmNegocio.Infrastructure.Logging;
 using InvestindoEmNegocio.Infrastructure.Repositories;
+using InvestindoEmNegocio.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -329,6 +330,7 @@ builder.Services.AddScoped<IUserNotificationRepository, UserNotificationReposito
 builder.Services.AddScoped<INotificationSettingsRepository, NotificationSettingsRepository>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAuthFacadeService, AuthFacadeService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IInvestmentsService, InvestmentsService>();
@@ -340,14 +342,19 @@ builder.Services.AddScoped<IGoalContributionsService, GoalContributionsService>(
 builder.Services.AddScoped<IInstallmentsService, InstallmentsService>();
 builder.Services.AddScoped<ILookupsService, LookupsService>();
 builder.Services.AddScoped<IPlansService, PlansService>();
+builder.Services.AddScoped<IIncomeSummaryService, IncomeSummaryService>();
 builder.Services.AddScoped<IPreferencesService, PreferencesService>();
 builder.Services.AddScoped<INotificationsService, NotificationsService>();
+builder.Services.AddScoped<IAdminUsersService, AdminUsersService>();
+builder.Services.AddScoped<IAdminParametersService, AdminParametersService>();
+builder.Services.AddScoped<IAdminCategoriesService, AdminCategoriesService>();
 builder.Services.AddSingleton<InvoiceParserFactory>();
 builder.Services.AddScoped<IInvoiceImportService, InvoiceImportService>();
 builder.Services.AddScoped<IB3ImportService, B3ImportService>();
 builder.Services.AddScoped<IMarketDataService, MarketDataService>();
 builder.Services.AddScoped<IMarketDataProvider, FreeMarketDataProvider>();
 builder.Services.AddScoped<IMarketDataProvider, B3MarketDataProvider>();
+builder.Services.AddScoped<IAvatarStorageService, AvatarStorageService>();
 builder.Services.AddHttpClient<IInvestmentBenchmarksService, InvestmentBenchmarksService>(client =>
 {
     client.BaseAddress = new Uri("https://api.bcb.gov.br/");
@@ -372,6 +379,7 @@ builder.Services.AddHttpClient<IB3Connector, B3ApiClient>((sp, client) =>
 });
 builder.Services.AddScoped<IB3SyncService, B3SyncService>();
 builder.Services.AddScoped<IDataPortabilityService, DataPortabilityService>();
+builder.Services.AddScoped<IDataPortabilityFacadeService, DataPortabilityFacadeService>();
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<InvestindoEmNegocio.Application.Validation.RegisterUserRequestValidator>();
 

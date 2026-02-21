@@ -1,6 +1,6 @@
-using System.IO;
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,7 +11,9 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/[controller]")]
 [Route("api/v1/[controller]")]
 [Authorize]
-public class ProfileController(IProfileService profileService, IWebHostEnvironment env) : ControllerBase
+public class ProfileController(
+    IProfileService profileService,
+    IAvatarStorageService avatarStorageService) : ControllerBase
 {
     [HttpGet]
     // Retorna o perfil do usuário autenticado (204 se ainda não existir).
@@ -51,53 +53,25 @@ public class ProfileController(IProfileService profileService, IWebHostEnvironme
             return BadRequest(new ProblemDetails { Title = "Arquivo inválido", Detail = "Envie uma imagem válida.", Status = StatusCodes.Status400BadRequest });
         }
 
-        var allowedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "image/jpeg",
-            "image/png",
-            "image/webp"
-        };
-
-        if (!allowedTypes.Contains(avatar.ContentType))
-        {
-            return BadRequest(new ProblemDetails { Title = "Arquivo inválido", Detail = "Formato não suportado. Use PNG, JPG ou WEBP.", Status = StatusCodes.Status400BadRequest });
-        }
-
-        var webRoot = env.WebRootPath;
-        if (string.IsNullOrWhiteSpace(webRoot))
-        {
-            webRoot = Path.Combine(env.ContentRootPath, "wwwroot");
-        }
-
-        var uploadsPath = Path.Combine(webRoot, "uploads", "avatars");
-        Directory.CreateDirectory(uploadsPath);
-
-        var ext = Path.GetExtension(avatar.FileName);
-        if (string.IsNullOrWhiteSpace(ext))
-        {
-            ext = avatar.ContentType switch
-            {
-                "image/png" => ".png",
-                "image/webp" => ".webp",
-                _ => ".jpg"
-            };
-        }
-
-        var fileName = $"{GetUserId():N}_{Guid.NewGuid():N}{ext}";
-        var filePath = Path.Combine(uploadsPath, fileName);
-
-        await using (var stream = System.IO.File.Create(filePath))
-        {
-            await avatar.CopyToAsync(stream, cancellationToken);
-        }
-
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
-        var avatarUrl = $"{baseUrl}/uploads/avatars/{fileName}";
-
         try
         {
-            var profile = await profileService.UpdateAvatarAsync(GetUserId(), avatarUrl, cancellationToken);
+            var userId = GetUserId();
+            await using var stream = avatar.OpenReadStream();
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+            var avatarUrl = await avatarStorageService.SaveAsync(
+                userId,
+                stream,
+                avatar.FileName,
+                avatar.ContentType,
+                baseUrl,
+                cancellationToken);
+
+            var profile = await profileService.UpdateAvatarAsync(userId, avatarUrl, cancellationToken);
             return Ok(profile);
+        }
+        catch (AppProblemException ex)
+        {
+            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
         }
         catch (ArgumentException ex)
         {

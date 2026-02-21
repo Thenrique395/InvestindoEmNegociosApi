@@ -87,7 +87,7 @@ public class InvestmentsController(
             });
 
         var list = items.ToList();
-        list = await EnrichWithMarketAsync(list, cancellationToken);
+        list = await investmentsService.EnrichWithMarketAsync(list, cancellationToken);
 
         if (isPaged)
         {
@@ -381,55 +381,4 @@ public class InvestmentsController(
         return Request.Headers["User-Agent"].ToString();
     }
 
-    private async Task<List<InvestmentPositionDto>> EnrichWithMarketAsync(List<InvestmentPositionDto> items, CancellationToken cancellationToken)
-    {
-        if (items.Count == 0) return items;
-
-        var symbols = items
-            .Select(i => ExtractTicker(i.Asset))
-            .Where(s => !string.IsNullOrWhiteSpace(s))
-            .Select(s => s!)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-        if (symbols.Length == 0) return items;
-
-        IReadOnlyDictionary<string, MarketSnapshotResponse> snapshots;
-        try
-        {
-            snapshots = await marketDataService.GetSnapshotsAsync(symbols, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Falha ao enriquecer posições com dados de mercado.");
-            return items;
-        }
-
-        if (snapshots.Count == 0) return items;
-
-        return items.Select(item =>
-        {
-            var symbol = ExtractTicker(item.Asset);
-            if (string.IsNullOrWhiteSpace(symbol) || !snapshots.TryGetValue(symbol, out var snap))
-                return item;
-
-            return item with
-            {
-                MarketSymbol = snap.Symbol,
-                MarketPrice = snap.Price,
-                MarketChangePercent = snap.ChangePercent,
-                MarketName = snap.Name,
-                MarketLogoUrl = snap.LogoUrl,
-                MarketSource = snap.Source,
-                MarketProvider = snap.ProviderLabel
-            };
-        }).ToList();
-    }
-
-    private static string? ExtractTicker(string asset)
-    {
-        if (string.IsNullOrWhiteSpace(asset)) return null;
-        var match = System.Text.RegularExpressions.Regex.Match(asset.ToUpperInvariant(), "[A-Z]{4}[0-9]{1,2}");
-        return match.Success ? match.Value : null;
-    }
 }

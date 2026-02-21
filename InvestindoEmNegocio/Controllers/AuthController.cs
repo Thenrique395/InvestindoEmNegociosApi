@@ -1,4 +1,5 @@
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,7 +13,7 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/[controller]")]
 [Route("api/v1/[controller]")]
 [EnableRateLimiting("auth")]
-public class AuthController(IAuthService authService, IAuditService auditService) : ControllerBase
+public class AuthController(IAuthFacadeService authFacadeService) : ControllerBase
 {
     [HttpPost("register")]
     [AllowAnonymous]
@@ -21,16 +22,12 @@ public class AuthController(IAuthService authService, IAuditService auditService
     {
         try
         {
-            var response = await authService.RegisterAsync(request, cancellationToken);
+            var response = await authFacadeService.RegisterAsync(request, cancellationToken);
             return CreatedAtAction(nameof(Register), new { id = response.UserId }, response);
         }
-        catch (ArgumentException ex)
+        catch (AppProblemException ex)
         {
-            return BadRequest(CreateProblem("Registro inválido", ex.Message, StatusCodes.Status400BadRequest));
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(CreateProblem("Registro inválido", ex.Message, StatusCodes.Status409Conflict));
+            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
         }
     }
 
@@ -38,16 +35,15 @@ public class AuthController(IAuthService authService, IAuditService auditService
     [Authorize]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request, CancellationToken cancellationToken)
     {
-        var userId = GetUserId();
         try
         {
-            await authService.ChangePasswordAsync(userId, request, cancellationToken);
-            await auditService.LogAsync(userId, "CHANGE_PASSWORD", "User", userId.ToString(), GetIpAddress(), GetUserAgent(), null, cancellationToken);
+            var userId = GetUserId();
+            await authFacadeService.ChangePasswordAsync(userId, request, GetIpAddress(), GetUserAgent(), cancellationToken);
             return NoContent();
         }
-        catch (UnauthorizedAccessException ex)
+        catch (AppProblemException ex)
         {
-            return Unauthorized(CreateProblem("Senha inválida", ex.Message, StatusCodes.Status401Unauthorized));
+            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
         }
     }
 
@@ -57,12 +53,12 @@ public class AuthController(IAuthService authService, IAuditService auditService
     {
         try
         {
-            var response = await authService.RefreshAsync(request, cancellationToken);
+            var response = await authFacadeService.RefreshAsync(request, cancellationToken);
             return Ok(response);
         }
-        catch (UnauthorizedAccessException ex)
+        catch (AppProblemException ex)
         {
-            return Unauthorized(CreateProblem("Token inválido", ex.Message, StatusCodes.Status401Unauthorized));
+            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
         }
     }
 
@@ -70,7 +66,7 @@ public class AuthController(IAuthService authService, IAuditService auditService
     [AllowAnonymous]
     public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
     {
-        await authService.LogoutAsync(request, cancellationToken);
+        await authFacadeService.LogoutAsync(request, cancellationToken);
         return NoContent();
     }
 
@@ -87,32 +83,13 @@ public class AuthController(IAuthService authService, IAuditService auditService
     {
         try
         {
-            var response = await authService.LoginAsync(request, cancellationToken);
-            await auditService.LogAsync(response.UserId, "LOGIN", "User", response.UserId.ToString(), GetIpAddress(), GetUserAgent(), null, cancellationToken);
+            var response = await authFacadeService.LoginAsync(request, GetIpAddress(), GetUserAgent(), cancellationToken);
             return Ok(response);
         }
-        catch (InvalidOperationException ex)
+        catch (AppProblemException ex)
         {
-            return StatusCode(StatusCodes.Status423Locked, CreateProblem("Conta bloqueada", ex.Message, StatusCodes.Status423Locked));
+            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
         }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(CreateProblem("Login inválido", ex.Message, StatusCodes.Status400BadRequest));
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return Unauthorized(CreateProblem("Credenciais inválidas", "E-mail ou senha incorretos.", StatusCodes.Status401Unauthorized));
-        }
-    }
-
-    private static ProblemDetails CreateProblem(string title, string detail, int statusCode)
-    {
-        return new ProblemDetails
-        {
-            Title = title,
-            Detail = detail,
-            Status = statusCode
-        };
     }
 
     private string? GetIpAddress()

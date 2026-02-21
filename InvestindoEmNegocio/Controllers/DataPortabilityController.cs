@@ -1,11 +1,9 @@
 using System.Security.Claims;
-using System.Text.Json;
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 namespace InvestindoEmNegocio.Controllers;
 
@@ -14,24 +12,20 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/v1/[controller]")]
 [Authorize]
 public sealed class DataPortabilityController(
-    IDataPortabilityService dataPortabilityService,
-    IOptions<DataPortabilityOptions> options) : ControllerBase
+    IDataPortabilityFacadeService dataPortabilityFacadeService) : ControllerBase
 {
     [HttpGet("export")]
     public async Task<IActionResult> Export(CancellationToken cancellationToken)
     {
-        if (!options.Value.Enabled)
+        try
         {
-            return NotFound(new ProblemDetails
-            {
-                Title = "Funcionalidade desabilitada",
-                Detail = "A exportação/importação de dados está desativada.",
-                Status = StatusCodes.Status404NotFound
-            });
+            var (fileName, content) = await dataPortabilityFacadeService.ExportAsync(GetUserId(), cancellationToken);
+            return File(content, "application/json", fileName);
         }
-
-        var (fileName, content) = await dataPortabilityService.ExportAsync(GetUserId(), cancellationToken);
-        return File(content, "application/json", fileName);
+        catch (AppProblemException ex)
+        {
+            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
+        }
     }
 
     [HttpPost("import")]
@@ -39,69 +33,25 @@ public sealed class DataPortabilityController(
     [RequestSizeLimit(50 * 1024 * 1024)]
     public async Task<ActionResult<ImportUserDataResult>> Import([FromForm] ImportUserDataRequest request, CancellationToken cancellationToken)
     {
-        if (!options.Value.Enabled)
+        if (request.File is null)
         {
-            return NotFound(new ProblemDetails
-            {
-                Title = "Funcionalidade desabilitada",
-                Detail = "A exportação/importação de dados está desativada.",
-                Status = StatusCodes.Status404NotFound
-            });
-        }
-
-        if (request.File is null || request.File.Length == 0)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Title = "Arquivo inválido",
-                Detail = "Envie um arquivo JSON para importação.",
-                Status = StatusCodes.Status400BadRequest
-            });
-        }
-
-        var maxBytes = Math.Max(1, options.Value.MaxImportSizeMb) * 1024L * 1024L;
-        if (request.File.Length > maxBytes)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Title = "Arquivo muito grande",
-                Detail = $"Tamanho máximo permitido: {options.Value.MaxImportSizeMb} MB.",
-                Status = StatusCodes.Status400BadRequest
-            });
+            return BadRequest(new ProblemDetails { Title = "Arquivo inválido", Detail = "Envie um arquivo JSON para importação.", Status = StatusCodes.Status400BadRequest });
         }
 
         await using var stream = request.File.OpenReadStream();
         try
         {
-            var result = await dataPortabilityService.ImportAsync(GetUserId(), stream, request.ReplaceExisting, cancellationToken);
+            var result = await dataPortabilityFacadeService.ImportAsync(
+                GetUserId(),
+                stream,
+                request.File.Length,
+                request.ReplaceExisting,
+                cancellationToken);
             return Ok(result);
         }
-        catch (InvalidOperationException ex)
+        catch (AppProblemException ex)
         {
-            return BadRequest(new ProblemDetails
-            {
-                Title = "Arquivo de importação inválido",
-                Detail = ex.Message,
-                Status = StatusCodes.Status400BadRequest
-            });
-        }
-        catch (JsonException)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Title = "Arquivo JSON inválido",
-                Detail = "Não foi possível ler o conteúdo do arquivo enviado.",
-                Status = StatusCodes.Status400BadRequest
-            });
-        }
-        catch (DbUpdateException ex)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Title = "Falha ao importar dados",
-                Detail = ex.InnerException?.Message ?? ex.Message,
-                Status = StatusCodes.Status400BadRequest
-            });
+            return Problem(ex.Detail, statusCode: ex.StatusCode, title: ex.Title);
         }
     }
 
