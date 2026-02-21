@@ -86,7 +86,10 @@ public class AuthServiceTests
             .Setup(x => x.Generate(It.IsAny<User>()))
             .Returns(new TokenResult("new-access-token", DateTime.UtcNow.AddMinutes(30)));
 
-        var sut = BuildSut(userRepository, refreshTokenRepository, jwtTokenGenerator);
+        var sut = BuildSut(
+            userRepository: userRepository,
+            refreshTokenRepository: refreshTokenRepository,
+            jwtTokenGenerator: jwtTokenGenerator);
 
         var result = await sut.RefreshAsync(new RefreshTokenRequest("plain-refresh-token"), CancellationToken.None);
 
