@@ -18,6 +18,12 @@ public sealed class SmtpEmailSender(
             return;
         }
 
+        logger.LogInformation(
+            "Sending email using SMTP host {Host}:{Port} as user configured={HasUser}",
+            settings.Host,
+            settings.Port,
+            !string.IsNullOrWhiteSpace(settings.Username));
+
         using var message = new MailMessage
         {
             From = new MailAddress(settings.FromEmail, settings.FromName),
@@ -34,7 +40,9 @@ public sealed class SmtpEmailSender(
 
         using var client = new SmtpClient(settings.Host, settings.Port)
         {
-            EnableSsl = settings.EnableSsl
+            EnableSsl = settings.EnableSsl,
+            DeliveryMethod = SmtpDeliveryMethod.Network,
+            UseDefaultCredentials = false
         };
 
         if (!string.IsNullOrWhiteSpace(settings.Username))
@@ -43,7 +51,8 @@ public sealed class SmtpEmailSender(
         }
         else
         {
-            client.UseDefaultCredentials = true;
+            logger.LogWarning("SMTP usuário não configurado. E-mail para {Recipient} não enviado.", to);
+            return;
         }
 
         cancellationToken.ThrowIfCancellationRequested();

@@ -138,7 +138,16 @@ public class AuthService(
                     """;
         var text = $"Recebemos uma solicitacao de redefinicao de senha. Acesse: {resetLink}. Este link expira em {ttlMinutes} minutos.";
 
-        await emailSender.SendAsync(user.Email, subject, html, text, cancellationToken);
+        try
+        {
+            await emailSender.SendAsync(user.Email, subject, html, text, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // The endpoint intentionally returns a generic accepted response.
+            // Email delivery failures are logged and can be retried operationally.
+            _logger.LogError(ex, "Failed to send password reset email for {UserId}", user.Id);
+        }
         _logger.LogInformation("Password reset token issued {UserId}", user.Id);
     }
 
