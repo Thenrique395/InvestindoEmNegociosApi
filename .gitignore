@@ -16,7 +16,9 @@ coverage.opencover.xml
 *.user
 *.suo
 *.DotSettings.user
-# Local env templates
+# Local env and secrets
+.env
+.env.*
 !.env.example
 # Temporary study/download artifacts
 Introdução à Arquitetura e Design de Software - Casa do Codigo.htm
