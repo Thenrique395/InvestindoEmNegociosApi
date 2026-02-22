@@ -28,6 +28,3 @@ docs/*.pdf
 !/InvestindoEmNegocio/wwwroot/uploads/avatars/.gitkeep
 perf/config/local.json
 perf/results/*.json
-# Local env and secrets
-.env
-.env.*
