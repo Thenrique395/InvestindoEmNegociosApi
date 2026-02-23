@@ -31,3 +31,4 @@ app.MapHealthEndpoints();
 await app.ApplyDatabaseSchemaAsync();
 
 app.Run();
+
