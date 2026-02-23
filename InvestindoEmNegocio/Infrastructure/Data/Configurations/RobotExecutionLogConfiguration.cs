@@ -1,0 +1,36 @@
+using InvestindoEmNegocio.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace InvestindoEmNegocio.Infrastructure.Data.Configurations;
+
+public sealed class RobotExecutionLogConfiguration : IEntityTypeConfiguration<RobotExecutionLog>
+{
+    public void Configure(EntityTypeBuilder<RobotExecutionLog> builder)
+    {
+        builder.ToTable("robot_execution_logs");
+
+        builder.HasKey(x => x.Id);
+
+        builder.Property(x => x.RobotName)
+            .IsRequired()
+            .HasMaxLength(80);
+
+        builder.Property(x => x.StartedAt)
+            .IsRequired();
+
+        builder.Property(x => x.FinishedAt)
+            .IsRequired();
+
+        builder.Property(x => x.Success)
+            .IsRequired();
+
+        builder.Property(x => x.ProcessedCount)
+            .IsRequired();
+
+        builder.Property(x => x.Error)
+            .HasMaxLength(2000);
+
+        builder.HasIndex(x => new { x.RobotName, x.StartedAt });
+    }
+}

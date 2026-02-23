@@ -39,7 +39,10 @@ public static class EnvironmentConfigurationExtensions
                      ("Smtp__Username", "Smtp:Username"),
                      ("Smtp__Password", "Smtp:Password"),
                      ("Smtp__FromEmail", "Smtp:FromEmail"),
-                     ("Smtp__FromName", "Smtp:FromName")
+                     ("Smtp__FromName", "Smtp:FromName"),
+                     ("Robots__Enabled", "Robots:Enabled"),
+                     ("Robots__RunOnStartup", "Robots:RunOnStartup"),
+                     ("Robots__DailyRunTimeUtc", "Robots:DailyRunTimeUtc")
                  })
         {
             EnsureEnvFromConfig(builder.Configuration, envKey, configKey);

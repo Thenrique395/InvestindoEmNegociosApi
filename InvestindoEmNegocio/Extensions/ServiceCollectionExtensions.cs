@@ -113,6 +113,7 @@ public static class ServiceCollectionExtensions
         services.Configure<MarketDataOptions>(configuration.GetSection(MarketDataOptions.SectionName));
         services.Configure<PasswordResetOptions>(configuration.GetSection(PasswordResetOptions.SectionName));
         services.Configure<SmtpEmailOptions>(configuration.GetSection(SmtpEmailOptions.SectionName));
+        services.Configure<RobotsOptions>(configuration.GetSection(RobotsOptions.SectionName));
         return services;
     }
 
@@ -229,6 +230,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IAuthFacadeService, AuthFacadeService>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
+        services.AddScoped<IRobotTask, ReminderRobotTask>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IProfileService, ProfileService>();
         services.AddScoped<IInvestmentsService, InvestmentsService>();
@@ -298,6 +300,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IB3SyncService, B3SyncService>();
         services.AddScoped<IDataPortabilityService, DataPortabilityService>();
         services.AddScoped<IDataPortabilityFacadeService, DataPortabilityFacadeService>();
+        services.AddHostedService<RobotsHostedService>();
 
         return services;
     }

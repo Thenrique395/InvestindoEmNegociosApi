@@ -120,6 +120,17 @@ CREATE TABLE user_notifications (
     CONSTRAINT "PK_user_notifications" PRIMARY KEY ("Id")
 );
 
+CREATE TABLE robot_execution_logs (
+    "Id" uuid NOT NULL,
+    "RobotName" character varying(80) NOT NULL,
+    "StartedAt" timestamp with time zone NOT NULL,
+    "FinishedAt" timestamp with time zone NOT NULL,
+    "Success" boolean NOT NULL,
+    "ProcessedCount" integer NOT NULL,
+    "Error" character varying(2000),
+    CONSTRAINT "PK_robot_execution_logs" PRIMARY KEY ("Id")
+);
+
 CREATE TABLE user_onboarding (
     "Id" uuid NOT NULL,
     "UserId" uuid NOT NULL,
@@ -342,9 +353,10 @@ CREATE INDEX "IX_user_notifications_UserId_CreatedAt" ON user_notifications ("Us
 
 CREATE UNIQUE INDEX "IX_user_notifications_UserId_ReferenceKey" ON user_notifications ("UserId", "ReferenceKey");
 
+CREATE INDEX "IX_robot_execution_logs_RobotName_StartedAt" ON robot_execution_logs ("RobotName", "StartedAt");
+
 CREATE UNIQUE INDEX "IX_user_onboarding_UserId" ON user_onboarding ("UserId");
 
 CREATE UNIQUE INDEX "IX_user_profiles_UserId" ON user_profiles ("UserId");
 
 CREATE UNIQUE INDEX "IX_users_Email" ON users ("Email");
-

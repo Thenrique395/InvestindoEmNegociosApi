@@ -29,6 +29,7 @@ public class InvestDbContext(DbContextOptions<InvestDbContext> options) : DbCont
     public DbSet<Institution> Institutions => Set<Institution>();
     public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
     public DbSet<NotificationSettings> NotificationSettings => Set<NotificationSettings>();
+    public DbSet<RobotExecutionLog> RobotExecutionLogs => Set<RobotExecutionLog>();
 
     public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default) =>
         Database.BeginTransactionAsync(cancellationToken);

@@ -33,6 +33,20 @@ CREATE INDEX IF NOT EXISTS "IX_user_notifications_UserId_CreatedAt"
 CREATE UNIQUE INDEX IF NOT EXISTS "IX_user_notifications_UserId_ReferenceKey"
     ON user_notifications ("UserId", "ReferenceKey");
 
+CREATE TABLE IF NOT EXISTS robot_execution_logs (
+    "Id" uuid NOT NULL,
+    "RobotName" character varying(80) NOT NULL,
+    "StartedAt" timestamp with time zone NOT NULL,
+    "FinishedAt" timestamp with time zone NOT NULL,
+    "Success" boolean NOT NULL,
+    "ProcessedCount" integer NOT NULL,
+    "Error" character varying(2000) NULL,
+    CONSTRAINT "PK_robot_execution_logs" PRIMARY KEY ("Id")
+);
+
+CREATE INDEX IF NOT EXISTS "IX_robot_execution_logs_RobotName_StartedAt"
+    ON robot_execution_logs ("RobotName", "StartedAt");
+
 CREATE TABLE IF NOT EXISTS notification_settings (
     "Id" uuid NOT NULL,
     "IncomeUpcomingEnabled" boolean NOT NULL DEFAULT TRUE,
