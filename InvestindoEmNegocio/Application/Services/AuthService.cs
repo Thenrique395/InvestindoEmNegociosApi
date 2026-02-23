@@ -129,14 +129,43 @@ public class AuthService(
 
         var resetLink = BuildResetLink(rawToken);
         var subject = "Recuperacao de senha";
+        var safeName = WebUtility.HtmlEncode(user.Name);
+        var safeLink = WebUtility.HtmlEncode(resetLink);
         var html = $"""
-                    <p>Ola {WebUtility.HtmlEncode(user.Name)},</p>
-                    <p>Recebemos uma solicitacao para redefinir sua senha.</p>
-                    <p><a href="{WebUtility.HtmlEncode(resetLink)}">Clique aqui para criar uma nova senha</a></p>
-                    <p>Este link expira em {ttlMinutes} minutos.</p>
-                    <p>Se voce nao fez esta solicitacao, ignore este e-mail.</p>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f5f9;padding:24px 0;font-family:Arial,Helvetica,sans-serif;">
+                      <tr>
+                        <td align="center">
+                          <table role="presentation" width="620" cellspacing="0" cellpadding="0" style="max-width:620px;background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;">
+                            <tr>
+                              <td style="padding:20px 24px;background:#f8fafc;border-bottom:1px solid #e5e7eb;">
+                                <div style="font-size:12px;letter-spacing:1.8px;text-transform:uppercase;color:#64748b;font-weight:700;">Investindo em Negocios</div>
+                                <div style="margin-top:8px;font-size:24px;line-height:1.3;color:#0f172a;font-weight:700;">Redefinicao de senha</div>
+                              </td>
+                            </tr>
+                            <tr>
+                              <td style="padding:24px;">
+                                <p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#334155;">Ola <strong>{safeName}</strong>,</p>
+                                <p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#334155;">Recebemos uma solicitacao para redefinir sua senha.</p>
+                                <p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#334155;">Para continuar, clique no botao abaixo:</p>
+                                <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 18px;">
+                                  <tr>
+                                    <td align="center" bgcolor="#2563eb" style="border-radius:10px;">
+                                      <a href="{safeLink}" style="display:inline-block;padding:12px 18px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">Redefinir minha senha</a>
+                                    </td>
+                                  </tr>
+                                </table>
+                                <p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#475569;">Este link expira em <strong>{ttlMinutes} minutos</strong>.</p>
+                                <p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#475569;">Se o botao nao funcionar, copie e cole este link no navegador:</p>
+                                <p style="margin:0 0 18px;word-break:break-all;font-size:12px;line-height:1.5;color:#2563eb;">{safeLink}</p>
+                                <p style="margin:0;font-size:12px;line-height:1.6;color:#64748b;">Se voce nao solicitou esta alteracao, pode ignorar esta mensagem com seguranca.</p>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
                     """;
-        var text = $"Recebemos uma solicitacao de redefinicao de senha. Acesse: {resetLink}. Este link expira em {ttlMinutes} minutos.";
+        var text = $"Ola {user.Name},\n\nRecebemos uma solicitacao para redefinir sua senha.\n\nUse este link: {resetLink}\n\nEste link expira em {ttlMinutes} minutos.\n\nSe voce nao solicitou esta alteracao, ignore esta mensagem.";
 
         try
         {
