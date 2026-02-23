@@ -1,7 +1,4 @@
 using InvestindoEmNegocio.Application.Interfaces;
-using InvestindoEmNegocio.Domain.Entities;
-using InvestindoEmNegocio.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
@@ -38,45 +35,16 @@ public sealed class RobotsHostedService(
     private async Task RunAllRobotsOnce(CancellationToken cancellationToken)
     {
         using var scope = scopeFactory.CreateScope();
-        var robots = scope.ServiceProvider.GetServices<IRobotTask>().ToList();
-        if (robots.Count == 0)
+        var runner = scope.ServiceProvider.GetRequiredService<IRobotRunner>();
+        var results = await runner.RunAllAsync(cancellationToken);
+        if (results.Count == 0)
         {
             logger.LogWarning("Nenhum robô registrado para execução.");
-            return;
         }
-
-        var dbContext = scope.ServiceProvider.GetRequiredService<InvestDbContext>();
-        foreach (var robot in robots)
+        else
         {
-            var startedAt = DateTime.UtcNow;
-            var success = false;
-            var processed = 0;
-            string? error = null;
-
-            try
-            {
-                logger.LogInformation("Iniciando execução do robô {RobotName}.", robot.Name);
-                processed = await robot.RunAsync(cancellationToken);
-                success = true;
-                logger.LogInformation("Robô {RobotName} finalizado. Itens processados: {Processed}.", robot.Name, processed);
-            }
-            catch (Exception ex)
-            {
-                error = ex.Message;
-                logger.LogError(ex, "Falha na execução do robô {RobotName}.", robot.Name);
-            }
-
-            var finishedAt = DateTime.UtcNow;
-            dbContext.RobotExecutionLogs.Add(new RobotExecutionLog(
-                robot.Name,
-                startedAt,
-                finishedAt,
-                success,
-                processed,
-                error));
+            logger.LogInformation("Execução diária de robôs concluída. Robôs executados: {Count}", results.Count);
         }
-
-        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private static TimeSpan ComputeDelay(string dailyRunTimeUtc)

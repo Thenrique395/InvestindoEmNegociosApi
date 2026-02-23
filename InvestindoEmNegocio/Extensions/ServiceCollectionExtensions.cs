@@ -231,6 +231,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuthFacadeService, AuthFacadeService>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
         services.AddScoped<IRobotTask, ReminderRobotTask>();
+        services.AddScoped<IRobotRunner, RobotRunner>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IProfileService, ProfileService>();
         services.AddScoped<IInvestmentsService, InvestmentsService>();
@@ -249,6 +250,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAdminUsersService, AdminUsersService>();
         services.AddScoped<IAdminParametersService, AdminParametersService>();
         services.AddScoped<IAdminCategoriesService, AdminCategoriesService>();
+        services.AddScoped<IAdminRobotsService, AdminRobotsService>();
         services.AddSingleton<InvoiceParserFactory>();
         services.AddScoped<IInvoiceImportService, InvoiceImportService>();
         services.AddScoped<IB3ImportService, B3ImportService>();

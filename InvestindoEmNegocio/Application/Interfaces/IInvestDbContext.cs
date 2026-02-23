@@ -20,6 +20,7 @@ public interface IInvestDbContext
     DbSet<InvestmentMovement> InvestmentMovements { get; }
     DbSet<UserOnboarding> UserOnboardings { get; }
     DbSet<UserNotification> UserNotifications { get; }
+    DbSet<RobotExecutionLog> RobotExecutionLogs { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default);
