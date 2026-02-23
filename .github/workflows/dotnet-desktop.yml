@@ -101,13 +101,37 @@ jobs:
           push: true
           tags: ghcr.io/thenrique395/investindoemnegociosapi:latest
 
+      - name: Generate runtime .env
+        run: |
+          cat > .env.deploy <<EOF
+          POSTGRES_DB=${{ vars.POSTGRES_DB }}
+          POSTGRES_USER=${{ vars.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          DB_CONN=${{ secrets.DB_CONN }}
+          JWT_ISSUER=${{ vars.JWT_ISSUER }}
+          JWT_AUDIENCE=${{ vars.JWT_AUDIENCE }}
+          JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+          JWT_EXPIRES_MINUTES=${{ vars.JWT_EXPIRES_MINUTES }}
+          BRAPI_TOKEN=${{ secrets.BRAPI_TOKEN }}
+          API_HOST=${{ vars.API_HOST }}
+          PASSWORD_RESET_FRONTEND_URL=${{ vars.PASSWORD_RESET_FRONTEND_URL }}
+          PASSWORD_RESET_TOKEN_EXPIRY_MINUTES=${{ vars.PASSWORD_RESET_TOKEN_EXPIRY_MINUTES }}
+          SMTP_HOST=${{ vars.SMTP_HOST }}
+          SMTP_PORT=${{ vars.SMTP_PORT }}
+          SMTP_ENABLE_SSL=${{ vars.SMTP_ENABLE_SSL }}
+          SMTP_USER=${{ vars.SMTP_USER }}
+          SMTP_PASS=${{ secrets.SMTP_PASS }}
+          SMTP_FROM_EMAIL=${{ vars.SMTP_FROM_EMAIL }}
+          SMTP_FROM_NAME=${{ vars.SMTP_FROM_NAME }}
+          EOF
+
       - name: Upload compose + schema to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "docker-compose.yml,.env,InvestindoEmNegocio/Infrastructure/Data/schema.full.sql"
+          source: "docker-compose.yml,.env.deploy,InvestindoEmNegocio/Infrastructure/Data/schema.full.sql"
           target: "/home/ubuntu/InvestindoEmNegocio"
 
       - name: Deploy backend + postgres on VPS
@@ -122,6 +146,7 @@ jobs:
             cd /home/ubuntu/InvestindoEmNegocio
             # ensure schema is in place for initdb
             mv -f /home/ubuntu/InvestindoEmNegocio/InvestindoEmNegocio/Infrastructure/Data/schema.full.sql /home/ubuntu/InvestindoEmNegocio/schema.full.sql || true
+            mv -f /home/ubuntu/InvestindoEmNegocio/.env.deploy /home/ubuntu/InvestindoEmNegocio/.env
             docker login ghcr.io -u ${{ secrets.GHCR_USER }} -p ${{ secrets.GHCR_TOKEN }}
             docker compose pull
             docker compose up -d --no-build
