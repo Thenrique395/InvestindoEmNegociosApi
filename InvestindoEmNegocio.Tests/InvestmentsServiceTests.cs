@@ -201,7 +201,7 @@ public class InvestmentsServiceTests
         var result = await sut.UpdatePositionAsync(
             userId,
             Guid.NewGuid(),
-            new CreateInvestmentPositionRequest(InvestmentType.ACOES, "PETR4", 1, 10, DateOnly.FromDateTime(DateTime.UtcNow), null, null, null),
+            new CreateInvestmentPositionRequest(InvestmentType.ACOES, "PETR4", 1, 10, DateOnly.FromDateTime(DateTime.UtcNow), string.Empty, string.Empty, string.Empty),
             CancellationToken.None);
 
         result.Should().BeNull();
@@ -211,7 +211,7 @@ public class InvestmentsServiceTests
     public async Task UpdatePositionAsync_Should_Update_When_Position_Exists()
     {
         var userId = Guid.NewGuid();
-        var position = new InvestmentPosition(userId, InvestmentType.ACOES, "PETR4", 1, 10, DateOnly.FromDateTime(DateTime.UtcNow), null, null, null);
+        var position = new InvestmentPosition(userId, InvestmentType.ACOES, "PETR4", 1, 10, DateOnly.FromDateTime(DateTime.UtcNow), string.Empty, string.Empty, string.Empty);
         var positionRepository = new Mock<IInvestmentPositionRepository>();
         positionRepository
             .Setup(x => x.GetByIdAsync(position.Id, userId, It.IsAny<CancellationToken>()))
@@ -249,7 +249,7 @@ public class InvestmentsServiceTests
     public async Task DeletePositionAsync_Should_Remove_And_Return_True_When_Position_Exists()
     {
         var userId = Guid.NewGuid();
-        var position = new InvestmentPosition(userId, InvestmentType.ACOES, "PETR4", 2, 10, DateOnly.FromDateTime(DateTime.UtcNow), null, null, null);
+        var position = new InvestmentPosition(userId, InvestmentType.ACOES, "PETR4", 2, 10, DateOnly.FromDateTime(DateTime.UtcNow), string.Empty, string.Empty, string.Empty);
         var positionRepository = new Mock<IInvestmentPositionRepository>();
         positionRepository
             .Setup(x => x.GetByIdAsync(position.Id, userId, It.IsAny<CancellationToken>()))

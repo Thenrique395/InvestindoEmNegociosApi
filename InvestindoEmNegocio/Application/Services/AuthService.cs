@@ -4,6 +4,7 @@ using InvestindoEmNegocio.Domain.Repositories;
 using System.Security.Cryptography;
 using System.Text;
 using InvestindoEmNegocio.Domain.Entities;
+using InvestindoEmNegocio.Domain.Enums;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Net;
@@ -14,6 +15,7 @@ using BCryptNet = BCrypt.Net.BCrypt;
 
 public class AuthService(
     IUserRepository userRepository,
+    IAccountRepository accountRepository,
     IRefreshTokenRepository refreshTokenRepository,
     IPasswordResetTokenRepository passwordResetTokenRepository,
     IJwtTokenGenerator jwtTokenGenerator,
@@ -41,6 +43,7 @@ public class AuthService(
 
         await userRepository.AddAsync(user, cancellationToken);
         await userRepository.SaveChangesAsync(cancellationToken);
+        await EnsureDefaultAccountForBasicAsync(user, cancellationToken);
 
         _logger.LogInformation("User registered {UserId}", user.Id);
 
@@ -84,6 +87,9 @@ public class AuthService(
             user.ResetFailedLogins(now);
         }
 
+        // Backfill safety for migrated Basic users created before account-by-transaction model.
+        await EnsureDefaultAccountForBasicAsync(user, cancellationToken);
+
         user.UpdateLastLogin(now);
         // Como o UpdateLastLogin já atualiza UpdatedAt, apenas persistimos
         await userRepository.SaveChangesAsync(cancellationToken);
@@ -93,6 +99,28 @@ public class AuthService(
         var access = jwtTokenGenerator.Generate(user);
         var refresh = await IssueRefreshTokenAsync(user, cancellationToken);
         return new AuthResponse(user.Id, user.Name, user.Email, user.Role.ToString(), access.Token, refresh.Token, access.ExpiresAt);
+    }
+
+    private async Task EnsureDefaultAccountForBasicAsync(User user, CancellationToken cancellationToken)
+    {
+        if (user.Role != UserRole.Basic) return;
+
+        var accounts = await accountRepository.ListByUserAsync(user.Id, cancellationToken) ?? [];
+        if (accounts.Count == 0)
+        {
+            var account = new Account(user.Id, "Conta principal", AccountType.Checking, 0m);
+            await accountRepository.AddAsync(account, cancellationToken);
+            await accountRepository.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("Default account created for basic user {UserId}", user.Id);
+            return;
+        }
+
+        var firstActive = accounts.FirstOrDefault(a => a.IsActive);
+        if (firstActive is not null) return;
+
+        accounts[0].Activate();
+        await accountRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Default account reactivated for basic user {UserId}", user.Id);
     }
 
     public async Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request, CancellationToken cancellationToken = default)

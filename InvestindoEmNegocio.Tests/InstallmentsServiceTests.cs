@@ -143,14 +143,27 @@ public class InstallmentsServiceTests
         Mock<IMoneyInstallmentRepository>? installmentRepository = null,
         Mock<IMoneyPaymentRepository>? paymentRepository = null,
         Mock<IMoneyPlanRepository>? planRepository = null,
+        Mock<IUserRepository>? userRepository = null,
         Mock<IAccountRepository>? accountRepository = null,
         Mock<IAccountTransactionRepository>? accountTransactionRepository = null)
     {
+        var defaultUser = new User("User", "user@local", BCrypt.Net.BCrypt.HashPassword("Password123!"));
+        var userRepo = userRepository ?? new Mock<IUserRepository>();
+        userRepo
+            .Setup(x => x.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(defaultUser);
+
+        var accountRepo = accountRepository ?? new Mock<IAccountRepository>();
+        accountRepo
+            .Setup(x => x.ListByUserAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Guid userId, CancellationToken _) => [new Account(userId, "Conta principal", AccountType.Checking, 0m)]);
+
         return new InstallmentsService(
             installmentRepository?.Object ?? Mock.Of<IMoneyInstallmentRepository>(),
             paymentRepository?.Object ?? Mock.Of<IMoneyPaymentRepository>(),
             planRepository?.Object ?? Mock.Of<IMoneyPlanRepository>(),
-            accountRepository?.Object ?? Mock.Of<IAccountRepository>(),
+            userRepo.Object,
+            accountRepo.Object,
             accountTransactionRepository?.Object ?? Mock.Of<IAccountTransactionRepository>(),
             NullLogger<InstallmentsService>.Instance);
     }

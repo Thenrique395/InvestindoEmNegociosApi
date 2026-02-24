@@ -2,6 +2,7 @@ using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
+using InvestindoEmNegocio.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -24,6 +25,7 @@ public class AccountsController(IAccountsService accountsService) : ControllerBa
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] AccountRequest request, CancellationToken cancellationToken)
     {
+        EnsureAccountManagementAllowed();
         try
         {
             var userId = GetUserId();
@@ -39,6 +41,7 @@ public class AccountsController(IAccountsService accountsService) : ControllerBa
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] AccountRequest request, CancellationToken cancellationToken)
     {
+        EnsureAccountManagementAllowed();
         try
         {
             var userId = GetUserId();
@@ -55,6 +58,7 @@ public class AccountsController(IAccountsService accountsService) : ControllerBa
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
+        EnsureAccountManagementAllowed();
         var userId = GetUserId();
         var removed = await accountsService.DeleteAsync(userId, id, cancellationToken);
         if (!removed) return NotFound();
@@ -87,5 +91,18 @@ public class AccountsController(IAccountsService accountsService) : ControllerBa
     {
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
         return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Usuário não autenticado.");
+    }
+
+    private void EnsureAccountManagementAllowed()
+    {
+        var roleRaw = User.FindFirstValue(ClaimTypes.Role);
+        if (!Enum.TryParse<UserRole>(roleRaw, true, out var role))
+            throw new UnauthorizedAccessException("Perfil não identificado.");
+
+        if (role == UserRole.Basic)
+            throw new AppProblemException(
+                "Plano Basic",
+                "No plano Basic a conta principal é gerenciada automaticamente. Faça upgrade para criar ou editar contas.",
+                StatusCodes.Status403Forbidden);
     }
 }

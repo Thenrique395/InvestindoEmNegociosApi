@@ -13,6 +13,7 @@ public class InstallmentsService(
     IMoneyInstallmentRepository installmentRepository,
     IMoneyPaymentRepository paymentRepository,
     IMoneyPlanRepository planRepository,
+    IUserRepository userRepository,
     IAccountRepository accountRepository,
     IAccountTransactionRepository accountTransactionRepository,
     ILogger<InstallmentsService> logger)
@@ -40,22 +41,9 @@ public class InstallmentsService(
         var installment = await installmentRepository.GetByIdAsync(installmentId, cancellationToken);
         if (installment is null || installment.UserId != userId) return false;
 
-        Account? account = null;
-        if (request.AccountId.HasValue)
-        {
-            account = await accountRepository.GetByIdAsync(request.AccountId.Value, userId, cancellationToken);
-            if (account is null)
-            {
-                throw new AppProblemException("Conta inválida", "Conta informada não encontrada.", StatusCodes.Status400BadRequest);
-            }
+        var account = await ResolveAccountForPaymentAsync(userId, request.AccountId, cancellationToken);
 
-            if (!account.IsActive)
-            {
-                throw new AppProblemException("Conta inativa", "Ative a conta para registrar movimentações.", StatusCodes.Status400BadRequest);
-            }
-        }
-
-        var payment = new MoneyPayment(installmentId, userId, request.PaidAt.ToUniversalTime(), request.PaidAmount, request.MethodId, request.Note, request.AccountId);
+        var payment = new MoneyPayment(installmentId, userId, request.PaidAt.ToUniversalTime(), request.PaidAmount, request.MethodId, request.Note, account?.Id);
         await paymentRepository.AddAsync(payment, cancellationToken);
 
         if (account is not null)
@@ -89,6 +77,35 @@ public class InstallmentsService(
         await installmentRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Installment paid {UserId} {InstallmentId}", userId, installmentId);
         return true;
+    }
+
+    private async Task<Account?> ResolveAccountForPaymentAsync(Guid userId, Guid? requestedAccountId, CancellationToken cancellationToken)
+    {
+        var user = await userRepository.GetByIdAsync(userId, cancellationToken);
+        if (user is null)
+            throw new UnauthorizedAccessException("Usuário não encontrado.");
+
+        var activeAccounts = (await accountRepository.ListByUserAsync(userId, cancellationToken))
+            .Where(a => a.IsActive)
+            .ToList();
+
+        if (activeAccounts.Count == 0)
+            throw new AppProblemException("Conta obrigatória", "Nenhuma conta ativa encontrada para registrar a movimentação.", StatusCodes.Status400BadRequest);
+
+        if (user.Role == UserRole.Basic)
+            return activeAccounts[0];
+
+        if (!requestedAccountId.HasValue)
+            return activeAccounts[0];
+
+        var account = await accountRepository.GetByIdAsync(requestedAccountId.Value, userId, cancellationToken);
+        if (account is null)
+            throw new AppProblemException("Conta inválida", "Conta informada não encontrada.", StatusCodes.Status400BadRequest);
+
+        if (!account.IsActive)
+            throw new AppProblemException("Conta inativa", "Ative a conta para registrar movimentações.", StatusCodes.Status400BadRequest);
+
+        return account;
     }
 
     public async Task<bool> AnticipateAsync(Guid userId, Guid installmentId, AnticipationRequest request, CancellationToken cancellationToken = default)

@@ -242,6 +242,7 @@ public class AuthServiceTests
     {
         return new AuthService(
             userRepository?.Object ?? Mock.Of<IUserRepository>(),
+            Mock.Of<IAccountRepository>(),
             refreshTokenRepository?.Object ?? Mock.Of<IRefreshTokenRepository>(),
             passwordResetTokenRepository?.Object ?? Mock.Of<IPasswordResetTokenRepository>(),
             jwtTokenGenerator?.Object ?? CreateDefaultTokenGenerator().Object,
