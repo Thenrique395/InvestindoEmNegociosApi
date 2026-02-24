@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Linq;
+using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Repositories;
 using Microsoft.Extensions.Logging;
@@ -17,13 +18,20 @@ public sealed class ReminderRobotTask(
 {
     public string Name => "RoboLembretes";
 
-    public async Task<int> RunAsync(CancellationToken cancellationToken = default)
+    public async Task<RobotTaskExecutionResult> RunAsync(CancellationToken cancellationToken = default)
     {
         var users = await userRepository.ListAsync(cancellationToken);
-        if (users.Count == 0) return 0;
+        if (users.Count == 0)
+            return new RobotTaskExecutionResult(0, ZeroItemsReasonCode: "NO_USERS");
 
         var totalGenerated = 0;
+        var emailsAttempted = 0;
+        var emailsSent = 0;
+        var emailsFailed = 0;
         var todayUtc = DateTime.UtcNow.Date;
+        var activeUsersCount = users.Count(u => u.IsActive);
+        if (activeUsersCount == 0)
+            return new RobotTaskExecutionResult(0, ZeroItemsReasonCode: "NO_ACTIVE_USERS");
 
         foreach (var user in users.Where(u => u.IsActive))
         {
@@ -57,7 +65,9 @@ public sealed class ReminderRobotTask(
 
             try
             {
+                emailsAttempted++;
                 await emailSender.SendAsync(user.Email, subject, htmlBody, textBody, cancellationToken);
+                emailsSent++;
                 logger.LogInformation(
                     "RoboLembretes enviou resumo por e-mail para {Email} com {Count} lembrete(s).",
                     user.Email,
@@ -65,11 +75,18 @@ public sealed class ReminderRobotTask(
             }
             catch (Exception ex)
             {
+                emailsFailed++;
                 logger.LogError(ex, "RoboLembretes falhou ao enviar e-mail para {Email}.", user.Email);
             }
         }
 
-        return totalGenerated;
+        var zeroItemsReasonCode = totalGenerated == 0 ? "NO_NEW_NOTIFICATIONS" : null;
+        return new RobotTaskExecutionResult(
+            totalGenerated,
+            emailsAttempted,
+            emailsSent,
+            emailsFailed,
+            zeroItemsReasonCode);
     }
 
     private static string BuildHtmlBody(string userName, IReadOnlyList<Domain.Entities.UserNotification> notifications)

@@ -17,6 +17,11 @@ public sealed class AdminRobotsService(
             .OrderByDescending(x => x.StartedAt)
             .Take(maxTake)
             .ToListAsync(cancellationToken);
+        var from24h = DateTime.UtcNow.AddHours(-24);
+        var logs24h = await dbContext.RobotExecutionLogs
+            .AsNoTracking()
+            .Where(x => x.StartedAt >= from24h)
+            .ToListAsync(cancellationToken);
 
         var taskNames = robotTasks
             .Select(x => x.Name)
@@ -37,6 +42,12 @@ public sealed class AdminRobotsService(
                     lastRun?.FinishedAt,
                     lastRun?.Success,
                     lastRun?.ProcessedCount ?? 0,
+                    new RobotExecutionMetricsDto(
+                        lastRun?.ProcessedCount ?? 0,
+                        lastRun?.EmailsAttempted ?? 0,
+                        lastRun?.EmailsSent ?? 0,
+                        lastRun?.EmailsFailed ?? 0,
+                        lastRun?.ZeroItemsReasonCode),
                     lastRun?.Error);
             })
             .ToList();
@@ -49,10 +60,30 @@ public sealed class AdminRobotsService(
                 x.FinishedAt,
                 x.Success,
                 x.ProcessedCount,
+                new RobotExecutionMetricsDto(
+                    x.ProcessedCount,
+                    x.EmailsAttempted,
+                    x.EmailsSent,
+                    x.EmailsFailed,
+                    x.ZeroItemsReasonCode),
                 x.Error))
             .ToList();
 
-        return new RobotMonitorResponseDto(status, logs);
+        var totalRuns = logs24h.Count;
+        var successRuns = logs24h.Count(x => x.Success);
+        var failedRuns = totalRuns - successRuns;
+        var successRate = totalRuns == 0 ? 0m : Math.Round((decimal)successRuns * 100m / totalRuns, 1);
+        var summary24h = new RobotMonitorSummaryDto(
+            totalRuns,
+            successRuns,
+            failedRuns,
+            successRate,
+            logs24h.Sum(x => x.ProcessedCount),
+            logs24h.Sum(x => x.EmailsAttempted),
+            logs24h.Sum(x => x.EmailsSent),
+            logs24h.Sum(x => x.EmailsFailed));
+
+        return new RobotMonitorResponseDto(summary24h, status, logs);
     }
 
     public Task<RobotRunResultDto?> RunAsync(string robotName, CancellationToken cancellationToken = default) =>

@@ -40,14 +40,29 @@ public sealed class RobotRunner(
         var finishedAt = startedAt;
         var success = false;
         var processed = 0;
+        var emailsAttempted = 0;
+        var emailsSent = 0;
+        var emailsFailed = 0;
+        string? zeroItemsReasonCode = null;
         string? error = null;
 
         try
         {
             logger.LogInformation("Iniciando execução do robô {RobotName}.", robot.Name);
-            processed = await robot.RunAsync(cancellationToken);
+            var execution = await robot.RunAsync(cancellationToken);
+            processed = execution.ItemsGenerated;
+            emailsAttempted = execution.EmailsAttempted;
+            emailsSent = execution.EmailsSent;
+            emailsFailed = execution.EmailsFailed;
+            zeroItemsReasonCode = execution.ZeroItemsReasonCode;
             success = true;
-            logger.LogInformation("Robô {RobotName} finalizado. Itens processados: {Processed}.", robot.Name, processed);
+            logger.LogInformation(
+                "Robô {RobotName} finalizado. Itens: {Processed}, E-mails tentados: {EmailsAttempted}, enviados: {EmailsSent}, falhas: {EmailsFailed}.",
+                robot.Name,
+                processed,
+                emailsAttempted,
+                emailsSent,
+                emailsFailed);
         }
         catch (Exception ex)
         {
@@ -63,10 +78,26 @@ public sealed class RobotRunner(
                 finishedAt,
                 success,
                 processed,
+                emailsAttempted,
+                emailsSent,
+                emailsFailed,
+                zeroItemsReasonCode,
                 error));
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        return new RobotRunResultDto(robot.Name, startedAt, finishedAt, success, processed, error);
+        return new RobotRunResultDto(
+            robot.Name,
+            startedAt,
+            finishedAt,
+            success,
+            processed,
+            new RobotExecutionMetricsDto(
+                processed,
+                emailsAttempted,
+                emailsSent,
+                emailsFailed,
+                zeroItemsReasonCode),
+            error);
     }
 }

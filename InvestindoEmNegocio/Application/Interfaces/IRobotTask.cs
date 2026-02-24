@@ -1,7 +1,9 @@
+using InvestindoEmNegocio.Application.DTOs;
+
 namespace InvestindoEmNegocio.Application.Interfaces;
 
 public interface IRobotTask
 {
     string Name { get; }
-    Task<int> RunAsync(CancellationToken cancellationToken = default);
+    Task<RobotTaskExecutionResult> RunAsync(CancellationToken cancellationToken = default);
 }

@@ -36,6 +36,8 @@ public class AdminRobotsServiceTests
 
         var result = await sut.MonitorAsync(50, CancellationToken.None);
 
+        result.Summary24h.TotalRuns.Should().Be(1);
+        result.Summary24h.ItemsGenerated.Should().Be(12);
         result.Robots.Should().HaveCount(2);
         result.Robots.Should().Contain(x => x.RobotName == "ReminderRobot" && x.LastSuccess == true && x.LastProcessedCount == 12);
         result.Robots.Should().Contain(x => x.RobotName == "AnotherRobot" && x.LastSuccess == null);
@@ -47,7 +49,14 @@ public class AdminRobotsServiceTests
     public async Task RunAsync_Should_Delegate_To_Runner()
     {
         await using var dbContext = CreateDbContext();
-        var expected = new RobotRunResultDto("ReminderRobot", DateTime.UtcNow, DateTime.UtcNow.AddSeconds(1), true, 3, null);
+        var expected = new RobotRunResultDto(
+            "ReminderRobot",
+            DateTime.UtcNow,
+            DateTime.UtcNow.AddSeconds(1),
+            true,
+            3,
+            new RobotExecutionMetricsDto(3, 1, 1, 0, null),
+            null);
         var runner = new Mock<IRobotRunner>();
         runner
             .Setup(x => x.RunByNameAsync("ReminderRobot", It.IsAny<CancellationToken>()))
@@ -67,7 +76,7 @@ public class AdminRobotsServiceTests
         await using var dbContext = CreateDbContext();
         var expected = new List<RobotRunResultDto>
         {
-            new("ReminderRobot", DateTime.UtcNow, DateTime.UtcNow.AddSeconds(1), true, 1, null)
+            new("ReminderRobot", DateTime.UtcNow, DateTime.UtcNow.AddSeconds(1), true, 1, new RobotExecutionMetricsDto(1, 0, 0, 0, null), null)
         };
 
         var runner = new Mock<IRobotRunner>();
@@ -98,6 +107,7 @@ public class AdminRobotsServiceTests
     private sealed class FakeRobotTask(string name) : IRobotTask
     {
         public string Name { get; } = name;
-        public Task<int> RunAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
+        public Task<RobotTaskExecutionResult> RunAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(new RobotTaskExecutionResult(0));
     }
 }

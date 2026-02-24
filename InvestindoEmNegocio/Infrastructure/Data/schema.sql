@@ -40,6 +40,10 @@ CREATE TABLE IF NOT EXISTS robot_execution_logs (
     "FinishedAt" timestamp with time zone NOT NULL,
     "Success" boolean NOT NULL,
     "ProcessedCount" integer NOT NULL,
+    "EmailsAttempted" integer NOT NULL DEFAULT 0,
+    "EmailsSent" integer NOT NULL DEFAULT 0,
+    "EmailsFailed" integer NOT NULL DEFAULT 0,
+    "ZeroItemsReasonCode" character varying(100) NULL,
     "Error" character varying(2000) NULL,
     CONSTRAINT "PK_robot_execution_logs" PRIMARY KEY ("Id")
 );
@@ -99,6 +103,20 @@ CREATE UNIQUE INDEX IF NOT EXISTS "IX_password_reset_tokens_TokenHash"
 
 CREATE INDEX IF NOT EXISTS "IX_password_reset_tokens_UserId"
     ON password_reset_tokens ("UserId");
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'robot_execution_logs'
+    ) THEN
+        ALTER TABLE robot_execution_logs ADD COLUMN IF NOT EXISTS "EmailsAttempted" integer NOT NULL DEFAULT 0;
+        ALTER TABLE robot_execution_logs ADD COLUMN IF NOT EXISTS "EmailsSent" integer NOT NULL DEFAULT 0;
+        ALTER TABLE robot_execution_logs ADD COLUMN IF NOT EXISTS "EmailsFailed" integer NOT NULL DEFAULT 0;
+        ALTER TABLE robot_execution_logs ADD COLUMN IF NOT EXISTS "ZeroItemsReasonCode" character varying(100);
+    END IF;
+END $$;
 
 DO $$
 BEGIN

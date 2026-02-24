@@ -127,6 +127,10 @@ CREATE TABLE robot_execution_logs (
     "FinishedAt" timestamp with time zone NOT NULL,
     "Success" boolean NOT NULL,
     "ProcessedCount" integer NOT NULL,
+    "EmailsAttempted" integer NOT NULL DEFAULT 0,
+    "EmailsSent" integer NOT NULL DEFAULT 0,
+    "EmailsFailed" integer NOT NULL DEFAULT 0,
+    "ZeroItemsReasonCode" character varying(100),
     "Error" character varying(2000),
     CONSTRAINT "PK_robot_execution_logs" PRIMARY KEY ("Id")
 );

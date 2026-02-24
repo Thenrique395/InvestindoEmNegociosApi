@@ -28,6 +28,18 @@ public sealed class RobotExecutionLogConfiguration : IEntityTypeConfiguration<Ro
         builder.Property(x => x.ProcessedCount)
             .IsRequired();
 
+        builder.Property(x => x.EmailsAttempted)
+            .IsRequired();
+
+        builder.Property(x => x.EmailsSent)
+            .IsRequired();
+
+        builder.Property(x => x.EmailsFailed)
+            .IsRequired();
+
+        builder.Property(x => x.ZeroItemsReasonCode)
+            .HasMaxLength(100);
+
         builder.Property(x => x.Error)
             .HasMaxLength(2000);
 
