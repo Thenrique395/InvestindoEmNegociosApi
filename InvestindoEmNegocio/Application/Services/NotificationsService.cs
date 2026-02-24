@@ -161,6 +161,18 @@ public class NotificationsService(
             }
         }
 
+        if (settings.MonthSummaryEnabled)
+        {
+            var insight = await BuildCashflowInsightAsync(userId, today, culture, profile.FinancialGoal, cancellationToken);
+            if (insight is not null)
+            {
+                if (!await notificationRepository.ExistsAsync(userId, insight.ReferenceKey, cancellationToken))
+                {
+                    toCreate.Add(insight);
+                }
+            }
+        }
+
         if (settings.GoalBelowExpectedEnabled || settings.GoalCompletedEnabled || settings.GoalInactivityEnabled)
         {
             var goals = await goalRepository.ListByUserAsync(userId, null, null, cancellationToken);
@@ -261,5 +273,211 @@ public class NotificationsService(
     {
         var daysInMonth = DateTime.DaysInMonth(date.Year, date.Month);
         return date.Day == daysInMonth;
+    }
+
+    private async Task<UserNotification?> BuildCashflowInsightAsync(
+        Guid userId,
+        DateOnly today,
+        CultureInfo culture,
+        string? financialGoal,
+        CancellationToken cancellationToken)
+    {
+        var installments = await installmentRepository.ListByUserAsync(userId, null, null, null, null, cancellationToken);
+        if (installments.Count == 0) return null;
+
+        var planIds = installments.Select(i => i.PlanId).Distinct().ToList();
+        var plans = await planRepository.ListByUserAsync(userId, null, cancellationToken);
+        var planLookup = plans.Where(p => planIds.Contains(p.Id)).ToDictionary(p => p.Id);
+
+        var monthStart = new DateOnly(today.Year, today.Month, 1);
+        var monthEnd = new DateOnly(today.Year, today.Month, DateTime.DaysInMonth(today.Year, today.Month));
+        var monthInstallments = installments
+            .Where(i => i.DueDate >= monthStart && i.DueDate <= monthEnd)
+            .Where(i => planLookup.ContainsKey(i.PlanId))
+            .ToList();
+
+        if (monthInstallments.Count == 0) return null;
+
+        static bool IsReceivedStatus(InstallmentStatus status) =>
+            status is InstallmentStatus.Paid or InstallmentStatus.PartiallyPaid or InstallmentStatus.Anticipated;
+        static bool IsOpenStatus(InstallmentStatus status) =>
+            status is InstallmentStatus.Open or InstallmentStatus.PartiallyPaid;
+
+        var incomeReceived = monthInstallments
+            .Where(i => planLookup[i.PlanId].Type == MoneyType.Income &&
+                        IsReceivedStatus(i.Status))
+            .Sum(i => i.Amount);
+
+        var incomePending = monthInstallments
+            .Where(i => planLookup[i.PlanId].Type == MoneyType.Income &&
+                        i.Status is InstallmentStatus.Open)
+            .Sum(i => i.Amount);
+
+        var expenseTotal = monthInstallments
+            .Where(i => planLookup[i.PlanId].Type == MoneyType.Expense)
+            .Sum(i => i.Amount);
+
+        var openExpenses = monthInstallments
+            .Where(i => planLookup[i.PlanId].Type == MoneyType.Expense && IsOpenStatus(i.Status))
+            .ToList();
+        var openIncomes = monthInstallments
+            .Where(i => planLookup[i.PlanId].Type == MoneyType.Income && i.Status is InstallmentStatus.Open)
+            .ToList();
+
+        var overdueExpenses = openExpenses.Where(i => i.DueDate < today).ToList();
+        var overdueIncomes = openIncomes.Where(i => i.DueDate < today).ToList();
+        var dueSoonExpenses = openExpenses.Where(i => i.DueDate >= today && i.DueDate <= today.AddDays(5)).ToList();
+
+        if (incomePending <= 0m && expenseTotal <= 0m && overdueExpenses.Count == 0 && overdueIncomes.Count == 0) return null;
+
+        var coverage = expenseTotal > 0m ? (incomeReceived / expenseTotal) * 100m : 100m;
+        var projectedCoverage = expenseTotal > 0m ? ((incomeReceived + incomePending) / expenseTotal) * 100m : 100m;
+        var projected = incomeReceived + incomePending - expenseTotal;
+        var healthScore = CalculateHealthScore(
+            incomeReceived,
+            incomePending,
+            expenseTotal,
+            overdueExpenses.Count,
+            overdueIncomes.Count,
+            dueSoonExpenses.Sum(i => i.Amount),
+            projected);
+        var riskDay = EstimateRiskDay(today, monthEnd, incomeReceived, openIncomes, openExpenses);
+
+        var scenario = "stable";
+        var title = "Insight do mês";
+        var action = "Ação recomendada: revise receitas e despesas.";
+
+        if (overdueExpenses.Count > 0)
+        {
+            scenario = "critical-overdue-expenses";
+            title = "Ação imediata: despesas atrasadas";
+            action = "Ação recomendada: regularize primeiro as despesas vencidas.";
+        }
+        else if (projected < 0m)
+        {
+            scenario = "projected-deficit";
+            title = "Risco de fechar o mês no negativo";
+            action = "Ação recomendada: reduzir despesas ou antecipar receitas.";
+        }
+        else if (overdueIncomes.Count > 0)
+        {
+            scenario = "overdue-incomes";
+            title = "Receitas vencidas sem confirmação";
+            action = "Ação recomendada: confirme recebimentos em atraso.";
+        }
+        else if (incomeReceived <= 0m && incomePending > 0m && expenseTotal > 0m)
+        {
+            scenario = "pending-risk";
+            title = "Fluxo em risco: receitas pendentes";
+            action = "Ação recomendada: confirme recebimentos em Receitas.";
+        }
+        else if (incomeReceived <= 0m && expenseTotal > 0m)
+        {
+            scenario = "no-income";
+            title = "Sem receita recebida no mês";
+            action = "Ação recomendada: registre/receba receita para atualizar o saldo.";
+        }
+        else if (coverage < 100m && incomePending > 0m)
+        {
+            scenario = "partial-coverage";
+            title = "Cobertura parcial das despesas";
+            action = "Ação recomendada: priorize despesas críticas e confirme receitas pendentes.";
+        }
+        else if (incomePending > 0m)
+        {
+            scenario = "pending-confirmation";
+            title = "Receita pendente de confirmação";
+            action = "Ação recomendada: marque os recebimentos pendentes.";
+        }
+        else
+        {
+            return null;
+        }
+
+        var monthLabel = today.ToDateTime(TimeOnly.MinValue).ToString("MMMM", culture);
+        var objectiveSuffix = string.IsNullOrWhiteSpace(financialGoal) ? string.Empty : $" Objetivo: {financialGoal}.";
+        var riskDaySuffix = riskDay.HasValue ? $" Dia de risco: {riskDay:dd/MM}." : string.Empty;
+        var message =
+            $"{monthLabel}: recebidas {incomeReceived.ToString("N2", culture)}, pendentes {incomePending.ToString("N2", culture)}, despesas {expenseTotal.ToString("N2", culture)}. " +
+            $"Cobertura atual {coverage.ToString("N0", culture)}%, cobertura projetada {projectedCoverage.ToString("N0", culture)}%, saldo projetado {projected.ToString("N2", culture)} e saúde financeira {healthScore}/100. " +
+            $"Atrasos: {overdueExpenses.Count} despesa(s) e {overdueIncomes.Count} receita(s).{riskDaySuffix} {action}{objectiveSuffix}";
+
+        var referenceKey = $"cashflow-insight:{today:yyyyMMdd}:{scenario}";
+        return new UserNotification(
+            userId,
+            NotificationKind.CashflowInsight,
+            title,
+            message,
+            referenceKey,
+            null,
+            null,
+            null,
+            today);
+    }
+
+    private static int CalculateHealthScore(
+        decimal incomeReceived,
+        decimal incomePending,
+        decimal expenseTotal,
+        int overdueExpensesCount,
+        int overdueIncomesCount,
+        decimal dueSoonExpenseAmount,
+        decimal projectedBalance)
+    {
+        var score = 100;
+
+        if (overdueExpensesCount > 0)
+            score -= Math.Min(35, overdueExpensesCount * 12);
+
+        if (overdueIncomesCount > 0)
+            score -= Math.Min(20, overdueIncomesCount * 8);
+
+        if (incomeReceived <= 0m && incomePending > 0m)
+            score -= 20;
+
+        if (expenseTotal > 0m && incomeReceived > 0m && (incomeReceived / expenseTotal) < 0.6m)
+            score -= 15;
+
+        if (dueSoonExpenseAmount > incomeReceived && dueSoonExpenseAmount > 0m)
+            score -= 10;
+
+        if (projectedBalance < 0m)
+            score -= 20;
+
+        return Math.Clamp(score, 0, 100);
+    }
+
+    private static DateOnly? EstimateRiskDay(
+        DateOnly today,
+        DateOnly monthEnd,
+        decimal incomeReceived,
+        IReadOnlyList<MoneyInstallment> openIncomes,
+        IReadOnlyList<MoneyInstallment> openExpenses)
+    {
+        var runningBalance = incomeReceived;
+        var cashflow = new Dictionary<DateOnly, decimal>();
+
+        foreach (var income in openIncomes)
+        {
+            var day = income.DueDate < today ? today : income.DueDate;
+            cashflow[day] = cashflow.GetValueOrDefault(day) + income.Amount;
+        }
+
+        foreach (var expense in openExpenses)
+        {
+            var day = expense.DueDate < today ? today : expense.DueDate;
+            cashflow[day] = cashflow.GetValueOrDefault(day) - expense.Amount;
+        }
+
+        for (var day = today; day <= monthEnd; day = day.AddDays(1))
+        {
+            if (cashflow.TryGetValue(day, out var delta))
+                runningBalance += delta;
+
+            if (runningBalance < 0m)
+                return day;
+        }
+
+        return null;
     }
 }

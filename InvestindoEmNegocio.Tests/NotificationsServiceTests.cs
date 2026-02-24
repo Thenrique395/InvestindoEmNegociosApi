@@ -418,6 +418,162 @@ public class NotificationsServiceTests
         notificationRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
+    [Fact]
+    public async Task GenerateAsync_Should_Create_CashflowInsight_With_Critical_Overdue_Expenses()
+    {
+        var userId = Guid.NewGuid();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var profileRepository = new Mock<IUserProfileRepository>();
+        profileRepository
+            .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserProfile(userId, "User", "123", "81999999999", null));
+
+        var settingsRepository = new Mock<INotificationSettingsRepository>();
+        settingsRepository
+            .Setup(x => x.GetOrCreateAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new NotificationSettings(
+                incomeUpcomingEnabled: false,
+                incomeDaysBefore: 0,
+                expenseUpcomingEnabled: false,
+                expenseDaysBefore: 0,
+                expenseOverdueEnabled: false,
+                cardCloseSoonEnabled: false,
+                cardCloseDaysBefore: 0,
+                cardCloseDayEnabled: false,
+                monthCloseEnabled: false,
+                monthSummaryEnabled: true,
+                goalBelowExpectedEnabled: false,
+                goalCompletedEnabled: false,
+                goalInactivityEnabled: false,
+                goalInactivityDays: 0));
+
+        var overdueExpense = new MoneyInstallment(Guid.NewGuid(), userId, 1, today.AddDays(-3), 900m);
+        var pendingIncome = new MoneyInstallment(Guid.NewGuid(), userId, 1, today.AddDays(5), 1000m);
+        var installmentRepository = new Mock<IMoneyInstallmentRepository>();
+        installmentRepository
+            .Setup(x => x.ListByUserAsync(userId, null, null, null, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([overdueExpense, pendingIncome]);
+
+        var expensePlan = new MoneyPlan(userId, MoneyType.Expense, "Aluguel", 900m, ScheduleType.OneTime, today, null, 1);
+        typeof(MoneyPlan).GetProperty(nameof(MoneyPlan.Id))!.SetValue(expensePlan, overdueExpense.PlanId);
+        var incomePlan = new MoneyPlan(userId, MoneyType.Income, "Salário", 1000m, ScheduleType.OneTime, today, null, 1);
+        typeof(MoneyPlan).GetProperty(nameof(MoneyPlan.Id))!.SetValue(incomePlan, pendingIncome.PlanId);
+
+        var planRepository = new Mock<IMoneyPlanRepository>();
+        planRepository
+            .Setup(x => x.ListByUserAsync(userId, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([expensePlan, incomePlan]);
+
+        var notificationRepository = new Mock<IUserNotificationRepository>();
+        notificationRepository
+            .Setup(x => x.ExistsAsync(userId, It.Is<string>(key => key.StartsWith("month-summary:")), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        notificationRepository
+            .Setup(x => x.ExistsAsync(userId, It.Is<string>(key => !key.StartsWith("month-summary:")), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var sut = BuildSut(
+            notificationRepository: notificationRepository,
+            installmentRepository: installmentRepository,
+            planRepository: planRepository,
+            profileRepository: profileRepository,
+            settingsRepository: settingsRepository);
+
+        var generated = await sut.GenerateAsync(userId, CancellationToken.None);
+
+        generated.Should().Be(1);
+        notificationRepository.Verify(
+            x => x.AddRangeAsync(It.Is<IReadOnlyList<UserNotification>>(n =>
+                n.Count == 1 &&
+                n[0].Kind == NotificationKind.CashflowInsight &&
+                n[0].Title == "Ação imediata: despesas atrasadas" &&
+                n[0].Message.Contains("saúde financeira", StringComparison.OrdinalIgnoreCase) &&
+                n[0].Message.Contains("Atrasos: 1 despesa(s) e 0 receita(s).")),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task GenerateAsync_Should_Create_CashflowInsight_With_Projected_Deficit_And_Risk_Day()
+    {
+        var userId = Guid.NewGuid();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var profileRepository = new Mock<IUserProfileRepository>();
+        profileRepository
+            .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserProfile(userId, "User", "123", "81999999999", null));
+
+        var settingsRepository = new Mock<INotificationSettingsRepository>();
+        settingsRepository
+            .Setup(x => x.GetOrCreateAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new NotificationSettings(
+                incomeUpcomingEnabled: false,
+                incomeDaysBefore: 0,
+                expenseUpcomingEnabled: false,
+                expenseDaysBefore: 0,
+                expenseOverdueEnabled: false,
+                cardCloseSoonEnabled: false,
+                cardCloseDaysBefore: 0,
+                cardCloseDayEnabled: false,
+                monthCloseEnabled: false,
+                monthSummaryEnabled: true,
+                goalBelowExpectedEnabled: false,
+                goalCompletedEnabled: false,
+                goalInactivityEnabled: false,
+                goalInactivityDays: 0));
+
+        var receivedIncome = new MoneyInstallment(Guid.NewGuid(), userId, 1, today, 100m);
+        SetInstallmentStatus(receivedIncome, InstallmentStatus.Paid);
+        var openExpense = new MoneyInstallment(Guid.NewGuid(), userId, 1, today.AddDays(1), 600m);
+        var openIncome = new MoneyInstallment(Guid.NewGuid(), userId, 1, today.AddDays(10), 100m);
+
+        var installmentRepository = new Mock<IMoneyInstallmentRepository>();
+        installmentRepository
+            .Setup(x => x.ListByUserAsync(userId, null, null, null, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([receivedIncome, openExpense, openIncome]);
+
+        var incomePlan = new MoneyPlan(userId, MoneyType.Income, "Salário", 100m, ScheduleType.OneTime, today, null, 1);
+        typeof(MoneyPlan).GetProperty(nameof(MoneyPlan.Id))!.SetValue(incomePlan, receivedIncome.PlanId);
+        var expensePlan = new MoneyPlan(userId, MoneyType.Expense, "Cartão", 600m, ScheduleType.OneTime, today, null, 1);
+        typeof(MoneyPlan).GetProperty(nameof(MoneyPlan.Id))!.SetValue(expensePlan, openExpense.PlanId);
+        var openIncomePlan = new MoneyPlan(userId, MoneyType.Income, "Freela", 100m, ScheduleType.OneTime, today, null, 1);
+        typeof(MoneyPlan).GetProperty(nameof(MoneyPlan.Id))!.SetValue(openIncomePlan, openIncome.PlanId);
+
+        var planRepository = new Mock<IMoneyPlanRepository>();
+        planRepository
+            .Setup(x => x.ListByUserAsync(userId, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([incomePlan, expensePlan, openIncomePlan]);
+
+        var notificationRepository = new Mock<IUserNotificationRepository>();
+        notificationRepository
+            .Setup(x => x.ExistsAsync(userId, It.Is<string>(key => key.StartsWith("month-summary:")), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        notificationRepository
+            .Setup(x => x.ExistsAsync(userId, It.Is<string>(key => !key.StartsWith("month-summary:")), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var sut = BuildSut(
+            notificationRepository: notificationRepository,
+            installmentRepository: installmentRepository,
+            planRepository: planRepository,
+            profileRepository: profileRepository,
+            settingsRepository: settingsRepository);
+
+        var generated = await sut.GenerateAsync(userId, CancellationToken.None);
+
+        generated.Should().Be(1);
+        notificationRepository.Verify(
+            x => x.AddRangeAsync(It.Is<IReadOnlyList<UserNotification>>(n =>
+                n.Count == 1 &&
+                n[0].Kind == NotificationKind.CashflowInsight &&
+                n[0].Title == "Risco de fechar o mês no negativo" &&
+                n[0].Message.Contains("Dia de risco:", StringComparison.OrdinalIgnoreCase)),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
     private static NotificationsService BuildSut(
         Mock<IUserNotificationRepository>? notificationRepository = null,
         Mock<IMoneyInstallmentRepository>? installmentRepository = null,
@@ -437,5 +593,10 @@ public class NotificationsServiceTests
             cardRepository?.Object ?? Mock.Of<ICardRepository>(),
             goalRepository?.Object ?? Mock.Of<IGoalRepository>(),
             goalContributionRepository?.Object ?? Mock.Of<IGoalContributionRepository>());
+    }
+
+    private static void SetInstallmentStatus(MoneyInstallment installment, InstallmentStatus status)
+    {
+        typeof(MoneyInstallment).GetProperty(nameof(MoneyInstallment.Status))!.SetValue(installment, status);
     }
 }

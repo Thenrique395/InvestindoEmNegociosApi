@@ -13,5 +13,6 @@ public enum NotificationKind
     GoalCompleted = 8,
     GoalInactive = 9,
     Upcoming = 10,
-    Overdue = 11
+    Overdue = 11,
+    CashflowInsight = 12
 }
