@@ -158,10 +158,22 @@ public class InstallmentsServiceTests
             .Setup(x => x.ListByUserAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Guid userId, CancellationToken _) => [new Account(userId, "Conta principal", AccountType.Checking, 0m)]);
 
+        var effectivePlanRepository = planRepository ?? new Mock<IMoneyPlanRepository>();
+        effectivePlanRepository
+            .Setup(x => x.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Guid _, Guid userId, CancellationToken _) =>
+                new MoneyPlan(
+                    userId,
+                    MoneyType.Expense,
+                    "Plano teste",
+                    100m,
+                    ScheduleType.OneTime,
+                    DateOnly.FromDateTime(DateTime.UtcNow.Date)));
+
         return new InstallmentsService(
             installmentRepository?.Object ?? Mock.Of<IMoneyInstallmentRepository>(),
             paymentRepository?.Object ?? Mock.Of<IMoneyPaymentRepository>(),
-            planRepository?.Object ?? Mock.Of<IMoneyPlanRepository>(),
+            effectivePlanRepository.Object,
             userRepo.Object,
             accountRepo.Object,
             accountTransactionRepository?.Object ?? Mock.Of<IAccountTransactionRepository>(),
