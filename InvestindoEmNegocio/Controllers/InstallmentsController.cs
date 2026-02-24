@@ -49,6 +49,26 @@ public class InstallmentsController(IInstallmentsService installmentsService, IA
         return Ok();
     }
 
+    [HttpGet("{id:guid}/payments")]
+    // Lista pagamentos de uma parcela, incluindo indicador de elegibilidade para estorno.
+    public async Task<IActionResult> ListPayments(Guid id, CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        var payments = await installmentsService.ListPaymentsAsync(userId, id, cancellationToken);
+        if (payments is null) return NotFound();
+        return Ok(payments);
+    }
+
+    [HttpPost("{id:guid}/payments/{paymentId:guid}/reversals")]
+    // Estorna um pagamento já lançado, gerando ajuste de saldo e recalculando o status da parcela.
+    public async Task<IActionResult> ReversePayment(Guid id, Guid paymentId, [FromBody] PaymentReversalRequest? request, CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        var reversed = await installmentsService.ReversePaymentAsync(userId, id, paymentId, request ?? new PaymentReversalRequest(), cancellationToken);
+        if (!reversed) return NotFound();
+        return Ok();
+    }
+
     [HttpPost("{id:guid}/anticipations")]
     // Antecipar uma parcela futura: move vencimento para a data informada, marca status e registra data original.
     public async Task<IActionResult> Anticipate(Guid id, [FromBody] AnticipationRequest request, CancellationToken cancellationToken)

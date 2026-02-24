@@ -36,6 +36,47 @@ public class InstallmentsService(
             i.StatementDueDate)).ToList();
     }
 
+    public async Task<IReadOnlyList<InstallmentPaymentResponse>?> ListPaymentsAsync(Guid userId, Guid installmentId, CancellationToken cancellationToken = default)
+    {
+        var installment = await installmentRepository.GetByIdAsync(installmentId, cancellationToken);
+        if (installment is null || installment.UserId != userId) return null;
+
+        var payments = await paymentRepository.ListByInstallmentIdAsync(installmentId, cancellationToken);
+        if (payments.Count == 0) return [];
+
+        var positivePaymentIds = payments
+            .Where(p => p.PaidAmount > 0)
+            .Select(p => p.Id)
+            .ToList();
+
+        var reversals = await accountTransactionRepository.ListBySourceAsync(
+            userId,
+            "InstallmentPaymentReversal",
+            positivePaymentIds,
+            cancellationToken) ?? [];
+        var reversedIds = reversals
+            .Select(r => r.SourceId)
+            .Distinct()
+            .ToHashSet();
+
+        return payments
+            .OrderByDescending(p => p.PaidAt)
+            .Select(p =>
+            {
+                var isReversal = p.PaidAmount < 0;
+                var canReverse = p.PaidAmount > 0 && !reversedIds.Contains(p.Id);
+                return new InstallmentPaymentResponse(
+                    p.Id,
+                    p.PaidAt,
+                    p.PaidAmount,
+                    p.MethodId,
+                    p.Note,
+                    isReversal,
+                    canReverse);
+            })
+            .ToList();
+    }
+
     public async Task<bool> PayAsync(Guid userId, Guid installmentId, PaymentRequest request, CancellationToken cancellationToken = default)
     {
         var installment = await installmentRepository.GetByIdAsync(installmentId, cancellationToken);
@@ -79,6 +120,80 @@ public class InstallmentsService(
         return true;
     }
 
+    public async Task<bool> ReversePaymentAsync(
+        Guid userId,
+        Guid installmentId,
+        Guid paymentId,
+        PaymentReversalRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var installment = await installmentRepository.GetByIdAsync(installmentId, cancellationToken);
+        if (installment is null || installment.UserId != userId) return false;
+
+        var payment = await paymentRepository.GetByIdAsync(paymentId, userId, cancellationToken);
+        if (payment is null || payment.InstallmentId != installmentId) return false;
+
+        if (payment.PaidAmount <= 0)
+            throw new AppProblemException("Pagamento inválido", "Somente pagamentos positivos podem ser estornados.", StatusCodes.Status400BadRequest);
+
+        var existingReversalTransactions = await accountTransactionRepository.ListBySourceAsync(
+            userId,
+            "InstallmentPaymentReversal",
+            [paymentId],
+            cancellationToken) ?? [];
+        if (existingReversalTransactions.Count > 0)
+            throw new AppProblemException("Pagamento já estornado", "Já existe estorno para esse pagamento.", StatusCodes.Status400BadRequest);
+
+        var reversedAt = (request.ReversedAt ?? DateTime.UtcNow).ToUniversalTime();
+        var reversalNote = string.IsNullOrWhiteSpace(request.Note)
+            ? $"Estorno do pagamento {paymentId}"
+            : request.Note.Trim();
+
+        var reversalPayment = new MoneyPayment(
+            installmentId,
+            userId,
+            reversedAt,
+            -payment.PaidAmount,
+            payment.MethodId,
+            reversalNote,
+            payment.AccountId);
+        await paymentRepository.AddAsync(reversalPayment, cancellationToken);
+
+        if (payment.AccountId.HasValue)
+        {
+            var account = await accountRepository.GetByIdAsync(payment.AccountId.Value, userId, cancellationToken);
+            if (account is not null)
+            {
+                var plan = await planRepository.GetByIdAsync(installment.PlanId, userId, cancellationToken);
+                if (plan is null)
+                    throw new AppProblemException("Plano inválido", "Plano da parcela não encontrado.", StatusCodes.Status400BadRequest);
+
+                var reversalKind = plan.Type == MoneyType.Income
+                    ? AccountTransactionKind.Debit
+                    : AccountTransactionKind.Credit;
+
+                var reversalTransaction = new AccountTransaction(
+                    account.Id,
+                    userId,
+                    reversedAt,
+                    reversalKind,
+                    payment.PaidAmount,
+                    $"Estorno pagamento parcela {installment.InstallmentNo} - {plan.Title}",
+                    "InstallmentPaymentReversal",
+                    paymentId);
+
+                await accountTransactionRepository.AddAsync(reversalTransaction, cancellationToken);
+            }
+        }
+
+        await paymentRepository.SaveChangesAsync(cancellationToken);
+        await UpdateInstallmentStatusAsync(installment, cancellationToken);
+        await installmentRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Installment payment reversed {UserId} {InstallmentId} {PaymentId}", userId, installmentId, paymentId);
+        return true;
+    }
+
     private async Task<Account?> ResolveAccountForPaymentAsync(Guid userId, Guid? requestedAccountId, CancellationToken cancellationToken)
     {
         var user = await userRepository.GetByIdAsync(userId, cancellationToken);
@@ -93,10 +208,18 @@ public class InstallmentsService(
             throw new AppProblemException("Conta obrigatória", "Nenhuma conta ativa encontrada para registrar a movimentação.", StatusCodes.Status400BadRequest);
 
         if (user.Role == UserRole.Basic)
-            return activeAccounts[0];
+            return SelectDefaultAccount(activeAccounts);
 
         if (!requestedAccountId.HasValue)
-            return activeAccounts[0];
+        {
+            if (activeAccounts.Count == 1)
+                return activeAccounts[0];
+
+            throw new AppProblemException(
+                "Conta obrigatória",
+                "Selecione a conta para registrar o pagamento.",
+                StatusCodes.Status400BadRequest);
+        }
 
         var account = await accountRepository.GetByIdAsync(requestedAccountId.Value, userId, cancellationToken);
         if (account is null)
@@ -106,6 +229,15 @@ public class InstallmentsService(
             throw new AppProblemException("Conta inativa", "Ative a conta para registrar movimentações.", StatusCodes.Status400BadRequest);
 
         return account;
+    }
+
+    private static Account SelectDefaultAccount(List<Account> activeAccounts)
+    {
+        return activeAccounts
+            .OrderBy(a => a.CreatedAt)
+            .ThenBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(a => a.Id)
+            .First();
     }
 
     public async Task<bool> AnticipateAsync(Guid userId, Guid installmentId, AnticipationRequest request, CancellationToken cancellationToken = default)

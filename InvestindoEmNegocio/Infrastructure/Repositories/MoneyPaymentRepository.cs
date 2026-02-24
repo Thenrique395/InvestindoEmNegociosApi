@@ -7,6 +7,12 @@ namespace InvestindoEmNegocio.Infrastructure.Repositories;
 
 public class MoneyPaymentRepository(InvestDbContext context) : IMoneyPaymentRepository
 {
+    public async Task<MoneyPayment?> GetByIdAsync(Guid paymentId, Guid userId, CancellationToken cancellationToken = default)
+    {
+        return await context.MoneyPayments
+            .FirstOrDefaultAsync(p => p.Id == paymentId && p.UserId == userId, cancellationToken);
+    }
+
     public async Task<List<MoneyPayment>> ListByInstallmentIdAsync(Guid installmentId, CancellationToken cancellationToken = default)
     {
         return await context.MoneyPayments

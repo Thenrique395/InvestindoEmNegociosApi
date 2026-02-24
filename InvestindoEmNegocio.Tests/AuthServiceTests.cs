@@ -29,6 +29,34 @@ public class AuthServiceTests
     }
 
     [Fact]
+    public async Task RegisterAsync_Should_Create_Default_Account_For_Basic_User_When_Base_Is_Empty()
+    {
+        var userRepository = new Mock<IUserRepository>();
+        userRepository
+            .Setup(x => x.EmailExistsAsync("user@local", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var accountRepository = new Mock<IAccountRepository>();
+        accountRepository
+            .Setup(x => x.ListByUserAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var sut = BuildSut(userRepository: userRepository, accountRepository: accountRepository);
+
+        var response = await sut.RegisterAsync(
+            new RegisterUserRequest("User", "user@local", "Password123!"),
+            CancellationToken.None);
+
+        response.Role.Should().Be("Basic");
+        accountRepository.Verify(
+            x => x.AddAsync(
+                It.Is<Account>(a => a.UserId == response.UserId && a.Name == "Conta principal" && a.IsActive),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        accountRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task LoginAsync_Should_Throw_When_Password_Is_Invalid_And_Persist_Attempt()
     {
         var passwordHash = BCrypt.Net.BCrypt.HashPassword("Password123!");
@@ -235,6 +263,7 @@ public class AuthServiceTests
 
     private static AuthService BuildSut(
         Mock<IUserRepository>? userRepository = null,
+        Mock<IAccountRepository>? accountRepository = null,
         Mock<IRefreshTokenRepository>? refreshTokenRepository = null,
         Mock<IPasswordResetTokenRepository>? passwordResetTokenRepository = null,
         Mock<IJwtTokenGenerator>? jwtTokenGenerator = null,
@@ -242,7 +271,7 @@ public class AuthServiceTests
     {
         return new AuthService(
             userRepository?.Object ?? Mock.Of<IUserRepository>(),
-            Mock.Of<IAccountRepository>(),
+            accountRepository?.Object ?? Mock.Of<IAccountRepository>(),
             refreshTokenRepository?.Object ?? Mock.Of<IRefreshTokenRepository>(),
             passwordResetTokenRepository?.Object ?? Mock.Of<IPasswordResetTokenRepository>(),
             jwtTokenGenerator?.Object ?? CreateDefaultTokenGenerator().Object,
