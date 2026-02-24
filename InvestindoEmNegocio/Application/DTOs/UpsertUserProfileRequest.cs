@@ -9,4 +9,5 @@ public record UpsertUserProfileRequest(
     string City,
     string State,
     string Country,
+    string FinancialGoal,
     string Language);

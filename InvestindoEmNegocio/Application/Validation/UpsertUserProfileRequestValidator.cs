@@ -17,7 +17,10 @@ public class UpsertUserProfileRequestValidator : AbstractValidator<UpsertUserPro
 
         RuleFor(x => x.Phone)
             .NotEmpty().WithMessage("Telefone é obrigatório.")
-            .Matches(@"^\+\d{2}\s\d{2}\s\d{9}$").WithMessage("Telefone deve estar no formato +55 81 999999999.");
+            .Matches(@"^(\(\d{2}\)\s\d{5}-\d{4}|\+\d{2}\s\d{2}\s\d{9})$").WithMessage("Telefone deve estar no formato (81) 99525-7823.");
+
+        RuleFor(x => x.FinancialGoal)
+            .MaximumLength(80).WithMessage("Objetivo financeiro deve ter no máximo 80 caracteres.");
     }
 
     private bool BeDigits11(string document)

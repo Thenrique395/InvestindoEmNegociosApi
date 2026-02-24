@@ -10,6 +10,7 @@ public record UserProfileDto(
     string City,
     string State,
     string Country,
+    string FinancialGoal,
     string Language,
     string Currency,
     List<string> Locales);

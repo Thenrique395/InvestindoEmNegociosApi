@@ -14,6 +14,7 @@ public class UserProfile
     public string City { get; private set; } = string.Empty;
     public string State { get; private set; } = string.Empty;
     public string Country { get; private set; } = string.Empty;
+    public string FinancialGoal { get; private set; } = string.Empty;
     public string Language { get; private set; } = "pt-BR";
     public string Currency { get; private set; } = "BRL";
     public bool NotifyUpcomingEnabled { get; private set; } = true;
@@ -26,13 +27,13 @@ public class UserProfile
 
     private UserProfile() { }
 
-    public UserProfile(Guid userId, string fullName, string document, string phone, DateTime? birthDate, string avatarUrl = "", string city = "", string state = "", string country = "", string language = "pt-BR", string currency = "BRL")
+    public UserProfile(Guid userId, string fullName, string document, string phone, DateTime? birthDate, string avatarUrl = "", string city = "", string state = "", string country = "", string language = "pt-BR", string currency = "BRL", string financialGoal = "")
     {
         UserId = userId;
-        SetData(fullName, document, phone, birthDate, avatarUrl, city, state, country, language, currency);
+        SetData(fullName, document, phone, birthDate, avatarUrl, city, state, country, language, currency, financialGoal);
     }
 
-    public void SetData(string fullName, string document, string phone, DateTime? birthDate, string avatarUrl = "", string city = "", string state = "", string country = "", string language = "pt-BR", string currency = "BRL")
+    public void SetData(string fullName, string document, string phone, DateTime? birthDate, string avatarUrl = "", string city = "", string state = "", string country = "", string language = "pt-BR", string currency = "BRL", string financialGoal = "")
     {
         FullName = fullName.Trim();
         Document = SanitizeDocument(document);
@@ -42,6 +43,7 @@ public class UserProfile
         City = city?.Trim() ?? string.Empty;
         State = state?.Trim() ?? string.Empty;
         Country = country?.Trim() ?? string.Empty;
+        FinancialGoal = financialGoal?.Trim() ?? string.Empty;
         Language = string.IsNullOrWhiteSpace(language) ? "pt-BR" : language.Trim();
         Currency = string.IsNullOrWhiteSpace(currency) ? "BRL" : currency.Trim().ToUpperInvariant();
         UpdatedAt = DateTime.UtcNow;
@@ -66,13 +68,13 @@ public class UserProfile
     private static string SanitizePhone(string phone)
     {
         var digits = new string(phone.Where(char.IsDigit).ToArray());
-        if (digits.Length != 13)
-            return phone.Trim();
+        if (digits.Length == 13 && digits.StartsWith("55"))
+            digits = digits.Substring(2);
 
-        var country = digits.Substring(0, 2);
-        var area = digits.Substring(2, 2);
-        var number = digits.Substring(4);
-        return $"+{country} {area} {number}";
+        if (digits.Length == 11)
+            return $"({digits.Substring(0, 2)}) {digits.Substring(2, 5)}-{digits.Substring(7, 4)}";
+
+        return phone.Trim();
     }
 
     private static DateTime? NormalizeDate(DateTime? date)

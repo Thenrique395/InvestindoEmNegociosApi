@@ -49,6 +49,7 @@ public sealed record UserProfileData(
     string City,
     string State,
     string Country,
+    string FinancialGoal,
     string Language,
     string Currency,
     bool NotifyUpcomingEnabled,

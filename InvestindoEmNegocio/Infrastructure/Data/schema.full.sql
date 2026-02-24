@@ -170,6 +170,7 @@ CREATE TABLE user_profiles (
     "City" character varying(120),
     "State" character varying(80),
     "Country" character varying(120),
+    "FinancialGoal" character varying(80),
     "Language" character varying(10),
     "Currency" character varying(10),
     "NotifyUpcomingEnabled" boolean NOT NULL,

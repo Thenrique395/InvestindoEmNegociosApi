@@ -235,6 +235,7 @@ BEGIN
         ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS "NotifyEmailEnabled" boolean NOT NULL DEFAULT FALSE;
         ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS "NotifyInAppEnabled" boolean NOT NULL DEFAULT TRUE;
         ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS "NotifyDaysBeforeDue" integer NOT NULL DEFAULT 3;
+        ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS "FinancialGoal" character varying(80);
     END IF;
 END $$;
 

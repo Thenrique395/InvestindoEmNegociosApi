@@ -143,7 +143,7 @@ public class MoreControllersSmokeTests
         profileController.ControllerContext.HttpContext.Request.Scheme = "https";
         profileController.ControllerContext.HttpContext.Request.Host = new HostString("example.com");
         (await profileController.Get(CancellationToken.None)).Result.Should().BeOfType<NoContentResult>();
-        (await profileController.Upsert(new UpsertUserProfileRequest("A", "1", "2", null, string.Empty, string.Empty, string.Empty, string.Empty, "pt-BR"), CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
+        (await profileController.Upsert(new UpsertUserProfileRequest("A", "1", "2", null, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, "pt-BR"), CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
         (await profileController.UploadAvatar(new UploadAvatarRequest { Avatar = BuildFormFile("image/png") }, CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
 
         var contrib = new Mock<IGoalContributionsService>();

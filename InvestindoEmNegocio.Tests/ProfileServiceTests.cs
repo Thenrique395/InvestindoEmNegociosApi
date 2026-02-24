@@ -50,6 +50,7 @@ public class ProfileServiceTests
 
         result.UserId.Should().Be(userId);
         result.FullName.Should().Be("Henrique Santos");
+        result.FinancialGoal.Should().Be("comecar-investir");
         repository.Verify(x => x.AddAsync(It.IsAny<UserProfile>(), It.IsAny<CancellationToken>()), Times.Once);
         repository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -140,6 +141,7 @@ public class ProfileServiceTests
             "Recife",
             "PE",
             "Brasil",
+            "comecar-investir",
             "pt-BR");
 
     private static UserProfile NewProfile(Guid userId) =>

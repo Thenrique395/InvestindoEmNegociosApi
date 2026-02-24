@@ -36,6 +36,9 @@ public class UserProfileConfiguration : IEntityTypeConfiguration<UserProfile>
         builder.Property(x => x.Country)
             .IsRequired(false)
             .HasMaxLength(120);
+        builder.Property(x => x.FinancialGoal)
+            .IsRequired(false)
+            .HasMaxLength(80);
         builder.Property(x => x.Language)
             .IsRequired(false)
             .HasMaxLength(10);

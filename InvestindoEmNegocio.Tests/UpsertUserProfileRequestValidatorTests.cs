@@ -20,6 +20,7 @@ public class UpsertUserProfileRequestValidatorTests
             City: "Recife",
             State: "PE",
             Country: "Brasil",
+            FinancialGoal: "comecar-investir",
             Language: "pt-BR");
 
         var result = _sut.Validate(request);
@@ -39,6 +40,7 @@ public class UpsertUserProfileRequestValidatorTests
             City: "",
             State: "",
             Country: "",
+            FinancialGoal: "",
             Language: "");
 
         var result = _sut.Validate(request);
@@ -47,5 +49,27 @@ public class UpsertUserProfileRequestValidatorTests
         result.Errors.Select(e => e.ErrorMessage).Should().Contain(m => m.Contains("CPF deve ter exatamente 11 dígitos", StringComparison.Ordinal));
         result.Errors.Select(e => e.ErrorMessage).Should().Contain(m => m.Contains("Telefone deve estar no formato", StringComparison.Ordinal));
         result.Errors.Select(e => e.ErrorMessage).Should().Contain(m => m.Contains("Nome completo deve ter ao menos 3 caracteres", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validate_Should_Fail_When_FinancialGoal_Exceeds_Max_Length()
+    {
+        var request = new UpsertUserProfileRequest(
+            FullName: "Henrique Santos",
+            Document: "12345678901",
+            Phone: "(81) 99525-7823",
+            BirthDate: new DateTime(1990, 1, 1),
+            AvatarUrl: "",
+            City: "Recife",
+            State: "PE",
+            Country: "Brasil",
+            FinancialGoal: new string('a', 81),
+            Language: "pt-BR");
+
+        var result = _sut.Validate(request);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Select(e => e.ErrorMessage)
+            .Should().Contain(m => m.Contains("Objetivo financeiro deve ter no máximo 80 caracteres", StringComparison.Ordinal));
     }
 }
