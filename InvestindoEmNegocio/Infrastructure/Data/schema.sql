@@ -146,6 +146,17 @@ BEGIN
         ALTER TABLE robot_settings ADD COLUMN IF NOT EXISTS "DailyRunTimeUtc" character varying(5) NOT NULL DEFAULT '08:00';
         ALTER TABLE robot_settings ADD COLUMN IF NOT EXISTS "UpdatedAt" timestamp with time zone NOT NULL DEFAULT NOW();
     END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'money_installments'
+    ) THEN
+        ALTER TABLE money_installments ADD COLUMN IF NOT EXISTS "StatementYear" integer;
+        ALTER TABLE money_installments ADD COLUMN IF NOT EXISTS "StatementMonth" integer;
+        ALTER TABLE money_installments ADD COLUMN IF NOT EXISTS "StatementCloseDate" date;
+        ALTER TABLE money_installments ADD COLUMN IF NOT EXISTS "StatementDueDate" date;
+    END IF;
 END $$;
 
 DO $$

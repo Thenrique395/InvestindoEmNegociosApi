@@ -167,6 +167,50 @@ public class PlansServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_Should_Compute_Card_Statement_Competence_When_Card_Is_Informed()
+    {
+        var userId = Guid.NewGuid();
+        var cardId = Guid.NewGuid();
+        var cardRepository = new Mock<ICardRepository>();
+        cardRepository
+            .Setup(x => x.GetByIdAsync(cardId, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Card(
+                userId,
+                brandId: 1,
+                holderName: "Teste",
+                nickname: "Meu cartao",
+                last4: "1234",
+                bank: "Banco X",
+                creditLimit: 1000m,
+                statementCloseDay: 8,
+                dueDay: 15));
+
+        var installmentRepository = new Mock<IMoneyInstallmentRepository>();
+        var sut = BuildSut(installmentRepository: installmentRepository, cardRepository: cardRepository);
+
+        var request = new CreatePlanRequest(
+            MoneyType.Expense,
+            "Compra cartao",
+            250m,
+            ScheduleType.OneTime,
+            new DateOnly(2026, 2, 9),
+            Frequency: null,
+            InstallmentsCount: 1,
+            CardId: cardId);
+
+        await sut.CreateAsync(userId, request);
+
+        installmentRepository.Verify(x => x.AddAsync(
+            It.Is<MoneyInstallment>(i =>
+                i.StatementYear == 2026 &&
+                i.StatementMonth == 3 &&
+                i.StatementCloseDate == new DateOnly(2026, 3, 8) &&
+                i.StatementDueDate == new DateOnly(2026, 3, 15) &&
+                i.DueDate == new DateOnly(2026, 3, 15)),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task CreateAsync_Should_Throw_When_Installments_Has_Frequency()
     {
         var sut = BuildSut();
@@ -354,12 +398,14 @@ public class PlansServiceTests
     private static PlansService BuildSut(
         Mock<IMoneyPlanRepository>? planRepository = null,
         Mock<IMoneyInstallmentRepository>? installmentRepository = null,
-        Mock<IMoneyPaymentRepository>? paymentRepository = null)
+        Mock<IMoneyPaymentRepository>? paymentRepository = null,
+        Mock<ICardRepository>? cardRepository = null)
     {
         return new PlansService(
             planRepository?.Object ?? Mock.Of<IMoneyPlanRepository>(),
             installmentRepository?.Object ?? Mock.Of<IMoneyInstallmentRepository>(),
             paymentRepository?.Object ?? Mock.Of<IMoneyPaymentRepository>(),
+            cardRepository?.Object ?? Mock.Of<ICardRepository>(),
             NullLogger<PlansService>.Instance);
     }
 }

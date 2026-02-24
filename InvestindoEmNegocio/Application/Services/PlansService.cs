@@ -11,6 +11,7 @@ public class PlansService(
     IMoneyPlanRepository planRepository,
     IMoneyInstallmentRepository installmentRepository,
     IMoneyPaymentRepository paymentRepository,
+    ICardRepository cardRepository,
     ILogger<PlansService> logger)
     : IPlansService
 {
@@ -52,7 +53,17 @@ public class PlansService(
         if (plan is null) return null;
 
         var installments = await installmentRepository.ListByPlanAsync(id, userId, cancellationToken);
-        var responseInstallments = installments.Select(i => new InstallmentResponse(i.Id, i.PlanId, i.InstallmentNo, i.DueDate, i.Amount, i.Status)).ToList();
+        var responseInstallments = installments.Select(i => new InstallmentResponse(
+            i.Id,
+            i.PlanId,
+            i.InstallmentNo,
+            i.DueDate,
+            i.Amount,
+            i.Status,
+            i.StatementYear,
+            i.StatementMonth,
+            i.StatementCloseDate,
+            i.StatementDueDate)).ToList();
         return new PlanDetailsResponse(ToResponse(plan), responseInstallments);
     }
 
@@ -101,18 +112,26 @@ public class PlansService(
 
     private async Task GenerateInstallmentsAsync(MoneyPlan plan, CancellationToken cancellationToken)
     {
+        var card = plan.CardId.HasValue
+            ? await cardRepository.GetByIdAsync(plan.CardId.Value, plan.UserId, cancellationToken)
+            : null;
+        if (plan.CardId.HasValue && card is null)
+        {
+            throw new ArgumentException("Cartão informado não encontrado para o usuário.");
+        }
+
         switch (plan.Schedule)
         {
             case ScheduleType.OneTime:
-                await installmentRepository.AddAsync(new MoneyInstallment(plan.Id, plan.UserId, 1, plan.StartDate, plan.Amount), cancellationToken);
+                await installmentRepository.AddAsync(BuildInstallment(plan, 1, plan.StartDate, card), cancellationToken);
                 return;
             case ScheduleType.Installments when plan.InstallmentsCount.HasValue:
             {
                 var list = new List<MoneyInstallment>();
                 for (var i = 1; i <= plan.InstallmentsCount.Value; i++)
                 {
-                    var due = plan.StartDate.AddMonths(i - 1);
-                    list.Add(new MoneyInstallment(plan.Id, plan.UserId, i, due, plan.Amount));
+                    var purchaseDate = plan.StartDate.AddMonths(i - 1);
+                    list.Add(BuildInstallment(plan, i, purchaseDate, card));
                 }
                 await installmentRepository.AddRangeAsync(list, cancellationToken);
                 return;
@@ -122,8 +141,8 @@ public class PlansService(
                 var list = new List<MoneyInstallment>();
                 for (var i = 1; i <= 6; i++)
                 {
-                    var due = plan.StartDate.AddMonths(i - 1);
-                    list.Add(new MoneyInstallment(plan.Id, plan.UserId, i, due, plan.Amount));
+                    var purchaseDate = plan.StartDate.AddMonths(i - 1);
+                    list.Add(BuildInstallment(plan, i, purchaseDate, card));
                 }
                 await installmentRepository.AddRangeAsync(list, cancellationToken);
                 break;
@@ -131,6 +150,30 @@ public class PlansService(
             default:
                 throw new ArgumentOutOfRangeException();
         }
+    }
+
+    private static MoneyInstallment BuildInstallment(MoneyPlan plan, int installmentNo, DateOnly purchaseDate, Card? card)
+    {
+        if (card is null)
+        {
+            return new MoneyInstallment(plan.Id, plan.UserId, installmentNo, purchaseDate, plan.Amount);
+        }
+
+        var cycle = CardStatementCycleCalculator.Calculate(
+            purchaseDate,
+            card.StatementCloseDay,
+            card.DueDay);
+
+        return new MoneyInstallment(
+            plan.Id,
+            plan.UserId,
+            installmentNo,
+            cycle.StatementDueDate,
+            plan.Amount,
+            statementYear: cycle.StatementYear,
+            statementMonth: cycle.StatementMonth,
+            statementCloseDate: cycle.StatementCloseDate,
+            statementDueDate: cycle.StatementDueDate);
     }
 
     private static void ValidateSchedule(CreatePlanRequest request)

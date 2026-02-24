@@ -29,6 +29,12 @@ public class MoneyInstallmentConfiguration : IEntityTypeConfiguration<MoneyInsta
         builder.Property(i => i.OriginalDueDate)
             .HasColumnType("date");
 
+        builder.Property(i => i.StatementCloseDate)
+            .HasColumnType("date");
+
+        builder.Property(i => i.StatementDueDate)
+            .HasColumnType("date");
+
         builder.Property(i => i.CreatedAt).IsRequired();
         builder.Property(i => i.UpdatedAt).IsRequired();
 

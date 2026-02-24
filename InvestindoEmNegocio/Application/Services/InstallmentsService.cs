@@ -17,7 +17,17 @@ public class InstallmentsService(
     public async Task<IReadOnlyList<InstallmentResponse>> ListAsync(Guid userId, InstallmentStatus? status, DateOnly? from, DateOnly? to, MoneyType? type, CancellationToken cancellationToken = default)
     {
         var data = await installmentRepository.ListByUserAsync(userId, status, from, to, type, cancellationToken);
-        return data.Select(i => new InstallmentResponse(i.Id, i.PlanId, i.InstallmentNo, i.DueDate, i.Amount, i.Status)).ToList();
+        return data.Select(i => new InstallmentResponse(
+            i.Id,
+            i.PlanId,
+            i.InstallmentNo,
+            i.DueDate,
+            i.Amount,
+            i.Status,
+            i.StatementYear,
+            i.StatementMonth,
+            i.StatementCloseDate,
+            i.StatementDueDate)).ToList();
     }
 
     public async Task<bool> PayAsync(Guid userId, Guid installmentId, PaymentRequest request, CancellationToken cancellationToken = default)
