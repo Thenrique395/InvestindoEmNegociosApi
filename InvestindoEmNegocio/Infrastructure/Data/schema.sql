@@ -78,6 +78,14 @@ CREATE TABLE IF NOT EXISTS notification_settings (
     CONSTRAINT "PK_notification_settings" PRIMARY KEY ("Id")
 );
 
+CREATE TABLE IF NOT EXISTS robot_settings (
+    "Id" uuid NOT NULL,
+    "Enabled" boolean NOT NULL DEFAULT TRUE,
+    "DailyRunTimeUtc" character varying(5) NOT NULL DEFAULT '08:00',
+    "UpdatedAt" timestamp with time zone NOT NULL DEFAULT NOW(),
+    CONSTRAINT "PK_robot_settings" PRIMARY KEY ("Id")
+);
+
 CREATE TABLE IF NOT EXISTS investment_allocation_targets (
     "Id" uuid NOT NULL,
     "UserId" uuid NOT NULL,
@@ -127,6 +135,16 @@ BEGIN
         ALTER TABLE robot_execution_logs ADD COLUMN IF NOT EXISTS "TriggeredByUserId" uuid;
         ALTER TABLE robot_execution_logs ADD COLUMN IF NOT EXISTS "WasSkipped" boolean NOT NULL DEFAULT FALSE;
         ALTER TABLE robot_execution_logs ADD COLUMN IF NOT EXISTS "SkipReason" character varying(200);
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'robot_settings'
+    ) THEN
+        ALTER TABLE robot_settings ADD COLUMN IF NOT EXISTS "Enabled" boolean NOT NULL DEFAULT TRUE;
+        ALTER TABLE robot_settings ADD COLUMN IF NOT EXISTS "DailyRunTimeUtc" character varying(5) NOT NULL DEFAULT '08:00';
+        ALTER TABLE robot_settings ADD COLUMN IF NOT EXISTS "UpdatedAt" timestamp with time zone NOT NULL DEFAULT NOW();
     END IF;
 END $$;
 

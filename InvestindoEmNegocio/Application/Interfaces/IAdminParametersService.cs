@@ -18,4 +18,7 @@ public interface IAdminParametersService
 
     Task<NotificationSettingsDto> GetNotificationSettingsAsync(CancellationToken cancellationToken);
     Task<NotificationSettingsDto> UpdateNotificationSettingsAsync(UpdateNotificationSettingsRequest request, CancellationToken cancellationToken);
+
+    Task<RobotSettingsDto> GetRobotSettingsAsync(CancellationToken cancellationToken);
+    Task<RobotSettingsDto> UpdateRobotSettingsAsync(UpdateRobotSettingsRequest request, CancellationToken cancellationToken);
 }

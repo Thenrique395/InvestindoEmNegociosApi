@@ -87,4 +87,18 @@ public class AdminParametersController(IAdminParametersService adminParametersSe
         var response = await adminParametersService.UpdateNotificationSettingsAsync(request, cancellationToken);
         return Ok(response);
     }
+
+    [HttpGet("robot-settings")]
+    public async Task<IActionResult> GetRobotSettings(CancellationToken cancellationToken)
+    {
+        var response = await adminParametersService.GetRobotSettingsAsync(cancellationToken);
+        return Ok(response);
+    }
+
+    [HttpPut("robot-settings")]
+    public async Task<IActionResult> UpdateRobotSettings([FromBody] UpdateRobotSettingsRequest request, CancellationToken cancellationToken)
+    {
+        var response = await adminParametersService.UpdateRobotSettingsAsync(request, cancellationToken);
+        return Ok(response);
+    }
 }

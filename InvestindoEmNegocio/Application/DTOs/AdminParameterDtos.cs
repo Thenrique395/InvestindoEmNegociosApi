@@ -14,6 +14,10 @@ public record InstitutionAdminResponse(int Id, string Name, string Type, bool Is
 
 public record CreateInstitutionRequest(string Name, string Type);
 
+public record RobotSettingsDto(bool Enabled, string DailyRunTimeUtc);
+
+public record UpdateRobotSettingsRequest(bool Enabled, string DailyRunTimeUtc);
+
 public record AdminCategoryResponse(Guid Id, string Name, string? AppliesTo, bool IsActive, DateTime CreatedAt);
 
 public record AdminCategoryRequest(string Name, string? AppliesTo);

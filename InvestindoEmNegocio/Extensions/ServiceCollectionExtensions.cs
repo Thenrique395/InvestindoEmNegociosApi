@@ -234,6 +234,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IInstitutionRepository, InstitutionRepository>();
         services.AddScoped<IUserNotificationRepository, UserNotificationRepository>();
         services.AddScoped<INotificationSettingsRepository, NotificationSettingsRepository>();
+        services.AddScoped<IRobotSettingsRepository, RobotSettingsRepository>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IAuthFacadeService, AuthFacadeService>();

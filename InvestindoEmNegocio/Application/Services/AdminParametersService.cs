@@ -13,7 +13,8 @@ public sealed class AdminParametersService(
     IPaymentMethodRepository paymentMethodRepository,
     ICardBrandRepository cardBrandRepository,
     IInstitutionRepository institutionRepository,
-    INotificationSettingsRepository notificationSettingsRepository) : IAdminParametersService
+    INotificationSettingsRepository notificationSettingsRepository,
+    IRobotSettingsRepository robotSettingsRepository) : IAdminParametersService
 {
     public async Task<IReadOnlyList<PaymentMethodAdminResponse>> ListPaymentMethodsAsync(CancellationToken cancellationToken)
     {
@@ -196,6 +197,28 @@ public sealed class AdminParametersService(
         return ToNotificationSettingsDto(settings);
     }
 
+    public async Task<RobotSettingsDto> GetRobotSettingsAsync(CancellationToken cancellationToken)
+    {
+        var settings = await robotSettingsRepository.GetOrCreateAsync(cancellationToken);
+        return ToRobotSettingsDto(settings);
+    }
+
+    public async Task<RobotSettingsDto> UpdateRobotSettingsAsync(UpdateRobotSettingsRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.DailyRunTimeUtc) || !TimeOnly.TryParse(request.DailyRunTimeUtc, out _))
+        {
+            throw new AppProblemException(
+                "Horário inválido",
+                "Informe o horário no formato HH:mm (UTC).",
+                StatusCodes.Status400BadRequest);
+        }
+
+        var settings = await robotSettingsRepository.GetOrCreateAsync(cancellationToken);
+        settings.Update(request.Enabled, request.DailyRunTimeUtc);
+        await robotSettingsRepository.SaveChangesAsync(cancellationToken);
+        return ToRobotSettingsDto(settings);
+    }
+
     private static NotificationSettingsDto ToNotificationSettingsDto(NotificationSettings settings) =>
         new(
             settings.IncomeUpcomingEnabled,
@@ -212,4 +235,9 @@ public sealed class AdminParametersService(
             settings.GoalCompletedEnabled,
             settings.GoalInactivityEnabled,
             settings.GoalInactivityDays);
+
+    private static RobotSettingsDto ToRobotSettingsDto(RobotSettings settings) =>
+        new(
+            settings.Enabled,
+            settings.DailyRunTimeUtc);
 }

@@ -97,6 +97,14 @@ CREATE TABLE notification_settings (
     CONSTRAINT "PK_notification_settings" PRIMARY KEY ("Id")
 );
 
+CREATE TABLE robot_settings (
+    "Id" uuid NOT NULL,
+    "Enabled" boolean NOT NULL,
+    "DailyRunTimeUtc" character varying(5) NOT NULL,
+    "UpdatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_robot_settings" PRIMARY KEY ("Id")
+);
+
 CREATE TABLE payment_methods (
     "Id" integer NOT NULL,
     "Name" character varying(100) NOT NULL,
