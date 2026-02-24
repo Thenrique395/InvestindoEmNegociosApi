@@ -22,6 +22,19 @@ public sealed class RobotExecutionLogConfiguration : IEntityTypeConfiguration<Ro
         builder.Property(x => x.FinishedAt)
             .IsRequired();
 
+        builder.Property(x => x.DurationMs)
+            .IsRequired();
+
+        builder.Property(x => x.CorrelationId)
+            .IsRequired()
+            .HasMaxLength(64);
+
+        builder.Property(x => x.HostName)
+            .IsRequired()
+            .HasMaxLength(120);
+
+        builder.Property(x => x.TriggeredByUserId);
+
         builder.Property(x => x.Success)
             .IsRequired();
 
@@ -39,6 +52,12 @@ public sealed class RobotExecutionLogConfiguration : IEntityTypeConfiguration<Ro
 
         builder.Property(x => x.ZeroItemsReasonCode)
             .HasMaxLength(100);
+
+        builder.Property(x => x.WasSkipped)
+            .IsRequired();
+
+        builder.Property(x => x.SkipReason)
+            .HasMaxLength(200);
 
         builder.Property(x => x.Error)
             .HasMaxLength(2000);

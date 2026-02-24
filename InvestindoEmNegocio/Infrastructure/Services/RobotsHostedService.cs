@@ -36,7 +36,7 @@ public sealed class RobotsHostedService(
     {
         using var scope = scopeFactory.CreateScope();
         var runner = scope.ServiceProvider.GetRequiredService<IRobotRunner>();
-        var results = await runner.RunAllAsync(cancellationToken);
+        var results = await runner.RunAllAsync(triggeredByUserId: null, cancellationToken);
         if (results.Count == 0)
         {
             logger.LogWarning("Nenhum robô registrado para execução.");

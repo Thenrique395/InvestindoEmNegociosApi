@@ -1,6 +1,9 @@
+using System.Security.Claims;
+using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace InvestindoEmNegocio.Controllers;
 
@@ -8,20 +11,34 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/admin/robots")]
 [Route("api/v1/admin/robots")]
 [Authorize(Roles = "Admin")]
+[EnableRateLimiting("admin-robots")]
 public class AdminRobotsController(
     IAdminRobotsService adminRobotsService) : ControllerBase
 {
     [HttpGet("monitor")]
-    public async Task<IActionResult> Monitor([FromQuery] int take = 50, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Monitor(
+        [FromQuery] int take = 50,
+        [FromQuery] string? robotName = null,
+        [FromQuery] bool? success = null,
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null,
+        [FromQuery] string? search = null,
+        CancellationToken cancellationToken = default)
     {
-        var response = await adminRobotsService.MonitorAsync(take, cancellationToken);
+        var response = await adminRobotsService.MonitorAsync(
+            new RobotMonitorQueryDto(take, robotName, success, from, to, search),
+            cancellationToken);
         return Ok(response);
     }
 
     [HttpPost("run/{robotName}")]
-    public async Task<IActionResult> Run(string robotName, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Run(
+        string robotName,
+        [FromQuery] bool force = false,
+        [FromQuery] int cooldownMinutes = 10,
+        CancellationToken cancellationToken = default)
     {
-        var result = await adminRobotsService.RunAsync(robotName, cancellationToken);
+        var result = await adminRobotsService.RunAsync(robotName, force, cooldownMinutes, GetUserIdOrNull(), cancellationToken);
         if (result is null)
             return NotFound(new { detail = $"Robô '{robotName}' não encontrado." });
 
@@ -31,7 +48,13 @@ public class AdminRobotsController(
     [HttpPost("run-all")]
     public async Task<IActionResult> RunAll(CancellationToken cancellationToken = default)
     {
-        var results = await adminRobotsService.RunAllAsync(cancellationToken);
+        var results = await adminRobotsService.RunAllAsync(GetUserIdOrNull(), cancellationToken);
         return Ok(results);
+    }
+
+    private Guid? GetUserIdOrNull()
+    {
+        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
+        return Guid.TryParse(claim, out var id) ? id : null;
     }
 }

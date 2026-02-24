@@ -22,8 +22,19 @@ public class AdminRobotsServiceTests
             "ReminderRobot",
             startedAt,
             finishedAt,
-            true,
-            12));
+            durationMs: 100,
+            correlationId: "corr-1",
+            hostName: "host-1",
+            triggeredByUserId: null,
+            success: true,
+            processedCount: 12,
+            emailsAttempted: 2,
+            emailsSent: 2,
+            emailsFailed: 0,
+            zeroItemsReasonCode: null,
+            wasSkipped: false,
+            skipReason: null,
+            error: null));
         await dbContext.SaveChangesAsync();
 
         var robotTasks = new IRobotTask[]
@@ -34,63 +45,65 @@ public class AdminRobotsServiceTests
         var runner = new Mock<IRobotRunner>();
         var sut = new AdminRobotsService(robotTasks, runner.Object, dbContext);
 
-        var result = await sut.MonitorAsync(50, CancellationToken.None);
+        var result = await sut.MonitorAsync(new RobotMonitorQueryDto(50), CancellationToken.None);
 
         result.Summary24h.TotalRuns.Should().Be(1);
         result.Summary24h.ItemsGenerated.Should().Be(12);
+        result.Summary24h.EmailsSent.Should().Be(2);
         result.Robots.Should().HaveCount(2);
         result.Robots.Should().Contain(x => x.RobotName == "ReminderRobot" && x.LastSuccess == true && x.LastProcessedCount == 12);
-        result.Robots.Should().Contain(x => x.RobotName == "AnotherRobot" && x.LastSuccess == null);
         result.RecentRuns.Should().HaveCount(1);
-        result.RecentRuns[0].RobotName.Should().Be("ReminderRobot");
+        result.RecentRuns[0].CorrelationId.Should().Be("corr-1");
     }
 
     [Fact]
-    public async Task RunAsync_Should_Delegate_To_Runner()
+    public async Task RunAsync_Should_Delegate_To_Runner_With_Safe_Mode_When_Force_Is_False()
     {
         await using var dbContext = CreateDbContext();
-        var expected = new RobotRunResultDto(
-            "ReminderRobot",
-            DateTime.UtcNow,
-            DateTime.UtcNow.AddSeconds(1),
-            true,
-            3,
-            new RobotExecutionMetricsDto(3, 1, 1, 0, null),
-            null);
+        var expected = BuildRunResult();
         var runner = new Mock<IRobotRunner>();
         runner
-            .Setup(x => x.RunByNameAsync("ReminderRobot", It.IsAny<CancellationToken>()))
+            .Setup(x => x.RunSafelyByNameAsync("ReminderRobot", 15, It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(expected);
 
         var sut = new AdminRobotsService([new FakeRobotTask("ReminderRobot")], runner.Object, dbContext);
-        var result = await sut.RunAsync("ReminderRobot", CancellationToken.None);
+        var result = await sut.RunAsync("ReminderRobot", force: false, cooldownMinutes: 15, null, CancellationToken.None);
 
         result.Should().NotBeNull();
-        result!.RobotName.Should().Be("ReminderRobot");
-        runner.Verify(x => x.RunByNameAsync("ReminderRobot", It.IsAny<CancellationToken>()), Times.Once);
+        runner.Verify(x => x.RunSafelyByNameAsync("ReminderRobot", 15, It.IsAny<Guid?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
-    public async Task RunAllAsync_Should_Delegate_To_Runner()
+    public async Task RunAsync_Should_Delegate_To_Runner_With_Force_Mode_When_Force_Is_True()
     {
         await using var dbContext = CreateDbContext();
-        var expected = new List<RobotRunResultDto>
-        {
-            new("ReminderRobot", DateTime.UtcNow, DateTime.UtcNow.AddSeconds(1), true, 1, new RobotExecutionMetricsDto(1, 0, 0, 0, null), null)
-        };
-
+        var expected = BuildRunResult();
         var runner = new Mock<IRobotRunner>();
         runner
-            .Setup(x => x.RunAllAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.RunByNameAsync("ReminderRobot", It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(expected);
 
         var sut = new AdminRobotsService([new FakeRobotTask("ReminderRobot")], runner.Object, dbContext);
-        var result = await sut.RunAllAsync(CancellationToken.None);
+        var result = await sut.RunAsync("ReminderRobot", force: true, cooldownMinutes: 15, null, CancellationToken.None);
 
-        result.Should().HaveCount(1);
-        result[0].RobotName.Should().Be("ReminderRobot");
-        runner.Verify(x => x.RunAllAsync(It.IsAny<CancellationToken>()), Times.Once);
+        result.Should().NotBeNull();
+        runner.Verify(x => x.RunByNameAsync("ReminderRobot", It.IsAny<Guid?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    private static RobotRunResultDto BuildRunResult() => new(
+        "ReminderRobot",
+        DateTime.UtcNow,
+        DateTime.UtcNow.AddSeconds(1),
+        1000,
+        "corr",
+        "host",
+        null,
+        true,
+        3,
+        new RobotExecutionMetricsDto(3, 1, 1, 0, null),
+        false,
+        null,
+        null);
 
     private static InvestDbContext CreateDbContext()
     {

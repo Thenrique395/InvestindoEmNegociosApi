@@ -9,14 +9,40 @@ public sealed class AdminRobotsService(
     IRobotRunner robotRunner,
     IInvestDbContext dbContext) : IAdminRobotsService
 {
-    public async Task<RobotMonitorResponseDto> MonitorAsync(int take = 50, CancellationToken cancellationToken = default)
+    public async Task<RobotMonitorResponseDto> MonitorAsync(RobotMonitorQueryDto query, CancellationToken cancellationToken = default)
     {
-        var maxTake = Math.Clamp(take, 1, 200);
-        var recentLogs = await dbContext.RobotExecutionLogs
-            .AsNoTracking()
+        var maxTake = Math.Clamp(query.Take, 1, 200);
+        var logsQuery = dbContext.RobotExecutionLogs.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(query.RobotName))
+        {
+            var robotName = query.RobotName.Trim();
+            logsQuery = logsQuery.Where(x => x.RobotName == robotName);
+        }
+
+        if (query.Success.HasValue)
+            logsQuery = logsQuery.Where(x => x.Success == query.Success.Value);
+
+        if (query.From.HasValue)
+            logsQuery = logsQuery.Where(x => x.StartedAt >= query.From.Value);
+
+        if (query.To.HasValue)
+            logsQuery = logsQuery.Where(x => x.StartedAt <= query.To.Value);
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var search = query.Search.Trim().ToLower();
+            logsQuery = logsQuery.Where(x =>
+                x.RobotName.ToLower().Contains(search) ||
+                (x.Error != null && x.Error.ToLower().Contains(search)) ||
+                (x.SkipReason != null && x.SkipReason.ToLower().Contains(search)));
+        }
+
+        var recentLogs = await logsQuery
             .OrderByDescending(x => x.StartedAt)
             .Take(maxTake)
             .ToListAsync(cancellationToken);
+
         var from24h = DateTime.UtcNow.AddHours(-24);
         var logs24h = await dbContext.RobotExecutionLogs
             .AsNoTracking()
@@ -40,6 +66,7 @@ public sealed class AdminRobotsService(
                     name,
                     lastRun?.StartedAt,
                     lastRun?.FinishedAt,
+                    lastRun?.DurationMs ?? 0,
                     lastRun?.Success,
                     lastRun?.ProcessedCount ?? 0,
                     new RobotExecutionMetricsDto(
@@ -48,6 +75,8 @@ public sealed class AdminRobotsService(
                         lastRun?.EmailsSent ?? 0,
                         lastRun?.EmailsFailed ?? 0,
                         lastRun?.ZeroItemsReasonCode),
+                    lastRun?.CorrelationId,
+                    lastRun?.HostName,
                     lastRun?.Error);
             })
             .ToList();
@@ -58,6 +87,10 @@ public sealed class AdminRobotsService(
                 x.RobotName,
                 x.StartedAt,
                 x.FinishedAt,
+                x.DurationMs,
+                x.CorrelationId,
+                x.HostName,
+                x.TriggeredByUserId,
                 x.Success,
                 x.ProcessedCount,
                 new RobotExecutionMetricsDto(
@@ -66,6 +99,8 @@ public sealed class AdminRobotsService(
                     x.EmailsSent,
                     x.EmailsFailed,
                     x.ZeroItemsReasonCode),
+                x.WasSkipped,
+                x.SkipReason,
                 x.Error))
             .ToList();
 
@@ -86,9 +121,14 @@ public sealed class AdminRobotsService(
         return new RobotMonitorResponseDto(summary24h, status, logs);
     }
 
-    public Task<RobotRunResultDto?> RunAsync(string robotName, CancellationToken cancellationToken = default) =>
-        robotRunner.RunByNameAsync(robotName, cancellationToken);
+    public Task<RobotRunResultDto?> RunAsync(string robotName, bool force, int cooldownMinutes, Guid? triggeredByUserId = null, CancellationToken cancellationToken = default)
+    {
+        if (force)
+            return robotRunner.RunByNameAsync(robotName, triggeredByUserId, cancellationToken);
 
-    public Task<IReadOnlyList<RobotRunResultDto>> RunAllAsync(CancellationToken cancellationToken = default) =>
-        robotRunner.RunAllAsync(cancellationToken);
+        return robotRunner.RunSafelyByNameAsync(robotName, cooldownMinutes, triggeredByUserId, cancellationToken);
+    }
+
+    public Task<IReadOnlyList<RobotRunResultDto>> RunAllAsync(Guid? triggeredByUserId = null, CancellationToken cancellationToken = default) =>
+        robotRunner.RunAllAsync(triggeredByUserId, cancellationToken);
 }

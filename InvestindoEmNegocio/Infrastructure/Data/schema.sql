@@ -38,12 +38,18 @@ CREATE TABLE IF NOT EXISTS robot_execution_logs (
     "RobotName" character varying(80) NOT NULL,
     "StartedAt" timestamp with time zone NOT NULL,
     "FinishedAt" timestamp with time zone NOT NULL,
+    "DurationMs" bigint NOT NULL DEFAULT 0,
+    "CorrelationId" character varying(64) NOT NULL DEFAULT '',
+    "HostName" character varying(120) NOT NULL DEFAULT 'unknown',
+    "TriggeredByUserId" uuid NULL,
     "Success" boolean NOT NULL,
     "ProcessedCount" integer NOT NULL,
     "EmailsAttempted" integer NOT NULL DEFAULT 0,
     "EmailsSent" integer NOT NULL DEFAULT 0,
     "EmailsFailed" integer NOT NULL DEFAULT 0,
     "ZeroItemsReasonCode" character varying(100) NULL,
+    "WasSkipped" boolean NOT NULL DEFAULT FALSE,
+    "SkipReason" character varying(200) NULL,
     "Error" character varying(2000) NULL,
     CONSTRAINT "PK_robot_execution_logs" PRIMARY KEY ("Id")
 );
@@ -115,6 +121,12 @@ BEGIN
         ALTER TABLE robot_execution_logs ADD COLUMN IF NOT EXISTS "EmailsSent" integer NOT NULL DEFAULT 0;
         ALTER TABLE robot_execution_logs ADD COLUMN IF NOT EXISTS "EmailsFailed" integer NOT NULL DEFAULT 0;
         ALTER TABLE robot_execution_logs ADD COLUMN IF NOT EXISTS "ZeroItemsReasonCode" character varying(100);
+        ALTER TABLE robot_execution_logs ADD COLUMN IF NOT EXISTS "DurationMs" bigint NOT NULL DEFAULT 0;
+        ALTER TABLE robot_execution_logs ADD COLUMN IF NOT EXISTS "CorrelationId" character varying(64) NOT NULL DEFAULT '';
+        ALTER TABLE robot_execution_logs ADD COLUMN IF NOT EXISTS "HostName" character varying(120) NOT NULL DEFAULT 'unknown';
+        ALTER TABLE robot_execution_logs ADD COLUMN IF NOT EXISTS "TriggeredByUserId" uuid;
+        ALTER TABLE robot_execution_logs ADD COLUMN IF NOT EXISTS "WasSkipped" boolean NOT NULL DEFAULT FALSE;
+        ALTER TABLE robot_execution_logs ADD COLUMN IF NOT EXISTS "SkipReason" character varying(200);
     END IF;
 END $$;
 

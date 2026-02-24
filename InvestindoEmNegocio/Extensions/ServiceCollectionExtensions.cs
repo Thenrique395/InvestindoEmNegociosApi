@@ -178,6 +178,14 @@ public static class ServiceCollectionExtensions
                 limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
                 limiterOptions.QueueLimit = 0;
             });
+
+            options.AddFixedWindowLimiter("admin-robots", limiterOptions =>
+            {
+                limiterOptions.PermitLimit = 20;
+                limiterOptions.Window = TimeSpan.FromMinutes(1);
+                limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                limiterOptions.QueueLimit = 2;
+            });
         });
 
         return services;
