@@ -136,10 +136,28 @@ public class InstallmentsService(
         if (installment.UserId != userId) throw new UnauthorizedAccessException("Parcela pertence a outro usuário.");
 
         var payments = await paymentRepository.ListByInstallmentIdAsync(installmentId, cancellationToken);
+        var paymentIds = payments.Select(p => p.Id).ToList();
+        if (paymentIds.Count > 0)
+        {
+            var transactions = await accountTransactionRepository.ListBySourceAsync(
+                userId,
+                "InstallmentPayment",
+                paymentIds,
+                cancellationToken) ?? [];
+            if (transactions.Count > 0)
+            {
+                accountTransactionRepository.RemoveRange(transactions);
+            }
+        }
+
         paymentRepository.RemoveRange(payments);
         installmentRepository.Remove(installment);
         await installmentRepository.SaveChangesAsync(cancellationToken);
-        _logger.LogInformation("Installment deleted {UserId} {InstallmentId}", userId, installmentId);
+        _logger.LogInformation(
+            "Installment deleted {UserId} {InstallmentId} with {PaymentsCount} payments cleaned from ledger",
+            userId,
+            installmentId,
+            paymentIds.Count);
         return true;
     }
 

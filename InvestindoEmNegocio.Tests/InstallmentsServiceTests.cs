@@ -86,6 +86,54 @@ public class InstallmentsServiceTests
     }
 
     [Fact]
+    public async Task DeleteAsync_Should_Remove_Ledger_Transactions_From_Installment_Payments()
+    {
+        var userId = Guid.NewGuid();
+        var installment = new MoneyInstallment(Guid.NewGuid(), userId, 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100);
+        var installmentId = installment.Id;
+        var payment = new MoneyPayment(installmentId, userId, DateTime.UtcNow, 100m);
+        var transaction = new AccountTransaction(
+            Guid.NewGuid(),
+            userId,
+            DateTime.UtcNow,
+            AccountTransactionKind.Debit,
+            100m,
+            "Pagamento parcela 1 - Plano teste",
+            "InstallmentPayment",
+            payment.Id);
+
+        var installmentRepository = new Mock<IMoneyInstallmentRepository>();
+        installmentRepository
+            .Setup(x => x.GetByIdAsync(installmentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(installment);
+
+        var paymentRepository = new Mock<IMoneyPaymentRepository>();
+        paymentRepository
+            .Setup(x => x.ListByInstallmentIdAsync(installmentId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([payment]);
+
+        var accountTransactionRepository = new Mock<IAccountTransactionRepository>();
+        accountTransactionRepository
+            .Setup(x => x.ListBySourceAsync(userId, "InstallmentPayment", It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([transaction]);
+
+        var sut = BuildSut(
+            installmentRepository: installmentRepository,
+            paymentRepository: paymentRepository,
+            accountTransactionRepository: accountTransactionRepository);
+
+        var removed = await sut.DeleteAsync(userId, installmentId);
+
+        removed.Should().BeTrue();
+        accountTransactionRepository.Verify(
+            x => x.RemoveRange(It.Is<IEnumerable<AccountTransaction>>(list => list.Any(t => t.Id == transaction.Id))),
+            Times.Once);
+        paymentRepository.Verify(
+            x => x.RemoveRange(It.Is<IEnumerable<MoneyPayment>>(list => list.Any(p => p.Id == payment.Id))),
+            Times.Once);
+    }
+
+    [Fact]
     public async Task PayAsync_Should_Update_Status_To_Paid_When_Total_Reaches_Amount()
     {
         var userId = Guid.NewGuid();

@@ -355,8 +355,22 @@ public class PlansServiceTests
         paymentRepository
             .Setup(x => x.ListByInstallmentIdsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(oldPayments);
+        var accountTransactionRepository = new Mock<IAccountTransactionRepository>();
+        accountTransactionRepository
+            .Setup(x => x.ListBySourceAsync(userId, "InstallmentPayment", It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                new AccountTransaction(
+                    Guid.NewGuid(),
+                    userId,
+                    DateTime.UtcNow,
+                    AccountTransactionKind.Debit,
+                    100m,
+                    "Pagamento parcela 1 - Plano",
+                    "InstallmentPayment",
+                    oldPayments[0].Id)
+            ]);
 
-        var sut = BuildSut(planRepository, installmentRepository, paymentRepository);
+        var sut = BuildSut(planRepository, installmentRepository, paymentRepository, accountTransactionRepository: accountTransactionRepository);
 
         var request = new CreatePlanRequest(
             MoneyType.Expense,
@@ -372,6 +386,7 @@ public class PlansServiceTests
         result.Should().NotBeNull();
         result!.Title.Should().Be("Plano atualizado");
         paymentRepository.Verify(x => x.RemoveRange(oldPayments), Times.Once);
+        accountTransactionRepository.Verify(x => x.RemoveRange(It.IsAny<IEnumerable<AccountTransaction>>()), Times.Once);
         installmentRepository.Verify(x => x.RemoveRange(oldInstallments), Times.Once);
         installmentRepository.Verify(x => x.AddRangeAsync(It.Is<IEnumerable<MoneyInstallment>>(l => l.Count() == 3), It.IsAny<CancellationToken>()), Times.Once);
         planRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
@@ -399,12 +414,14 @@ public class PlansServiceTests
         Mock<IMoneyPlanRepository>? planRepository = null,
         Mock<IMoneyInstallmentRepository>? installmentRepository = null,
         Mock<IMoneyPaymentRepository>? paymentRepository = null,
+        Mock<IAccountTransactionRepository>? accountTransactionRepository = null,
         Mock<ICardRepository>? cardRepository = null)
     {
         return new PlansService(
             planRepository?.Object ?? Mock.Of<IMoneyPlanRepository>(),
             installmentRepository?.Object ?? Mock.Of<IMoneyInstallmentRepository>(),
             paymentRepository?.Object ?? Mock.Of<IMoneyPaymentRepository>(),
+            accountTransactionRepository?.Object ?? Mock.Of<IAccountTransactionRepository>(),
             cardRepository?.Object ?? Mock.Of<ICardRepository>(),
             NullLogger<PlansService>.Instance);
     }

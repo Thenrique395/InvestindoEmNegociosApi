@@ -11,6 +11,7 @@ public class PlansService(
     IMoneyPlanRepository planRepository,
     IMoneyInstallmentRepository installmentRepository,
     IMoneyPaymentRepository paymentRepository,
+    IAccountTransactionRepository accountTransactionRepository,
     ICardRepository cardRepository,
     ILogger<PlansService> logger)
     : IPlansService
@@ -74,9 +75,10 @@ public class PlansService(
         var plan = await planRepository.GetByIdAsync(id, userId, cancellationToken);
         if (plan is null) return null;
 
-        var installments = await installmentRepository.ListByPlanAsync(id, userId, cancellationToken);
+        var installments = await installmentRepository.ListByPlanAsync(id, userId, cancellationToken) ?? [];
         var installmentIds = installments.Select(i => i.Id).ToList();
-        var payments = await paymentRepository.ListByInstallmentIdsAsync(installmentIds, cancellationToken);
+        var payments = await paymentRepository.ListByInstallmentIdsAsync(installmentIds, cancellationToken) ?? [];
+        await CleanupLedgerFromPaymentsAsync(userId, payments, cancellationToken);
         paymentRepository.RemoveRange(payments);
         installmentRepository.RemoveRange(installments);
 
@@ -104,10 +106,33 @@ public class PlansService(
         var plan = await planRepository.GetByIdAsync(id, userId, cancellationToken);
         if (plan is null) return false;
 
+        var installments = await installmentRepository.ListByPlanAsync(plan.Id, userId, cancellationToken) ?? [];
+        var installmentIds = installments.Select(i => i.Id).ToList();
+        if (installmentIds.Count > 0)
+        {
+            var payments = await paymentRepository.ListByInstallmentIdsAsync(installmentIds, cancellationToken) ?? [];
+            await CleanupLedgerFromPaymentsAsync(userId, payments, cancellationToken);
+        }
+
         planRepository.Remove(plan);
         await planRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Plan deleted {UserId} {PlanId}", userId, plan.Id);
         return true;
+    }
+
+    private async Task CleanupLedgerFromPaymentsAsync(Guid userId, IReadOnlyCollection<MoneyPayment> payments, CancellationToken cancellationToken)
+    {
+        if (payments.Count == 0) return;
+
+        var paymentIds = payments.Select(p => p.Id).ToList();
+        var transactions = await accountTransactionRepository.ListBySourceAsync(
+            userId,
+            "InstallmentPayment",
+            paymentIds,
+            cancellationToken) ?? [];
+
+        if (transactions.Count == 0) return;
+        accountTransactionRepository.RemoveRange(transactions);
     }
 
     private async Task GenerateInstallmentsAsync(MoneyPlan plan, CancellationToken cancellationToken)
