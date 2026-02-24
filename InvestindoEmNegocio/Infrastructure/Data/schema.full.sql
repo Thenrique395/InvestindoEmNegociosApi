@@ -214,6 +214,20 @@ CREATE TABLE cards (
     CONSTRAINT "FK_cards_card_brands_BrandId" FOREIGN KEY ("BrandId") REFERENCES card_brands ("Id") ON DELETE RESTRICT
 );
 
+CREATE TABLE accounts (
+    "Id" uuid NOT NULL,
+    "UserId" uuid NOT NULL,
+    "Name" character varying(120) NOT NULL,
+    "Type" text NOT NULL,
+    "InitialBalance" numeric(14,2) NOT NULL,
+    "IsActive" boolean NOT NULL,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    "UpdatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_accounts" PRIMARY KEY ("Id"),
+    CONSTRAINT ck_accounts_initial_balance CHECK ("InitialBalance" >= 0),
+    CONSTRAINT "FK_accounts_users_UserId" FOREIGN KEY ("UserId") REFERENCES users ("Id") ON DELETE CASCADE
+);
+
 CREATE TABLE investment_movements (
     "Id" uuid NOT NULL,
     "PositionId" uuid NOT NULL,
@@ -314,11 +328,29 @@ CREATE TABLE money_payments (
     "PaidAt" timestamp with time zone NOT NULL,
     "PaidAmount" numeric(14,2) NOT NULL,
     "MethodId" integer,
+    "AccountId" uuid,
     "Note" character varying(200),
     "CreatedAt" timestamp with time zone NOT NULL,
     CONSTRAINT "PK_money_payments" PRIMARY KEY ("Id"),
     CONSTRAINT ck_payment_amount_positive CHECK ("PaidAmount" > 0),
+    CONSTRAINT "FK_money_payments_accounts_AccountId" FOREIGN KEY ("AccountId") REFERENCES accounts ("Id") ON DELETE SET NULL,
     CONSTRAINT "FK_money_payments_money_installments_InstallmentId" FOREIGN KEY ("InstallmentId") REFERENCES money_installments ("Id") ON DELETE CASCADE
+);
+
+CREATE TABLE account_transactions (
+    "Id" uuid NOT NULL,
+    "AccountId" uuid NOT NULL,
+    "UserId" uuid NOT NULL,
+    "OccurredAt" timestamp with time zone NOT NULL,
+    "Kind" text NOT NULL,
+    "Amount" numeric(14,2) NOT NULL,
+    "Description" character varying(200) NOT NULL,
+    "SourceType" character varying(60),
+    "SourceId" uuid,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_account_transactions" PRIMARY KEY ("Id"),
+    CONSTRAINT ck_account_transactions_amount_positive CHECK ("Amount" > 0),
+    CONSTRAINT "FK_account_transactions_accounts_AccountId" FOREIGN KEY ("AccountId") REFERENCES accounts ("Id") ON DELETE CASCADE
 );
 
 CREATE INDEX "IX_audit_logs_CreatedAt" ON audit_logs ("CreatedAt");
@@ -330,6 +362,10 @@ CREATE UNIQUE INDEX "IX_card_brands_Code" ON card_brands ("Code");
 CREATE INDEX "IX_cards_BrandId" ON cards ("BrandId");
 
 CREATE UNIQUE INDEX "IX_cards_UserId_Nickname" ON cards ("UserId", "Nickname");
+
+CREATE UNIQUE INDEX "IX_accounts_UserId_Name" ON accounts ("UserId", "Name");
+
+CREATE INDEX "IX_accounts_UserId_IsActive" ON accounts ("UserId", "IsActive");
 
 CREATE UNIQUE INDEX "IX_categories_UserId_Name" ON categories ("UserId", "Name");
 
@@ -356,6 +392,14 @@ CREATE INDEX "IX_money_installments_UserId_DueDate" ON money_installments ("User
 CREATE INDEX "IX_money_payments_InstallmentId" ON money_payments ("InstallmentId");
 
 CREATE INDEX "IX_money_payments_UserId_PaidAt" ON money_payments ("UserId", "PaidAt");
+
+CREATE INDEX "IX_money_payments_AccountId" ON money_payments ("AccountId");
+
+CREATE INDEX "IX_account_transactions_AccountId_OccurredAt" ON account_transactions ("AccountId", "OccurredAt");
+
+CREATE INDEX "IX_account_transactions_UserId_OccurredAt" ON account_transactions ("UserId", "OccurredAt");
+
+CREATE INDEX "IX_account_transactions_SourceType_SourceId" ON account_transactions ("SourceType", "SourceId");
 
 CREATE INDEX "IX_money_plans_CardId" ON money_plans ("CardId");
 

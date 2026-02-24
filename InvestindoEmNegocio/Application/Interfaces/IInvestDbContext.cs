@@ -9,6 +9,8 @@ public interface IInvestDbContext
     DbSet<UserProfile> UserProfiles { get; }
     DbSet<Category> Categories { get; }
     DbSet<Card> Cards { get; }
+    DbSet<Account> Accounts { get; }
+    DbSet<AccountTransaction> AccountTransactions { get; }
     DbSet<Goal> Goals { get; }
     DbSet<GoalContribution> GoalContributions { get; }
     DbSet<MoneyPlan> MoneyPlans { get; }

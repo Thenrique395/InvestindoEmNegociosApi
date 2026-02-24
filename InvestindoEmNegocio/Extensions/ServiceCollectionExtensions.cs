@@ -216,6 +216,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUserProfileRepository, UserProfileRepository>();
         services.AddScoped<ICardRepository, CardRepository>();
+        services.AddScoped<IAccountRepository, AccountRepository>();
+        services.AddScoped<IAccountTransactionRepository, AccountTransactionRepository>();
         services.AddScoped<ICardBrandRepository, CardBrandRepository>();
         services.AddScoped<IPaymentMethodRepository, PaymentMethodRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
@@ -247,6 +249,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IInvestmentsFacadeService, InvestmentsFacadeService>();
         services.AddScoped<IOnboardingService, OnboardingService>();
         services.AddScoped<ICardsService, CardsService>();
+        services.AddScoped<IAccountsService, AccountsService>();
         services.AddScoped<ICategoriesService, CategoriesService>();
         services.AddScoped<IGoalsService, GoalsService>();
         services.AddScoped<IGoalContributionsService, GoalContributionsService>();

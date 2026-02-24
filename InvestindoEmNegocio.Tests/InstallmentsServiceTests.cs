@@ -141,11 +141,17 @@ public class InstallmentsServiceTests
 
     private static InstallmentsService BuildSut(
         Mock<IMoneyInstallmentRepository>? installmentRepository = null,
-        Mock<IMoneyPaymentRepository>? paymentRepository = null)
+        Mock<IMoneyPaymentRepository>? paymentRepository = null,
+        Mock<IMoneyPlanRepository>? planRepository = null,
+        Mock<IAccountRepository>? accountRepository = null,
+        Mock<IAccountTransactionRepository>? accountTransactionRepository = null)
     {
         return new InstallmentsService(
             installmentRepository?.Object ?? Mock.Of<IMoneyInstallmentRepository>(),
             paymentRepository?.Object ?? Mock.Of<IMoneyPaymentRepository>(),
+            planRepository?.Object ?? Mock.Of<IMoneyPlanRepository>(),
+            accountRepository?.Object ?? Mock.Of<IAccountRepository>(),
+            accountTransactionRepository?.Object ?? Mock.Of<IAccountTransactionRepository>(),
             NullLogger<InstallmentsService>.Instance);
     }
 }

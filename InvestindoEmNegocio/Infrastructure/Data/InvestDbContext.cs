@@ -12,6 +12,8 @@ public class InvestDbContext(DbContextOptions<InvestDbContext> options) : DbCont
     public DbSet<PaymentMethod> PaymentMethods => Set<PaymentMethod>();
     public DbSet<CardBrand> CardBrands => Set<CardBrand>();
     public DbSet<Card> Cards => Set<Card>();
+    public DbSet<Account> Accounts => Set<Account>();
+    public DbSet<AccountTransaction> AccountTransactions => Set<AccountTransaction>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<MoneyPlan> MoneyPlans => Set<MoneyPlan>();
     public DbSet<MoneyInstallment> MoneyInstallments => Set<MoneyInstallment>();

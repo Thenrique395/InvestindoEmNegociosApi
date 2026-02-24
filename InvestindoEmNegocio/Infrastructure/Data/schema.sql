@@ -11,6 +11,49 @@ CREATE TABLE IF NOT EXISTS institutions (
 CREATE UNIQUE INDEX IF NOT EXISTS "IX_institutions_Name_Type"
     ON institutions ("Name", "Type");
 
+CREATE TABLE IF NOT EXISTS accounts (
+    "Id" uuid NOT NULL,
+    "UserId" uuid NOT NULL,
+    "Name" character varying(120) NOT NULL,
+    "Type" text NOT NULL,
+    "InitialBalance" numeric(14,2) NOT NULL DEFAULT 0,
+    "IsActive" boolean NOT NULL DEFAULT TRUE,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    "UpdatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_accounts" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_accounts_users_UserId" FOREIGN KEY ("UserId") REFERENCES users ("Id") ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_accounts_UserId_Name"
+    ON accounts ("UserId", "Name");
+
+CREATE INDEX IF NOT EXISTS "IX_accounts_UserId_IsActive"
+    ON accounts ("UserId", "IsActive");
+
+CREATE TABLE IF NOT EXISTS account_transactions (
+    "Id" uuid NOT NULL,
+    "AccountId" uuid NOT NULL,
+    "UserId" uuid NOT NULL,
+    "OccurredAt" timestamp with time zone NOT NULL,
+    "Kind" text NOT NULL,
+    "Amount" numeric(14,2) NOT NULL,
+    "Description" character varying(200) NOT NULL,
+    "SourceType" character varying(60),
+    "SourceId" uuid,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_account_transactions" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_account_transactions_accounts_AccountId" FOREIGN KEY ("AccountId") REFERENCES accounts ("Id") ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS "IX_account_transactions_AccountId_OccurredAt"
+    ON account_transactions ("AccountId", "OccurredAt");
+
+CREATE INDEX IF NOT EXISTS "IX_account_transactions_UserId_OccurredAt"
+    ON account_transactions ("UserId", "OccurredAt");
+
+CREATE INDEX IF NOT EXISTS "IX_account_transactions_SourceType_SourceId"
+    ON account_transactions ("SourceType", "SourceId");
+
 CREATE TABLE IF NOT EXISTS user_notifications (
     "Id" uuid NOT NULL,
     "UserId" uuid NOT NULL,
@@ -157,7 +200,28 @@ BEGIN
         ALTER TABLE money_installments ADD COLUMN IF NOT EXISTS "StatementCloseDate" date;
         ALTER TABLE money_installments ADD COLUMN IF NOT EXISTS "StatementDueDate" date;
     END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'money_payments'
+    ) THEN
+        ALTER TABLE money_payments ADD COLUMN IF NOT EXISTS "AccountId" uuid;
+
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conname = 'FK_money_payments_accounts_AccountId'
+        ) THEN
+            ALTER TABLE money_payments
+            ADD CONSTRAINT "FK_money_payments_accounts_AccountId"
+            FOREIGN KEY ("AccountId") REFERENCES accounts ("Id") ON DELETE SET NULL;
+        END IF;
+    END IF;
 END $$;
+
+CREATE INDEX IF NOT EXISTS "IX_money_payments_AccountId"
+    ON money_payments ("AccountId");
 
 DO $$
 BEGIN

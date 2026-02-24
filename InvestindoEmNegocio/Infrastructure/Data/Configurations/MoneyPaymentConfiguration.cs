@@ -27,11 +27,17 @@ public class MoneyPaymentConfiguration : IEntityTypeConfiguration<MoneyPayment>
 
         builder.HasIndex(p => new { p.UserId, p.PaidAt });
         builder.HasIndex(p => p.InstallmentId);
+        builder.HasIndex(p => p.AccountId);
 
         builder.HasOne<MoneyInstallment>()
             .WithMany()
             .HasForeignKey(p => p.InstallmentId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne<Account>()
+            .WithMany()
+            .HasForeignKey(p => p.AccountId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasCheckConstraint("ck_payment_amount_positive", "\"PaidAmount\" > 0");
     }

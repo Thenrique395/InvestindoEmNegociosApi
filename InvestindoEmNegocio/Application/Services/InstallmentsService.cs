@@ -1,8 +1,10 @@
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Application.Services;
@@ -10,6 +12,9 @@ namespace InvestindoEmNegocio.Application.Services;
 public class InstallmentsService(
     IMoneyInstallmentRepository installmentRepository,
     IMoneyPaymentRepository paymentRepository,
+    IMoneyPlanRepository planRepository,
+    IAccountRepository accountRepository,
+    IAccountTransactionRepository accountTransactionRepository,
     ILogger<InstallmentsService> logger)
     : IInstallmentsService
 {
@@ -35,8 +40,49 @@ public class InstallmentsService(
         var installment = await installmentRepository.GetByIdAsync(installmentId, cancellationToken);
         if (installment is null || installment.UserId != userId) return false;
 
-        var payment = new MoneyPayment(installmentId, userId, request.PaidAt.ToUniversalTime(), request.PaidAmount, request.MethodId, request.Note);
+        Account? account = null;
+        if (request.AccountId.HasValue)
+        {
+            account = await accountRepository.GetByIdAsync(request.AccountId.Value, userId, cancellationToken);
+            if (account is null)
+            {
+                throw new AppProblemException("Conta inválida", "Conta informada não encontrada.", StatusCodes.Status400BadRequest);
+            }
+
+            if (!account.IsActive)
+            {
+                throw new AppProblemException("Conta inativa", "Ative a conta para registrar movimentações.", StatusCodes.Status400BadRequest);
+            }
+        }
+
+        var payment = new MoneyPayment(installmentId, userId, request.PaidAt.ToUniversalTime(), request.PaidAmount, request.MethodId, request.Note, request.AccountId);
         await paymentRepository.AddAsync(payment, cancellationToken);
+
+        if (account is not null)
+        {
+            var plan = await planRepository.GetByIdAsync(installment.PlanId, userId, cancellationToken);
+            if (plan is null)
+            {
+                throw new AppProblemException("Plano inválido", "Plano da parcela não encontrado.", StatusCodes.Status400BadRequest);
+            }
+
+            var transactionKind = plan.Type == MoneyType.Income
+                ? AccountTransactionKind.Credit
+                : AccountTransactionKind.Debit;
+
+            var transaction = new AccountTransaction(
+                account.Id,
+                userId,
+                request.PaidAt.ToUniversalTime(),
+                transactionKind,
+                request.PaidAmount,
+                $"Pagamento parcela {installment.InstallmentNo} - {plan.Title}",
+                "InstallmentPayment",
+                payment.Id);
+
+            await accountTransactionRepository.AddAsync(transaction, cancellationToken);
+        }
+
         await paymentRepository.SaveChangesAsync(cancellationToken);
 
         await UpdateInstallmentStatusAsync(installment, cancellationToken);
