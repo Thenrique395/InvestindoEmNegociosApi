@@ -390,17 +390,18 @@ public class NotificationsService(
             action = "Ação recomendada: marque os recebimentos pendentes.";
         }
         else
-        {
-            return null;
-        }
+                    return null;
+        
 
         var monthLabel = today.ToDateTime(TimeOnly.MinValue).ToString("MMMM", culture);
         var objectiveSuffix = string.IsNullOrWhiteSpace(financialGoal) ? string.Empty : $" Objetivo: {financialGoal}.";
         var riskDaySuffix = riskDay.HasValue ? $" Dia de risco: {riskDay:dd/MM}." : string.Empty;
+        var tips = BuildCashflowTips(scenario);
+        var tipsSuffix = tips.Count > 0 ? $" Dicas: {string.Join(" | ", tips)}." : string.Empty;
         var message =
             $"{monthLabel}: recebidas {incomeReceived.ToString("N2", culture)}, pendentes {incomePending.ToString("N2", culture)}, despesas {expenseTotal.ToString("N2", culture)}. " +
             $"Cobertura atual {coverage.ToString("N0", culture)}%, cobertura projetada {projectedCoverage.ToString("N0", culture)}%, saldo projetado {projected.ToString("N2", culture)} e saúde financeira {healthScore}/100. " +
-            $"Atrasos: {overdueExpenses.Count} despesa(s) e {overdueIncomes.Count} receita(s).{riskDaySuffix} {action}{objectiveSuffix}";
+            $"Atrasos: {overdueExpenses.Count} despesa(s) e {overdueIncomes.Count} receita(s).{riskDaySuffix} {action}{objectiveSuffix}{tipsSuffix}";
 
         var referenceKey = $"cashflow-insight:{today:yyyyMMdd}:{scenario}";
         return new UserNotification(
@@ -413,6 +414,49 @@ public class NotificationsService(
             null,
             null,
             today);
+    }
+
+    private static IReadOnlyList<string> BuildCashflowTips(string scenario)
+    {
+        return scenario switch
+        {
+            "critical-overdue-expenses" => [
+                "Quite primeiro as despesas vencidas com juros mais altos",
+                "Pause gastos variáveis até regularizar o atraso",
+                "Renegocie vencimentos críticos se necessário"
+            ],
+            "projected-deficit" => [
+                "Reduza despesas não essenciais nesta semana",
+                "Antecipe ou confirme receitas pendentes",
+                "Defina teto diário de gastos até o fechamento"
+            ],
+            "overdue-incomes" => [
+                "Confirme recebimentos em atraso hoje",
+                "Atualize status das receitas já creditadas",
+                "Evite contar com receita sem confirmação"
+            ],
+            "pending-risk" => [
+                "Acompanhe os vencimentos dos próximos 5 dias",
+                "Confirme entradas de receita pendente",
+                "Priorize despesas essenciais"
+            ],
+            "no-income" => [
+                "Registre a próxima receita prevista",
+                "Revise despesas fixas do mês",
+                "Monte reserva mínima para próximos vencimentos"
+            ],
+            "partial-coverage" => [
+                "Ajuste despesas variáveis para ampliar cobertura",
+                "Direcione entrada de receita para contas prioritárias",
+                "Revise compras parceladas futuras"
+            ],
+            "pending-confirmation" => [
+                "Marque receitas recebidas para corrigir o caixa",
+                "Reveja pendências antigas",
+                "Valide datas de recebimento recorrente"
+            ],
+            _ => []
+        };
     }
 
     private static int CalculateHealthScore(
