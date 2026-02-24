@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
@@ -243,8 +244,16 @@ public class NotificationsService(
         await notificationRepository.SaveChangesAsync(cancellationToken);
     }
 
-    private static NotificationDto ToDto(UserNotification notification) =>
-        new(
+    private static NotificationDto ToDto(UserNotification notification)
+    {
+        JsonElement? payload = null;
+        if (!string.IsNullOrWhiteSpace(notification.PayloadJson))
+        {
+            using var document = JsonDocument.Parse(notification.PayloadJson);
+            payload = JsonSerializer.Deserialize<JsonElement>(document.RootElement.GetRawText());
+        }
+
+        return new NotificationDto(
             notification.Id,
             notification.Title,
             notification.Message,
@@ -252,7 +261,9 @@ public class NotificationsService(
             notification.MoneyType,
             notification.DueDate,
             notification.CreatedAt,
-            notification.ReadAt);
+            notification.ReadAt,
+            payload);
+    }
 
     private static DateOnly ResolveMonthlyDate(DateOnly today, int day)
     {
@@ -397,6 +408,31 @@ public class NotificationsService(
         var objectiveSuffix = string.IsNullOrWhiteSpace(financialGoal) ? string.Empty : $" Objetivo: {financialGoal}.";
         var riskDaySuffix = riskDay.HasValue ? $" Dia de risco: {riskDay:dd/MM}." : string.Empty;
         var tips = BuildCashflowTips(scenario);
+        var scoreBreakdown = BuildCashflowScoreBreakdown(
+            incomeReceived,
+            incomePending,
+            expenseTotal,
+            overdueExpenses.Count,
+            overdueIncomes.Count,
+            dueSoonExpenses.Sum(i => i.Amount),
+            projected);
+        var payload = new
+        {
+            scenario,
+            priority = projected < 0m || overdueExpenses.Count > 0 ? "critical" : incomePending > 0m ? "warning" : "ok",
+            healthScore,
+            riskDay = riskDay?.ToString("yyyy-MM-dd"),
+            overdueExpenses = overdueExpenses.Count,
+            overdueIncomes = overdueIncomes.Count,
+            dueSoonExpensesAmount = dueSoonExpenses.Sum(i => i.Amount),
+            currentCoverage = decimal.Round(coverage, 2),
+            projectedCoverage = decimal.Round(projectedCoverage, 2),
+            projectedBalance = projected,
+            action,
+            tips,
+            scoreBreakdown
+        };
+        var payloadJson = JsonSerializer.Serialize(payload);
         var tipsSuffix = tips.Count > 0 ? $" Dicas: {string.Join(" | ", tips)}." : string.Empty;
         var message =
             $"{monthLabel}: recebidas {incomeReceived.ToString("N2", culture)}, pendentes {incomePending.ToString("N2", culture)}, despesas {expenseTotal.ToString("N2", culture)}. " +
@@ -413,7 +449,8 @@ public class NotificationsService(
             null,
             null,
             null,
-            today);
+            today,
+            payloadJson);
     }
 
     private static IReadOnlyList<string> BuildCashflowTips(string scenario)
@@ -457,6 +494,38 @@ public class NotificationsService(
             ],
             _ => []
         };
+    }
+
+    private static IReadOnlyList<string> BuildCashflowScoreBreakdown(
+        decimal incomeReceived,
+        decimal incomePending,
+        decimal expenseTotal,
+        int overdueExpensesCount,
+        int overdueIncomesCount,
+        decimal dueSoonExpenseAmount,
+        decimal projectedBalance)
+    {
+        var breakdown = new List<string> { "Base: 100" };
+
+        if (overdueExpensesCount > 0)
+            breakdown.Add($"- {Math.Min(35, overdueExpensesCount * 12)} despesas atrasadas");
+
+        if (overdueIncomesCount > 0)
+            breakdown.Add($"- {Math.Min(20, overdueIncomesCount * 8)} receitas atrasadas");
+
+        if (incomeReceived <= 0m && incomePending > 0m)
+            breakdown.Add("- 20 sem receita recebida no mês");
+
+        if (expenseTotal > 0m && incomeReceived > 0m && (incomeReceived / expenseTotal) < 0.6m)
+            breakdown.Add("- 15 cobertura atual abaixo de 60%");
+
+        if (dueSoonExpenseAmount > incomeReceived && dueSoonExpenseAmount > 0m)
+            breakdown.Add("- 10 despesas de curto prazo acima das receitas recebidas");
+
+        if (projectedBalance < 0m)
+            breakdown.Add("- 20 saldo projetado negativo");
+
+        return breakdown;
     }
 
     private static int CalculateHealthScore(

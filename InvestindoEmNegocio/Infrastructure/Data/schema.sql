@@ -64,11 +64,15 @@ CREATE TABLE IF NOT EXISTS user_notifications (
     "ReferenceKey" character varying(160) NOT NULL,
     "Title" character varying(160) NOT NULL,
     "Message" character varying(500) NOT NULL,
+    "PayloadJson" character varying(4000) NULL,
     "DueDate" date NULL,
     "CreatedAt" timestamp with time zone NOT NULL,
     "ReadAt" timestamp with time zone NULL,
     CONSTRAINT "PK_user_notifications" PRIMARY KEY ("Id")
 );
+
+ALTER TABLE IF EXISTS user_notifications
+    ADD COLUMN IF NOT EXISTS "PayloadJson" character varying(4000) NULL;
 
 CREATE INDEX IF NOT EXISTS "IX_user_notifications_UserId_CreatedAt"
     ON user_notifications ("UserId", "CreatedAt");

@@ -13,6 +13,7 @@ public class UserNotification
     public string ReferenceKey { get; private set; } = string.Empty;
     public string Title { get; private set; } = string.Empty;
     public string Message { get; private set; } = string.Empty;
+    public string? PayloadJson { get; private set; }
     public DateOnly? DueDate { get; private set; }
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime? ReadAt { get; private set; }
@@ -28,13 +29,15 @@ public class UserNotification
         MoneyType? moneyType = null,
         Guid? planId = null,
         Guid? installmentId = null,
-        DateOnly? dueDate = null)
+        DateOnly? dueDate = null,
+        string? payloadJson = null)
     {
         UserId = userId;
         Kind = kind;
         Title = title.Trim();
         Message = message.Trim();
         ReferenceKey = referenceKey.Trim();
+        PayloadJson = string.IsNullOrWhiteSpace(payloadJson) ? null : payloadJson.Trim();
         MoneyType = moneyType;
         PlanId = planId;
         InstallmentId = installmentId;

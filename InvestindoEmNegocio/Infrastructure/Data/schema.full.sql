@@ -122,6 +122,7 @@ CREATE TABLE user_notifications (
     "ReferenceKey" character varying(160) NOT NULL,
     "Title" character varying(160) NOT NULL,
     "Message" character varying(500) NOT NULL,
+    "PayloadJson" character varying(4000),
     "DueDate" date,
     "CreatedAt" timestamp with time zone NOT NULL,
     "ReadAt" timestamp with time zone,

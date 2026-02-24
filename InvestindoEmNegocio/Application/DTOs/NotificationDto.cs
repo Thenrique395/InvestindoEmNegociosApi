@@ -1,4 +1,5 @@
 using InvestindoEmNegocio.Domain.Enums;
+using System.Text.Json;
 
 namespace InvestindoEmNegocio.Application.DTOs;
 
@@ -10,5 +11,6 @@ public record NotificationDto(
     MoneyType? MoneyType,
     DateOnly? DueDate,
     DateTime CreatedAt,
-    DateTime? ReadAt
+    DateTime? ReadAt,
+    JsonElement? Payload
 );

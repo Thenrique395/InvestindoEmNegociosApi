@@ -19,6 +19,9 @@ public class UserNotificationConfiguration : IEntityTypeConfiguration<UserNotifi
             .IsRequired()
             .HasMaxLength(500);
 
+        builder.Property(x => x.PayloadJson)
+            .HasMaxLength(4000);
+
         builder.Property(x => x.ReferenceKey)
             .IsRequired()
             .HasMaxLength(160);
