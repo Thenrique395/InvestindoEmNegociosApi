@@ -346,6 +346,9 @@ public class NotificationsService(
         var overdueExpenses = openExpenses.Where(i => i.DueDate < today).ToList();
         var overdueIncomes = openIncomes.Where(i => i.DueDate < today).ToList();
         var dueSoonExpenses = openExpenses.Where(i => i.DueDate >= today && i.DueDate <= today.AddDays(5)).ToList();
+        var overdueExpensesAmount = overdueExpenses.Sum(i => i.Amount);
+        var hasCoverageForOverdueExpenses = incomeReceived >= overdueExpensesAmount;
+        var hasCriticalOverdueExpenses = overdueExpenses.Count > 0 && !hasCoverageForOverdueExpenses;
 
         if (incomePending <= 0m && expenseTotal <= 0m && overdueExpenses.Count == 0 && overdueIncomes.Count == 0) return null;
 
@@ -368,9 +371,18 @@ public class NotificationsService(
 
         if (overdueExpenses.Count > 0)
         {
-            scenario = "critical-overdue-expenses";
-            title = "Ação imediata: despesas atrasadas";
-            action = "Ação recomendada: regularize primeiro as despesas vencidas.";
+            if (hasCriticalOverdueExpenses)
+            {
+                scenario = "critical-overdue-expenses";
+                title = "Ação imediata: despesas atrasadas";
+                action = "Ação recomendada: regularize primeiro as despesas vencidas.";
+            }
+            else
+            {
+                scenario = "overdue-expenses-covered";
+                title = "Despesas vencidas com cobertura disponível";
+                action = "Ação recomendada: quite as despesas vencidas e dê baixa no sistema.";
+            }
         }
         else if (projected < 0m)
         {
@@ -427,10 +439,16 @@ public class NotificationsService(
         var payload = new
         {
             scenario,
-            priority = projected < 0m || overdueExpenses.Count > 0 ? "critical" : incomePending > 0m ? "warning" : "ok",
+            priority = projected < 0m || hasCriticalOverdueExpenses
+                ? "critical"
+                : overdueExpenses.Count > 0 || incomePending > 0m
+                    ? "warning"
+                    : "ok",
             healthScore,
             riskDay = riskDay?.ToString("yyyy-MM-dd"),
             overdueExpenses = overdueExpenses.Count,
+            overdueExpensesAmount,
+            overdueExpensesCovered = hasCoverageForOverdueExpenses,
             overdueIncomes = overdueIncomes.Count,
             dueSoonExpensesAmount = dueSoonExpenses.Sum(i => i.Amount),
             currentCoverage = decimal.Round(coverage, 2),
@@ -469,6 +487,11 @@ public class NotificationsService(
                 "Quite primeiro as despesas vencidas com juros mais altos",
                 "Pause gastos variáveis até regularizar o atraso",
                 "Renegocie vencimentos críticos se necessário"
+            ],
+            "overdue-expenses-covered" => [
+                "Você já tem saldo para quitar as despesas atrasadas",
+                "Faça o pagamento e dê baixa no sistema hoje",
+                "Evite manter boletos vencidos para não gerar juros"
             ],
             "projected-deficit" => [
                 "Reduza despesas não essenciais nesta semana",
