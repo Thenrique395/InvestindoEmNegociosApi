@@ -8,7 +8,12 @@ public static class FeatureAccessEvaluator
     private static readonly IReadOnlyDictionary<UserRole, HashSet<string>> FeatureMatrix =
         new Dictionary<UserRole, HashSet<string>>
         {
-            [UserRole.Basic] = new(StringComparer.OrdinalIgnoreCase),
+            [UserRole.Basic] = new(StringComparer.OrdinalIgnoreCase)
+            {
+                AppFeatureKeys.CardsAccess,
+                AppFeatureKeys.AccountsAccess,
+                AppFeatureKeys.CategoriesAccess
+            },
             [UserRole.Intermediate] = new(StringComparer.OrdinalIgnoreCase)
             {
                 AppFeatureKeys.CardsAccess,
