@@ -1,6 +1,7 @@
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
+using InvestindoEmNegocio.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UglyToad.PdfPig.Core;
@@ -10,7 +11,7 @@ namespace InvestindoEmNegocio.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Route("api/v1/[controller]")]
-[Authorize]
+[Authorize(Policy = AppAuthorizationPolicies.FeatureInvoiceImportAccess)]
 public sealed class InvoiceImportController(IInvoiceImportService invoiceImportService, ILogger<InvoiceImportController> logger) : ControllerBase
 {
     [HttpPost("extract")]

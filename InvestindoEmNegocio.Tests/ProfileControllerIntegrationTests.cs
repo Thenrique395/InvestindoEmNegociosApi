@@ -10,6 +10,7 @@ using InvestindoEmNegocio.Controllers;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Repositories;
 using InvestindoEmNegocio.Extensions;
+using InvestindoEmNegocio.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -87,6 +88,7 @@ public class ProfileControllerIntegrationTests
             .SetDefaultPolicy(new AuthorizationPolicyBuilder("TestAuth")
                 .RequireAuthenticatedUser()
                 .Build());
+        builder.Services.AddAuthorization(AppAuthorizationPolicies.Configure);
 
         var app = builder.Build();
         app.UseGlobalProblemDetails(includeExceptionDetails: false);

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
+using InvestindoEmNegocio.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -10,7 +11,7 @@ namespace InvestindoEmNegocio.Controllers;
 [ApiController]
 [Route("api/admin/robots")]
 [Route("api/v1/admin/robots")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = AppAuthorizationPolicies.FeatureAdminRobotsManage)]
 [EnableRateLimiting("admin-robots")]
 public class AdminRobotsController(
     IAdminRobotsService adminRobotsService) : ControllerBase

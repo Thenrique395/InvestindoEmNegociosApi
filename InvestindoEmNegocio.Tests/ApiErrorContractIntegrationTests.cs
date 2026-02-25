@@ -7,6 +7,7 @@ using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Controllers;
 using InvestindoEmNegocio.Extensions;
+using InvestindoEmNegocio.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -169,6 +170,7 @@ public class ApiErrorContractIntegrationTests
             .SetDefaultPolicy(new AuthorizationPolicyBuilder("TestAuth")
                 .RequireAuthenticatedUser()
                 .Build());
+        builder.Services.AddAuthorization(AppAuthorizationPolicies.Configure);
 
         registerFakes(builder.Services);
 
@@ -193,7 +195,8 @@ public class ApiErrorContractIntegrationTests
         {
             var claims = new[]
             {
-                new Claim(ClaimTypes.NameIdentifier, Guid.Parse("11111111-1111-1111-1111-111111111111").ToString())
+                new Claim(ClaimTypes.NameIdentifier, Guid.Parse("11111111-1111-1111-1111-111111111111").ToString()),
+                new Claim(ClaimTypes.Role, "Basic")
             };
             var identity = new ClaimsIdentity(claims, Scheme.Name);
             var principal = new ClaimsPrincipal(identity);

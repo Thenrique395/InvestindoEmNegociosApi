@@ -3,6 +3,7 @@ using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Enums;
+using InvestindoEmNegocio.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,7 +12,7 @@ namespace InvestindoEmNegocio.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Route("api/v1/[controller]")]
-[Authorize]
+[Authorize(Policy = AppAuthorizationPolicies.FeatureAccountsAccess)]
 public class AccountsController(IAccountsService accountsService) : ControllerBase
 {
     [HttpGet]

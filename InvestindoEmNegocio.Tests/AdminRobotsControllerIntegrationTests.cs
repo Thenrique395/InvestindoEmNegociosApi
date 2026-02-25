@@ -7,6 +7,7 @@ using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Controllers;
 using InvestindoEmNegocio.Extensions;
+using InvestindoEmNegocio.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -76,6 +77,7 @@ public class AdminRobotsControllerIntegrationTests
             .SetDefaultPolicy(new AuthorizationPolicyBuilder("TestAuth")
                 .RequireAuthenticatedUser()
                 .Build());
+        builder.Services.AddAuthorization(AppAuthorizationPolicies.Configure);
 
         builder.Services.AddSingleton<IAdminRobotsService>(new FakeAdminRobotsService());
 

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
+using InvestindoEmNegocio.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,7 +10,7 @@ namespace InvestindoEmNegocio.Controllers;
 [ApiController]
 [Route("api/receitas")]
 [Route("api/v1/receitas")]
-[Authorize]
+[Authorize(Policy = AppAuthorizationPolicies.AtLeastBasic)]
 public class ReceitasController(IIncomeSummaryService incomeSummaryService) : ControllerBase
 {
     [HttpGet("summary")]

@@ -1,4 +1,5 @@
 using InvestindoEmNegocio.Extensions;
+using InvestindoEmNegocio.Infrastructure.Auth;
 using InvestindoEmNegocio.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,7 +18,7 @@ builder.Services
     .AddApplicationDependencies()
     .AddValidation()
     .AddJwtAuthentication(builder.Configuration);
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(AppAuthorizationPolicies.Configure);
 
 var app = builder.Build();
 

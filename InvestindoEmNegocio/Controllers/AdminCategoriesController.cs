@@ -1,5 +1,6 @@
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
+using InvestindoEmNegocio.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,7 +9,7 @@ namespace InvestindoEmNegocio.Controllers;
 [ApiController]
 [Route("api/admin/categories")]
 [Route("api/v1/admin/categories")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = AppAuthorizationPolicies.FeatureAdminCategoriesManage)]
 public class AdminCategoriesController(IAdminCategoriesService adminCategoriesService) : ControllerBase
 {
     [HttpGet]

@@ -11,6 +11,7 @@ using InvestindoEmNegocio.Infrastructure.Auth;
 using InvestindoEmNegocio.Infrastructure.Data;
 using InvestindoEmNegocio.Infrastructure.Repositories;
 using InvestindoEmNegocio.Infrastructure.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.OpenApi;
@@ -214,6 +215,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddApplicationDependencies(this IServiceCollection services)
     {
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IUserFeatureOverrideRepository, UserFeatureOverrideRepository>();
         services.AddScoped<IUserProfileRepository, UserProfileRepository>();
         services.AddScoped<ICardRepository, CardRepository>();
         services.AddScoped<IAccountRepository, AccountRepository>();
@@ -314,6 +316,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IB3SyncService, B3SyncService>();
         services.AddScoped<IDataPortabilityService, DataPortabilityService>();
         services.AddScoped<IDataPortabilityFacadeService, DataPortabilityFacadeService>();
+        services.AddScoped<IClaimsTransformation, UserFeatureClaimsTransformation>();
         services.AddHostedService<RobotsHostedService>();
 
         return services;

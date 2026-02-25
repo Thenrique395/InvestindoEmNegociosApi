@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using InvestindoEmNegocio.Application.Interfaces;
+using InvestindoEmNegocio.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,7 +9,7 @@ namespace InvestindoEmNegocio.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Route("api/v1/[controller]")]
-[Authorize]
+[Authorize(Policy = AppAuthorizationPolicies.AtLeastBasic)]
 public class NotificationsController(INotificationsService notificationsService) : ControllerBase
 {
     [HttpGet]

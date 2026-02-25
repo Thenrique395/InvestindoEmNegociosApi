@@ -5,6 +5,7 @@ using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Infrastructure.Api;
+using InvestindoEmNegocio.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
@@ -14,7 +15,7 @@ namespace InvestindoEmNegocio.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Route("api/v1/[controller]")]
-[Authorize]
+[Authorize(Policy = AppAuthorizationPolicies.AtLeastBasic)]
 public class GoalsController(IGoalsService goalsService, IAuditService auditService) : ControllerBase
 {
     [HttpGet("income")]

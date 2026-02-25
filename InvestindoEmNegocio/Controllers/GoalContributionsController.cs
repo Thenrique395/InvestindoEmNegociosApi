@@ -3,6 +3,7 @@ using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Infrastructure.Api;
+using InvestindoEmNegocio.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,7 +12,7 @@ namespace InvestindoEmNegocio.Controllers;
 [ApiController]
 [Route("api/goals/{goalId:guid}/contributions")]
 [Route("api/v1/goals/{goalId:guid}/contributions")]
-[Authorize]
+[Authorize(Policy = AppAuthorizationPolicies.AtLeastBasic)]
 public class GoalContributionsController(IGoalContributionsService contributionsService) : ControllerBase
 {
     [HttpGet]

@@ -1,5 +1,6 @@
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
+using InvestindoEmNegocio.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -24,7 +25,7 @@ public class AuthController(IAuthFacadeService authFacadeService) : ControllerBa
     }
 
     [HttpPost("change-password")]
-    [Authorize]
+    [Authorize(Policy = AppAuthorizationPolicies.AtLeastBasic)]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request, CancellationToken cancellationToken)
     {
         var userId = GetUserId();

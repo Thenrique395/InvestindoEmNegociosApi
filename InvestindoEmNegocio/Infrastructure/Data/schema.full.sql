@@ -199,6 +199,17 @@ CREATE TABLE users (
     CONSTRAINT "PK_users" PRIMARY KEY ("Id")
 );
 
+CREATE TABLE user_feature_overrides (
+    "Id" uuid NOT NULL,
+    "UserId" uuid NOT NULL,
+    "FeatureKey" character varying(120) NOT NULL,
+    "IsEnabled" boolean NOT NULL,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    "UpdatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_user_feature_overrides" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_user_feature_overrides_users_UserId" FOREIGN KEY ("UserId") REFERENCES users ("Id") ON DELETE CASCADE
+);
+
 CREATE TABLE cards (
     "Id" uuid NOT NULL,
     "UserId" uuid NOT NULL,
@@ -428,3 +439,5 @@ CREATE UNIQUE INDEX "IX_user_onboarding_UserId" ON user_onboarding ("UserId");
 CREATE UNIQUE INDEX "IX_user_profiles_UserId" ON user_profiles ("UserId");
 
 CREATE UNIQUE INDEX "IX_users_Email" ON users ("Email");
+
+CREATE UNIQUE INDEX "IX_user_feature_overrides_UserId_FeatureKey" ON user_feature_overrides ("UserId", "FeatureKey");

@@ -80,6 +80,20 @@ CREATE INDEX IF NOT EXISTS "IX_user_notifications_UserId_CreatedAt"
 CREATE UNIQUE INDEX IF NOT EXISTS "IX_user_notifications_UserId_ReferenceKey"
     ON user_notifications ("UserId", "ReferenceKey");
 
+CREATE TABLE IF NOT EXISTS user_feature_overrides (
+    "Id" uuid NOT NULL,
+    "UserId" uuid NOT NULL,
+    "FeatureKey" character varying(120) NOT NULL,
+    "IsEnabled" boolean NOT NULL,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    "UpdatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_user_feature_overrides" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_user_feature_overrides_users_UserId" FOREIGN KEY ("UserId") REFERENCES users ("Id") ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_user_feature_overrides_UserId_FeatureKey"
+    ON user_feature_overrides ("UserId", "FeatureKey");
+
 CREATE TABLE IF NOT EXISTS robot_execution_logs (
     "Id" uuid NOT NULL,
     "RobotName" character varying(80) NOT NULL,
