@@ -35,7 +35,7 @@ public sealed class IncomeSummaryService(
                     i.PlanId,
                     plan?.Title ?? "Receita",
                     i.Amount,
-                    i.DueDate.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("pt-BR")),
+                    i.DueDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     schedule,
                     startDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     schedule == ScheduleType.Recurring,

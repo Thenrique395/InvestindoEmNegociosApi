@@ -8,6 +8,7 @@ public interface IUserNotificationRepository
     Task<List<UserNotification>> ListByUserAsync(Guid userId, bool unreadOnly, int? limit, CancellationToken cancellationToken = default);
     Task<UserNotification?> GetByIdAsync(Guid id, Guid userId, CancellationToken cancellationToken = default);
     Task<bool> ExistsAsync(Guid userId, string referenceKey, CancellationToken cancellationToken = default);
+    Task<HashSet<string>> ListReferenceKeysAsync(Guid userId, IEnumerable<string> referenceKeys, CancellationToken cancellationToken = default);
     Task AddRangeAsync(IEnumerable<UserNotification> notifications, CancellationToken cancellationToken = default);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

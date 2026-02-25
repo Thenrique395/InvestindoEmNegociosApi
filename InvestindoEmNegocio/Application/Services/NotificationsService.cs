@@ -35,7 +35,7 @@ public class NotificationsService(
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var settings = await settingsRepository.GetOrCreateAsync(cancellationToken);
-        var toCreate = new List<UserNotification>();
+        var candidates = new List<UserNotification>();
         var culture = new CultureInfo("pt-BR");
 
         if (settings.IncomeUpcomingEnabled || settings.ExpenseUpcomingEnabled || settings.ExpenseOverdueEnabled)
@@ -58,12 +58,9 @@ public class NotificationsService(
                         continue;
 
                     var referenceKey = $"installment:{installment.Id}:income:{installment.DueDate:yyyyMMdd}";
-                    if (await notificationRepository.ExistsAsync(userId, referenceKey, cancellationToken))
-                        continue;
-
                     var title = $"Receita recebe em {installment.DueDate:dd/MM}";
                     var message = $"{plan.Title} · R$ {installment.Amount.ToString("N2", culture)}";
-                    toCreate.Add(new UserNotification(userId, NotificationKind.IncomeUpcoming, title, message, referenceKey, plan.Type, plan.Id, installment.Id, installment.DueDate));
+                    candidates.Add(new UserNotification(userId, NotificationKind.IncomeUpcoming, title, message, referenceKey, plan.Type, plan.Id, installment.Id, installment.DueDate));
                 }
             }
 
@@ -78,12 +75,9 @@ public class NotificationsService(
                         continue;
 
                     var referenceKey = $"installment:{installment.Id}:expense:{installment.DueDate:yyyyMMdd}";
-                    if (await notificationRepository.ExistsAsync(userId, referenceKey, cancellationToken))
-                        continue;
-
                     var title = $"Despesa vence em {installment.DueDate:dd/MM}";
                     var message = $"{plan.Title} · R$ {installment.Amount.ToString("N2", culture)}";
-                    toCreate.Add(new UserNotification(userId, NotificationKind.ExpenseUpcoming, title, message, referenceKey, plan.Type, plan.Id, installment.Id, installment.DueDate));
+                    candidates.Add(new UserNotification(userId, NotificationKind.ExpenseUpcoming, title, message, referenceKey, plan.Type, plan.Id, installment.Id, installment.DueDate));
                 }
             }
 
@@ -97,12 +91,9 @@ public class NotificationsService(
                         continue;
 
                     var referenceKey = $"installment:{installment.Id}:expense-overdue:{installment.DueDate:yyyyMMdd}";
-                    if (await notificationRepository.ExistsAsync(userId, referenceKey, cancellationToken))
-                        continue;
-
                     var title = "Despesa atrasada";
                     var message = $"{plan.Title} · Venceu em {installment.DueDate:dd/MM}";
-                    toCreate.Add(new UserNotification(userId, NotificationKind.ExpenseOverdue, title, message, referenceKey, plan.Type, plan.Id, installment.Id, installment.DueDate));
+                    candidates.Add(new UserNotification(userId, NotificationKind.ExpenseOverdue, title, message, referenceKey, plan.Type, plan.Id, installment.Id, installment.DueDate));
                 }
             }
         }
@@ -118,23 +109,17 @@ public class NotificationsService(
                 if (settings.CardCloseDayEnabled && closeDate == today)
                 {
                     var referenceKey = $"card-close-day:{card.Id}:{closeDate:yyyyMMdd}";
-                    if (!await notificationRepository.ExistsAsync(userId, referenceKey, cancellationToken))
-                    {
-                        var title = $"{card.Nickname} fecha hoje";
-                        var message = $"Fatura fecha em {closeDate:dd/MM}.";
-                        toCreate.Add(new UserNotification(userId, NotificationKind.CardClosingDay, title, message, referenceKey, null, null, null, closeDate));
-                    }
+                    var title = $"{card.Nickname} fecha hoje";
+                    var message = $"Fatura fecha em {closeDate:dd/MM}.";
+                    candidates.Add(new UserNotification(userId, NotificationKind.CardClosingDay, title, message, referenceKey, null, null, null, closeDate));
                 }
 
                 if (settings.CardCloseSoonEnabled && settings.CardCloseDaysBefore > 0 && daysUntil > 0 && daysUntil <= settings.CardCloseDaysBefore)
                 {
                     var referenceKey = $"card-close-soon:{card.Id}:{closeDate:yyyyMMdd}";
-                    if (!await notificationRepository.ExistsAsync(userId, referenceKey, cancellationToken))
-                    {
-                        var title = $"Fatura fecha em {daysUntil} dias";
-                        var message = $"{card.Nickname} · Fecha em {closeDate:dd/MM}";
-                        toCreate.Add(new UserNotification(userId, NotificationKind.CardClosingSoon, title, message, referenceKey, null, null, null, closeDate));
-                    }
+                    var title = $"Fatura fecha em {daysUntil} dias";
+                    var message = $"{card.Nickname} · Fecha em {closeDate:dd/MM}";
+                    candidates.Add(new UserNotification(userId, NotificationKind.CardClosingSoon, title, message, referenceKey, null, null, null, closeDate));
                 }
             }
         }
@@ -142,24 +127,18 @@ public class NotificationsService(
         if (settings.MonthCloseEnabled && IsLastDayOfMonth(today))
         {
             var referenceKey = $"month-close:{today:yyyyMM}";
-            if (!await notificationRepository.ExistsAsync(userId, referenceKey, cancellationToken))
-            {
-                var title = "Fechamento do mês";
-                var message = $"Hoje fecha o mês de {today.ToDateTime(TimeOnly.MinValue).ToString("MMMM", culture)}.";
-                toCreate.Add(new UserNotification(userId, NotificationKind.MonthClosing, title, message, referenceKey, null, null, null, today));
-            }
+            var title = "Fechamento do mês";
+            var message = $"Hoje fecha o mês de {today.ToDateTime(TimeOnly.MinValue).ToString("MMMM", culture)}.";
+            candidates.Add(new UserNotification(userId, NotificationKind.MonthClosing, title, message, referenceKey, null, null, null, today));
         }
 
         if (settings.MonthSummaryEnabled && today.Day == 1)
         {
             var referenceKey = $"month-summary:{today:yyyyMM}";
-            if (!await notificationRepository.ExistsAsync(userId, referenceKey, cancellationToken))
-            {
-                var previousMonth = today.AddDays(-1);
-                var title = "Resumo mensal disponível";
-                var message = $"Resumo de {previousMonth.ToDateTime(TimeOnly.MinValue).ToString("MMMM", culture)} pronto para revisão.";
-                toCreate.Add(new UserNotification(userId, NotificationKind.MonthSummary, title, message, referenceKey, null, null, null, today));
-            }
+            var previousMonth = today.AddDays(-1);
+            var title = "Resumo mensal disponível";
+            var message = $"Resumo de {previousMonth.ToDateTime(TimeOnly.MinValue).ToString("MMMM", culture)} pronto para revisão.";
+            candidates.Add(new UserNotification(userId, NotificationKind.MonthSummary, title, message, referenceKey, null, null, null, today));
         }
 
         if (settings.MonthSummaryEnabled)
@@ -167,27 +146,37 @@ public class NotificationsService(
             var insight = await BuildCashflowInsightAsync(userId, today, culture, profile.FinancialGoal, cancellationToken);
             if (insight is not null)
             {
-                if (!await notificationRepository.ExistsAsync(userId, insight.ReferenceKey, cancellationToken))
-                {
-                    toCreate.Add(insight);
-                }
+                candidates.Add(insight);
             }
         }
 
         if (settings.GoalBelowExpectedEnabled || settings.GoalCompletedEnabled || settings.GoalInactivityEnabled)
         {
             var goals = await goalRepository.ListByUserAsync(userId, null, null, cancellationToken);
+            var goalLastContributionDates = settings.GoalInactivityEnabled && settings.GoalInactivityDays > 0
+                ? await goalContributionRepository.GetLastContributionDatesByGoalsAsync(userId, goals.Select(g => g.Id), cancellationToken)
+                : new Dictionary<Guid, DateOnly>();
+            if (goalLastContributionDates is null && settings.GoalInactivityEnabled && settings.GoalInactivityDays > 0)
+            {
+                goalLastContributionDates = new Dictionary<Guid, DateOnly>();
+                foreach (var goal in goals)
+                {
+                    var contributions = await goalContributionRepository.ListByGoalAsync(goal.Id, userId, cancellationToken);
+                    if (contributions.Count > 0)
+                    {
+                        goalLastContributionDates[goal.Id] = contributions.Max(c => c.Date);
+                    }
+                }
+            }
+            goalLastContributionDates ??= new Dictionary<Guid, DateOnly>();
             foreach (var goal in goals)
             {
                 if (settings.GoalCompletedEnabled && goal.Status == GoalStatus.Completed)
                 {
                     var referenceKey = $"goal-completed:{goal.Id}";
-                    if (!await notificationRepository.ExistsAsync(userId, referenceKey, cancellationToken))
-                    {
-                        var title = "Meta atingida";
-                        var message = $"{goal.Title} · R$ {goal.TargetAmount.ToString("N2", culture)}";
-                        toCreate.Add(new UserNotification(userId, NotificationKind.GoalCompleted, title, message, referenceKey, null, null, null, null));
-                    }
+                    var title = "Meta atingida";
+                    var message = $"{goal.Title} · R$ {goal.TargetAmount.ToString("N2", culture)}";
+                    candidates.Add(new UserNotification(userId, NotificationKind.GoalCompleted, title, message, referenceKey, null, null, null, null));
                 }
 
                 if (settings.GoalBelowExpectedEnabled && goal.ExpectedMonthly > 0 && goal.Status is not GoalStatus.Completed and not GoalStatus.Canceled)
@@ -196,36 +185,55 @@ public class NotificationsService(
                     if (expected > 0 && goal.CurrentAmount < expected)
                     {
                         var referenceKey = $"goal-below:{goal.Id}:{today:yyyyMM}";
-                        if (!await notificationRepository.ExistsAsync(userId, referenceKey, cancellationToken))
-                        {
-                            var title = "Meta abaixo do esperado";
-                            var message = $"{goal.Title} · R$ {goal.CurrentAmount.ToString("N2", culture)} de R$ {expected.ToString("N2", culture)}";
-                            toCreate.Add(new UserNotification(userId, NotificationKind.GoalBelowExpected, title, message, referenceKey, null, null, null, null));
-                        }
+                        var title = "Meta abaixo do esperado";
+                        var message = $"{goal.Title} · R$ {goal.CurrentAmount.ToString("N2", culture)} de R$ {expected.ToString("N2", culture)}";
+                        candidates.Add(new UserNotification(userId, NotificationKind.GoalBelowExpected, title, message, referenceKey, null, null, null, null));
                     }
                 }
 
                 if (settings.GoalInactivityEnabled && settings.GoalInactivityDays > 0 && goal.Status is not GoalStatus.Completed and not GoalStatus.Canceled)
                 {
-                    var contributions = await goalContributionRepository.ListByGoalAsync(goal.Id, userId, cancellationToken);
-                    var lastDate = contributions.Count > 0
-                        ? contributions.Max(c => c.Date)
+                    var lastDate = goalLastContributionDates.TryGetValue(goal.Id, out var lastContribution)
+                        ? lastContribution
                         : DateOnly.FromDateTime(goal.CreatedAt);
                     var daysSince = today.DayNumber - lastDate.DayNumber;
                     if (daysSince >= settings.GoalInactivityDays)
                     {
                         var referenceKey = $"goal-inactive:{goal.Id}:{today:yyyyMM}";
-                        if (!await notificationRepository.ExistsAsync(userId, referenceKey, cancellationToken))
-                        {
-                            var title = "Meta sem movimentações";
-                            var message = $"{goal.Title} · Sem aportes há {daysSince} dias.";
-                            toCreate.Add(new UserNotification(userId, NotificationKind.GoalInactive, title, message, referenceKey, null, null, null, null));
-                        }
+                        var title = "Meta sem movimentações";
+                        var message = $"{goal.Title} · Sem aportes há {daysSince} dias.";
+                        candidates.Add(new UserNotification(userId, NotificationKind.GoalInactive, title, message, referenceKey, null, null, null, null));
                     }
                 }
             }
         }
 
+        var uniqueCandidates = candidates
+            .GroupBy(n => n.ReferenceKey, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
+
+        if (uniqueCandidates.Count == 0)
+            return 0;
+
+        var existingReferenceKeys = await notificationRepository.ListReferenceKeysAsync(
+            userId,
+            uniqueCandidates.Select(n => n.ReferenceKey),
+            cancellationToken);
+        if (existingReferenceKeys is null)
+        {
+            existingReferenceKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var referenceKey in uniqueCandidates.Select(n => n.ReferenceKey))
+            {
+                if (await notificationRepository.ExistsAsync(userId, referenceKey, cancellationToken))
+                {
+                    existingReferenceKeys.Add(referenceKey);
+                }
+            }
+        }
+        var toCreate = uniqueCandidates
+            .Where(n => !existingReferenceKeys.Contains(n.ReferenceKey))
+            .ToList();
         if (toCreate.Count == 0)
             return 0;
 

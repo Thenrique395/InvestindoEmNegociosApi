@@ -35,6 +35,22 @@ public class UserNotificationRepository(InvestDbContext context) : IUserNotifica
             .AnyAsync(n => n.UserId == userId && n.ReferenceKey == referenceKey, cancellationToken);
     }
 
+    public async Task<HashSet<string>> ListReferenceKeysAsync(Guid userId, IEnumerable<string> referenceKeys, CancellationToken cancellationToken = default)
+    {
+        var keys = referenceKeys?
+            .Where(k => !string.IsNullOrWhiteSpace(k))
+            .Select(k => k.Trim())
+            .Distinct()
+            .ToList() ?? [];
+        if (keys.Count == 0) return [];
+
+        var existing = await context.UserNotifications.AsNoTracking()
+            .Where(n => n.UserId == userId && keys.Contains(n.ReferenceKey))
+            .Select(n => n.ReferenceKey)
+            .ToListAsync(cancellationToken);
+        return existing.ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
     public async Task AddRangeAsync(IEnumerable<UserNotification> notifications, CancellationToken cancellationToken = default)
     {
         await context.UserNotifications.AddRangeAsync(notifications, cancellationToken);
