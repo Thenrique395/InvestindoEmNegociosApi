@@ -12,6 +12,7 @@ using Moq;
 
 namespace InvestindoEmNegocio.Tests;
 
+[Trait("Suite", "Smoke")]
 public class MoreControllersSmokeTests
 {
     [Fact]
@@ -24,6 +25,8 @@ public class MoreControllersSmokeTests
         cards.Setup(x => x.UpdateAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CardRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(cardResponse);
         cards.Setup(x => x.DeleteAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
         cards.Setup(x => x.GetTotalDebtAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(123m);
+        cards.Setup(x => x.ListStatementCyclesAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<int?>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<CardStatementCycleResponse>());
         var audit = new Mock<IAuditService>();
         var c = new CardsController(cards.Object, audit.Object);
         SetAuth(c);
@@ -34,6 +37,40 @@ public class MoreControllersSmokeTests
         (await c.Update(Guid.NewGuid(), req, CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await c.Delete(Guid.NewGuid(), CancellationToken.None)).Should().BeOfType<NoContentResult>();
         (await c.GetTotalDebt(CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await c.ListStatements(Guid.NewGuid(), 2026, 3, CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+    }
+
+    [Fact]
+    public async Task AccountsController_Should_Cover_Transfer_And_Transactions()
+    {
+        var accounts = new Mock<IAccountsService>();
+        var accountId = Guid.NewGuid();
+        accounts.Setup(x => x.ListAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new AccountResponse(accountId, "Conta", AccountType.Checking, 0, 100, true, DateTime.UtcNow, DateTime.UtcNow)]);
+        accounts.Setup(x => x.GetBalanceAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AccountBalanceResponse(accountId, 0, 100, 100));
+        accounts.Setup(x => x.ListTransactionsAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new AccountTransactionResponse(
+                Guid.NewGuid(),
+                accountId,
+                DateTime.UtcNow,
+                AccountTransactionType.Transfer,
+                AccountTransactionKind.Debit,
+                50,
+                "Transfer",
+                "AccountTransfer",
+                Guid.NewGuid(),
+                DateTime.UtcNow)]);
+        accounts.Setup(x => x.TransferAsync(It.IsAny<Guid>(), It.IsAny<AccountTransferRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AccountTransferResponse(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 50, DateTime.UtcNow, "Transfer"));
+
+        var c = new AccountsController(accounts.Object);
+        SetAuth(c, UserRole.Intermediate);
+
+        (await c.List(CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await c.Balance(accountId, CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await c.Transactions(accountId, null, null, CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await c.Transfer(new AccountTransferRequest(Guid.NewGuid(), Guid.NewGuid(), 50), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
     }
 
     [Fact]
@@ -211,9 +248,13 @@ public class MoreControllersSmokeTests
         (await adminParametersController.UpdateNotificationSettings(new UpdateNotificationSettingsRequest(true,1,true,1,true,true,1,true,true,true,true,true,true,1), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
     }
 
-    private static void SetAuth(ControllerBase controller)
+    private static void SetAuth(ControllerBase controller, UserRole role = UserRole.Basic)
     {
-        var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString())], "Test");
+        var identity = new ClaimsIdentity(
+        [
+            new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
+            new Claim(ClaimTypes.Role, role.ToString())
+        ], "Test");
         var context = new DefaultHttpContext { User = new ClaimsPrincipal(identity) };
         context.Request.Headers["User-Agent"] = "tests";
         context.Request.Headers["X-Forwarded-For"] = "127.0.0.1";

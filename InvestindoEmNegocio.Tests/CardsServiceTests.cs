@@ -2,12 +2,14 @@ using FluentAssertions;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Entities;
+using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace InvestindoEmNegocio.Tests;
 
+[Trait("Suite", "Smoke")]
 public class CardsServiceTests
 {
     [Fact]
@@ -180,6 +182,69 @@ public class CardsServiceTests
         total.Should().Be(321.55m);
     }
 
+    [Fact]
+    public async Task ListStatementCyclesAsync_Should_Return_Null_When_Card_Not_Found()
+    {
+        var cardRepository = new Mock<ICardRepository>();
+        cardRepository
+            .Setup(x => x.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Card?)null);
+        var sut = BuildSut(cardRepository: cardRepository);
+
+        var result = await sut.ListStatementCyclesAsync(Guid.NewGuid(), Guid.NewGuid());
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ListStatementCyclesAsync_Should_Consolidate_Cycle()
+    {
+        var userId = Guid.NewGuid();
+        var cardId = Guid.NewGuid();
+        var planId = Guid.NewGuid();
+        var installmentId = Guid.NewGuid();
+        var card = new Card(userId, 1, "Nome", "Principal", "1234", "Banco", 5000m, 10, 20);
+        typeof(Card).GetProperty(nameof(Card.Id))?.SetValue(card, cardId);
+
+        var cardRepository = new Mock<ICardRepository>();
+        cardRepository
+            .Setup(x => x.GetByIdAsync(cardId, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(card);
+
+        var plan = new MoneyPlan(userId, MoneyType.Expense, "Internet", 120m, ScheduleType.OneTime, new DateOnly(2026, 2, 5), null, 1, null, null, cardId);
+        typeof(MoneyPlan).GetProperty(nameof(MoneyPlan.Id))?.SetValue(plan, planId);
+        var planRepository = new Mock<IMoneyPlanRepository>();
+        planRepository
+            .Setup(x => x.ListByUserAsync(userId, MoneyType.Expense, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([plan]);
+
+        var installment = new MoneyInstallment(planId, userId, 1, new DateOnly(2026, 3, 20), 120m, null, 2026, 3, new DateOnly(2026, 3, 10), new DateOnly(2026, 3, 20));
+        typeof(MoneyInstallment).GetProperty(nameof(MoneyInstallment.Id))?.SetValue(installment, installmentId);
+        var installmentRepository = new Mock<IMoneyInstallmentRepository>();
+        installmentRepository
+            .Setup(x => x.ListByUserAsync(userId, null, null, null, MoneyType.Expense, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([installment]);
+
+        var paymentRepository = new Mock<IMoneyPaymentRepository>();
+        paymentRepository
+            .Setup(x => x.ListByInstallmentIdsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new MoneyPayment(installmentId, userId, DateTime.UtcNow, 20m)]);
+
+        var sut = BuildSut(
+            cardRepository: cardRepository,
+            installmentRepository: installmentRepository,
+            paymentRepository: paymentRepository,
+            planRepository: planRepository);
+
+        var result = await sut.ListStatementCyclesAsync(userId, cardId, 2026, 3);
+
+        result.Should().NotBeNull();
+        result.Should().HaveCount(1);
+        result![0].TotalAmount.Should().Be(120m);
+        result[0].TotalPaid.Should().Be(20m);
+        result[0].TotalOpen.Should().Be(100m);
+    }
+
     private static CardRequest NewRequest() =>
         new(
             BrandId: 1,
@@ -194,12 +259,16 @@ public class CardsServiceTests
     private static CardsService BuildSut(
         Mock<ICardRepository>? cardRepository = null,
         Mock<ICardBrandRepository>? brandRepository = null,
-        Mock<IMoneyInstallmentRepository>? installmentRepository = null)
+        Mock<IMoneyInstallmentRepository>? installmentRepository = null,
+        Mock<IMoneyPaymentRepository>? paymentRepository = null,
+        Mock<IMoneyPlanRepository>? planRepository = null)
     {
         return new CardsService(
             cardRepository?.Object ?? Mock.Of<ICardRepository>(),
             brandRepository?.Object ?? Mock.Of<ICardBrandRepository>(),
             installmentRepository?.Object ?? Mock.Of<IMoneyInstallmentRepository>(),
+            paymentRepository?.Object ?? Mock.Of<IMoneyPaymentRepository>(),
+            planRepository?.Object ?? Mock.Of<IMoneyPlanRepository>(),
             NullLogger<CardsService>.Instance);
     }
 }

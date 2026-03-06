@@ -10,4 +10,5 @@ public interface IAccountsService
     Task<bool> DeleteAsync(Guid userId, Guid accountId, CancellationToken cancellationToken = default);
     Task<AccountBalanceResponse?> GetBalanceAsync(Guid userId, Guid accountId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AccountTransactionResponse>?> ListTransactionsAsync(Guid userId, Guid accountId, DateTime? fromUtc = null, DateTime? toUtc = null, CancellationToken cancellationToken = default);
+    Task<AccountTransferResponse?> TransferAsync(Guid userId, AccountTransferRequest request, CancellationToken cancellationToken = default);
 }

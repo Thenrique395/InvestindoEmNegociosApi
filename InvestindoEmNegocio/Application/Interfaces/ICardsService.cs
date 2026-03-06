@@ -9,4 +9,5 @@ public interface ICardsService
     Task<CardResponse?> UpdateAsync(Guid userId, Guid id, CardRequest request, CancellationToken cancellationToken = default);
     Task<bool> DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken = default);
     Task<decimal> GetTotalDebtAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<CardStatementCycleResponse>?> ListStatementCyclesAsync(Guid userId, Guid cardId, int? year = null, int? month = null, CancellationToken cancellationToken = default);
 }

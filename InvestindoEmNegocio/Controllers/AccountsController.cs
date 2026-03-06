@@ -88,6 +88,23 @@ public class AccountsController(IAccountsService accountsService) : ControllerBa
         return Ok(data);
     }
 
+    [HttpPost("transfers")]
+    public async Task<IActionResult> Transfer([FromBody] AccountTransferRequest request, CancellationToken cancellationToken)
+    {
+        EnsureAccountManagementAllowed();
+        try
+        {
+            var userId = GetUserId();
+            var transfer = await accountsService.TransferAsync(userId, request, cancellationToken);
+            if (transfer is null) return NotFound();
+            return Ok(transfer);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new AppProblemException("Transferência inválida", ex.Message, StatusCodes.Status400BadRequest);
+        }
+    }
+
     private Guid GetUserId()
     {
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);

@@ -2,6 +2,7 @@ using FluentAssertions;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Services;
+using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
@@ -179,18 +180,58 @@ public class AdminParametersServiceTests
         exception.Which.StatusCode.Should().Be(409);
     }
 
+    [Fact]
+    public async Task SendTestEmailAsync_Should_Send_When_Email_Is_Valid()
+    {
+        var emailSender = new Mock<IEmailSender>();
+        var sut = BuildSut(emailSender: emailSender);
+
+        var result = await sut.SendTestEmailAsync("admin@teste.com", CancellationToken.None);
+
+        result.To.Should().Be("admin@teste.com");
+        emailSender.Verify(x => x.SendAsync("admin@teste.com", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SendTestEmailAsync_Should_Throw_When_Email_Is_Invalid()
+    {
+        var sut = BuildSut();
+
+        Func<Task> act = async () => await sut.SendTestEmailAsync("invalido", CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<AppProblemException>();
+        exception.Which.StatusCode.Should().Be(400);
+    }
+
+    [Fact]
+    public async Task SendTestEmailAsync_Should_Throw_When_Sender_Fails()
+    {
+        var emailSender = new Mock<IEmailSender>();
+        emailSender
+            .Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("SMTP indisponível"));
+        var sut = BuildSut(emailSender: emailSender);
+
+        Func<Task> act = async () => await sut.SendTestEmailAsync("admin@teste.com", CancellationToken.None);
+
+        var exception = await act.Should().ThrowAsync<AppProblemException>();
+        exception.Which.StatusCode.Should().Be(503);
+    }
+
     private static AdminParametersService BuildSut(
         Mock<IPaymentMethodRepository>? paymentMethodRepository = null,
         Mock<ICardBrandRepository>? cardBrandRepository = null,
         Mock<IInstitutionRepository>? institutionRepository = null,
         Mock<INotificationSettingsRepository>? notificationSettingsRepository = null,
-        Mock<IRobotSettingsRepository>? robotSettingsRepository = null)
+        Mock<IRobotSettingsRepository>? robotSettingsRepository = null,
+        Mock<IEmailSender>? emailSender = null)
     {
         return new AdminParametersService(
             paymentMethodRepository?.Object ?? Mock.Of<IPaymentMethodRepository>(),
             cardBrandRepository?.Object ?? Mock.Of<ICardBrandRepository>(),
             institutionRepository?.Object ?? Mock.Of<IInstitutionRepository>(),
             notificationSettingsRepository?.Object ?? Mock.Of<INotificationSettingsRepository>(),
-            robotSettingsRepository?.Object ?? Mock.Of<IRobotSettingsRepository>());
+            robotSettingsRepository?.Object ?? Mock.Of<IRobotSettingsRepository>(),
+            emailSender?.Object ?? Mock.Of<IEmailSender>());
     }
 }

@@ -95,6 +95,27 @@ public class CardsController(ICardsService cardsService, IAuditService auditServ
         return Ok(new { total });
     }
 
+    [HttpGet("{id:guid}/statements")]
+    // Consolida faturas por competência (ano/mês de fechamento) separadas do saldo de conta.
+    public async Task<IActionResult> ListStatements(
+        Guid id,
+        [FromQuery] int? year,
+        [FromQuery] int? month,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var cycles = await cardsService.ListStatementCyclesAsync(userId, id, year, month, cancellationToken);
+            if (cycles is null) return NotFound();
+            return Ok(cycles);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new AppProblemException("Filtro de fatura inválido", ex.Message, StatusCodes.Status400BadRequest);
+        }
+    }
+
     private Guid GetUserId()
     {
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);

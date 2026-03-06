@@ -22,3 +22,26 @@ public record CardResponse(
     int DueDay,
     DateTime CreatedAt,
     DateTime UpdatedAt);
+
+public record CardStatementInstallmentResponse(
+    Guid InstallmentId,
+    Guid PlanId,
+    string Title,
+    int InstallmentNo,
+    DateOnly PurchaseDate,
+    DateOnly DueDate,
+    decimal Amount,
+    decimal PaidAmount,
+    decimal OpenAmount,
+    string Status);
+
+public record CardStatementCycleResponse(
+    int StatementYear,
+    int StatementMonth,
+    DateOnly StatementCloseDate,
+    DateOnly StatementDueDate,
+    decimal TotalAmount,
+    decimal TotalPaid,
+    decimal TotalOpen,
+    int ItemsCount,
+    IReadOnlyList<CardStatementInstallmentResponse> Items);

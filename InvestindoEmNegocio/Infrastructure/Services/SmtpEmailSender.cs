@@ -14,8 +14,9 @@ public sealed class SmtpEmailSender(
         var settings = options.Value;
         if (string.IsNullOrWhiteSpace(settings.Host) || string.IsNullOrWhiteSpace(settings.FromEmail))
         {
-            logger.LogWarning("SMTP não configurado. E-mail para {Recipient} não enviado.", to);
-            return;
+            const string errorMessage = "SMTP não configurado (Host/FromEmail).";
+            logger.LogWarning("{Message} E-mail para {Recipient} não enviado.", errorMessage, to);
+            throw new InvalidOperationException(errorMessage);
         }
 
         logger.LogInformation(
@@ -51,8 +52,9 @@ public sealed class SmtpEmailSender(
         }
         else
         {
-            logger.LogWarning("SMTP usuário não configurado. E-mail para {Recipient} não enviado.", to);
-            return;
+            const string errorMessage = "SMTP não configurado (Username).";
+            logger.LogWarning("{Message} E-mail para {Recipient} não enviado.", errorMessage, to);
+            throw new InvalidOperationException(errorMessage);
         }
 
         cancellationToken.ThrowIfCancellationRequested();

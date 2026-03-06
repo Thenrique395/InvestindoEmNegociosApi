@@ -102,4 +102,11 @@ public class AdminParametersController(IAdminParametersService adminParametersSe
         var response = await adminParametersService.UpdateRobotSettingsAsync(request, cancellationToken);
         return Ok(response);
     }
+
+    [HttpPost("test-email")]
+    public async Task<IActionResult> SendTestEmail([FromBody] SendTestEmailRequest request, CancellationToken cancellationToken)
+    {
+        var response = await adminParametersService.SendTestEmailAsync(request.To, cancellationToken);
+        return Ok(response);
+    }
 }

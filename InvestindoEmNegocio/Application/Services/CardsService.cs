@@ -1,6 +1,8 @@
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
+using InvestindoEmNegocio.Domain.Enums;
+using InvestindoEmNegocio.Domain.Finance;
 using InvestindoEmNegocio.Domain.Repositories;
 using Microsoft.Extensions.Logging;
 
@@ -10,10 +12,13 @@ public class CardsService(
     ICardRepository cardRepository,
     ICardBrandRepository brandRepository,
     IMoneyInstallmentRepository installmentRepository,
+    IMoneyPaymentRepository paymentRepository,
+    IMoneyPlanRepository planRepository,
     ILogger<CardsService> logger)
     : ICardsService
 {
     private readonly ILogger<CardsService> _logger = logger;
+
     public async Task<IReadOnlyList<CardResponse>> ListAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var data = await cardRepository.ListByUserAsync(userId, cancellationToken);
@@ -77,6 +82,97 @@ public class CardsService(
     public Task<decimal> GetTotalDebtAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         return installmentRepository.SumCardDebtAsync(userId, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<CardStatementCycleResponse>?> ListStatementCyclesAsync(
+        Guid userId,
+        Guid cardId,
+        int? year = null,
+        int? month = null,
+        CancellationToken cancellationToken = default)
+    {
+        var card = await cardRepository.GetByIdAsync(cardId, userId, cancellationToken);
+        if (card is null) return null;
+
+        if (year.HasValue && (year.Value < 2000 || year.Value > 2100))
+            throw new ArgumentException("Ano inválido para consulta de fatura.");
+        if (month.HasValue && (month.Value < 1 || month.Value > 12))
+            throw new ArgumentException("Mês inválido para consulta de fatura.");
+
+        var plans = await planRepository.ListByUserAsync(userId, MoneyType.Expense, cancellationToken);
+        var cardPlans = plans
+            .Where(p => p.CardId == cardId)
+            .ToDictionary(p => p.Id, p => p.Title);
+        if (cardPlans.Count == 0) return [];
+
+        var installments = await installmentRepository.ListByUserAsync(userId, null, null, null, MoneyType.Expense, cancellationToken);
+        var filteredInstallments = installments
+            .Where(i =>
+                i.StatementYear.HasValue &&
+                i.StatementMonth.HasValue &&
+                i.StatementCloseDate.HasValue &&
+                i.StatementDueDate.HasValue &&
+                cardPlans.ContainsKey(i.PlanId) &&
+                (!year.HasValue || i.StatementYear == year.Value) &&
+                (!month.HasValue || i.StatementMonth == month.Value))
+            .ToList();
+        if (filteredInstallments.Count == 0) return [];
+
+        var payments = await paymentRepository.ListByInstallmentIdsAsync(filteredInstallments.Select(i => i.Id), cancellationToken);
+        var paidByInstallment = payments
+            .GroupBy(p => p.InstallmentId)
+            .ToDictionary(g => g.Key, g => g.Sum(p => p.PaidAmount));
+
+        var cycles = filteredInstallments
+            .GroupBy(i => new
+            {
+                Year = i.StatementYear!.Value,
+                Month = i.StatementMonth!.Value,
+                CloseDate = i.StatementCloseDate!.Value,
+                DueDate = i.StatementDueDate!.Value
+            })
+            .OrderByDescending(g => g.Key.Year)
+            .ThenByDescending(g => g.Key.Month)
+            .Select(g =>
+            {
+                var items = g
+                    .OrderBy(i => i.InstallmentNo)
+                    .Select(i =>
+                    {
+                        var paid = paidByInstallment.GetValueOrDefault(i.Id, 0m);
+                        var open = CardStatementConsolidationEngine.NormalizeOpenAmount(i.Amount, paid);
+                        var purchaseDate = i.StatementCloseDate.HasValue
+                            ? i.StatementCloseDate.Value.AddMonths(-1)
+                            : i.DueDate;
+
+                        return new CardStatementInstallmentResponse(
+                            i.Id,
+                            i.PlanId,
+                            cardPlans.GetValueOrDefault(i.PlanId, "Despesa"),
+                            i.InstallmentNo,
+                            purchaseDate,
+                            i.DueDate,
+                            i.Amount,
+                            paid,
+                            open,
+                            i.Status.ToString());
+                    })
+                    .ToList();
+
+                return new CardStatementCycleResponse(
+                    g.Key.Year,
+                    g.Key.Month,
+                    g.Key.CloseDate,
+                    g.Key.DueDate,
+                    items.Sum(x => x.Amount),
+                    items.Sum(x => x.PaidAmount),
+                    items.Sum(x => x.OpenAmount),
+                    items.Count,
+                    items);
+            })
+            .ToList();
+
+        return cycles;
     }
 
     private static CardResponse MapToResponse(Card c) =>

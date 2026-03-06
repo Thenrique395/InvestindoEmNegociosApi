@@ -18,6 +18,10 @@ public record RobotSettingsDto(bool Enabled, string DailyRunTimeUtc);
 
 public record UpdateRobotSettingsRequest(bool Enabled, string DailyRunTimeUtc);
 
+public record SendTestEmailRequest(string To);
+
+public record TestEmailResult(string To, DateTime SentAtUtc);
+
 public record AdminCategoryResponse(Guid Id, string Name, string? AppliesTo, bool IsActive, DateTime CreatedAt);
 
 public record AdminCategoryRequest(string Name, string? AppliesTo);

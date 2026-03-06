@@ -96,4 +96,53 @@ public class ReminderRobotTaskTests
         result.EmailsFailed.Should().Be(0);
         emailSender.Verify(x => x.SendAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task RunAsync_Should_Count_Email_Failure_When_Sender_Throws()
+    {
+        var user = new User("Teste", "teste@email.com", "hash");
+        var profile = new UserProfile(user.Id, "Teste", "12345678901", "(81) 99999-9999", null);
+        profile.SetNotificationPreferences(upcomingEnabled: true, overdueEnabled: true, emailEnabled: true, inAppEnabled: true, daysBeforeDue: 3);
+
+        var usersRepo = new Mock<IUserRepository>();
+        usersRepo.Setup(x => x.ListAsync(It.IsAny<CancellationToken>())).ReturnsAsync([user]);
+
+        var profileRepo = new Mock<IUserProfileRepository>();
+        profileRepo.Setup(x => x.GetByUserIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(profile);
+
+        var notifRepo = new Mock<IUserNotificationRepository>();
+        notifRepo.Setup(x => x.ListByUserAsync(user.Id, true, 50, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                new UserNotification(
+                    user.Id,
+                    NotificationKind.ExpenseUpcoming,
+                    "Despesa vence amanhã",
+                    "Conta de luz vence amanhã.",
+                    "ref-1",
+                    MoneyType.Expense)
+            ]);
+
+        var notificationsService = new Mock<INotificationsService>();
+        notificationsService.Setup(x => x.GenerateAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        var emailSender = new Mock<IEmailSender>();
+        emailSender
+            .Setup(x => x.SendAsync(user.Email, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("SMTP não configurado"));
+
+        var sut = new ReminderRobotTask(
+            usersRepo.Object,
+            profileRepo.Object,
+            notifRepo.Object,
+            notificationsService.Object,
+            emailSender.Object,
+            Mock.Of<ILogger<ReminderRobotTask>>());
+
+        var result = await sut.RunAsync();
+
+        result.ItemsGenerated.Should().Be(1);
+        result.EmailsAttempted.Should().Be(1);
+        result.EmailsSent.Should().Be(0);
+        result.EmailsFailed.Should().Be(1);
+    }
 }

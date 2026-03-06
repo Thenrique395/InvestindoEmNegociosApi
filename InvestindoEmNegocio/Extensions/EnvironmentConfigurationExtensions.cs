@@ -8,6 +8,26 @@ public static class EnvironmentConfigurationExtensions
         if (File.Exists(envPath))
             DotNetEnv.Env.Load(envPath);
 
+        // Support existing legacy/simple env names from .env and CI (ex.: SMTP_HOST, DB_CONN).
+        PromoteEnvAlias("DB_CONN", "ConnectionStrings__Default");
+        PromoteEnvAlias("JWT_ISSUER", "Jwt__Issuer");
+        PromoteEnvAlias("JWT_AUDIENCE", "Jwt__Audience");
+        PromoteEnvAlias("JWT_SECRET_KEY", "Jwt__SecretKey");
+        PromoteEnvAlias("JWT_EXPIRES_MINUTES", "Jwt__ExpiresMinutes");
+        PromoteEnvAlias("BRAPI_TOKEN", "MarketData__BrapiToken");
+        PromoteEnvAlias("PASSWORD_RESET_FRONTEND_URL", "PasswordReset__FrontendResetUrl");
+        PromoteEnvAlias("PASSWORD_RESET_TOKEN_EXPIRY_MINUTES", "PasswordReset__TokenExpiryMinutes");
+        PromoteEnvAlias("SMTP_HOST", "Smtp__Host");
+        PromoteEnvAlias("SMTP_PORT", "Smtp__Port");
+        PromoteEnvAlias("SMTP_ENABLE_SSL", "Smtp__EnableSsl");
+        PromoteEnvAlias("SMTP_USER", "Smtp__Username");
+        PromoteEnvAlias("SMTP_PASS", "Smtp__Password");
+        PromoteEnvAlias("SMTP_FROM_EMAIL", "Smtp__FromEmail");
+        PromoteEnvAlias("SMTP_FROM_NAME", "Smtp__FromName");
+        PromoteEnvAlias("ROBOTS_ENABLED", "Robots__Enabled");
+        PromoteEnvAlias("ROBOTS_RUN_ON_STARTUP", "Robots__RunOnStartup");
+        PromoteEnvAlias("ROBOTS_DAILY_RUN_TIME_UTC", "Robots__DailyRunTimeUtc");
+
         foreach (var (envKey, configKey) in new (string EnvKey, string ConfigKey)[]
                  {
                      ("ConnectionStrings__Default", "ConnectionStrings:Default"),
@@ -57,5 +77,17 @@ public static class EnvironmentConfigurationExtensions
         var value = config[configKey];
         if (!string.IsNullOrWhiteSpace(value))
             Environment.SetEnvironmentVariable(envKey, value);
+    }
+
+    private static void PromoteEnvAlias(string sourceEnvKey, string targetEnvKey)
+    {
+        var source = Environment.GetEnvironmentVariable(sourceEnvKey);
+        if (string.IsNullOrWhiteSpace(source))
+            return;
+
+        if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(targetEnvKey)))
+            return;
+
+        Environment.SetEnvironmentVariable(targetEnvKey, source);
     }
 }

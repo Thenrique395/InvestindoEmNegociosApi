@@ -21,4 +21,5 @@ public interface IAdminParametersService
 
     Task<RobotSettingsDto> GetRobotSettingsAsync(CancellationToken cancellationToken);
     Task<RobotSettingsDto> UpdateRobotSettingsAsync(UpdateRobotSettingsRequest request, CancellationToken cancellationToken);
+    Task<TestEmailResult> SendTestEmailAsync(string to, CancellationToken cancellationToken);
 }
