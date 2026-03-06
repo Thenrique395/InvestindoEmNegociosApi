@@ -60,4 +60,32 @@ public class CardStatementCycleCalculatorTests
         cycle.StatementCloseDate.Should().Be(new DateOnly(2026, 2, 28));
         cycle.StatementDueDate.Should().Be(new DateOnly(2026, 3, 31));
     }
+
+    [Fact]
+    public void Calculate_Should_Keep_Same_Competence_When_Purchase_Is_On_Close_Day()
+    {
+        var cycle = CardStatementCycleCalculator.Calculate(
+            purchaseDate: new DateOnly(2026, 2, 10),
+            statementCloseDay: 10,
+            dueDay: 15);
+
+        cycle.StatementYear.Should().Be(2026);
+        cycle.StatementMonth.Should().Be(2);
+        cycle.StatementCloseDate.Should().Be(new DateOnly(2026, 2, 10));
+        cycle.StatementDueDate.Should().Be(new DateOnly(2026, 2, 15));
+    }
+
+    [Fact]
+    public void Calculate_Should_Roll_Competence_And_DueDate_On_Year_Boundary()
+    {
+        var cycle = CardStatementCycleCalculator.Calculate(
+            purchaseDate: new DateOnly(2026, 12, 28),
+            statementCloseDay: 25,
+            dueDay: 10);
+
+        cycle.StatementYear.Should().Be(2027);
+        cycle.StatementMonth.Should().Be(1);
+        cycle.StatementCloseDate.Should().Be(new DateOnly(2027, 1, 25));
+        cycle.StatementDueDate.Should().Be(new DateOnly(2027, 2, 10));
+    }
 }
