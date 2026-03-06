@@ -3,6 +3,7 @@ using System.Text.Json;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
+using InvestindoEmNegocio.Domain.Finance;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
 
@@ -315,7 +316,7 @@ public class NotificationsService(
         var plans = await planRepository.ListByUserAsync(userId, null, cancellationToken);
         var planLookup = plans.Where(p => planIds.Contains(p.Id)).ToDictionary(p => p.Id);
 
-        var (competenceStart, competenceEnd) = ResolveCompetenceWindow(today, carryOverDay);
+        var (competenceStart, competenceEnd) = CompetenceWindowCalculator.Resolve(today, carryOverDay);
 
         var monthInstallments = installments
             .Where(i => i.DueDate >= competenceStart && i.DueDate <= competenceEnd)
@@ -485,26 +486,6 @@ public class NotificationsService(
             null,
             today,
             payloadJson);
-    }
-
-    private static (DateOnly Start, DateOnly End) ResolveCompetenceWindow(DateOnly today, int carryOverDay)
-    {
-        var currentMonthStart = BuildSafeDate(today.Year, today.Month, carryOverDay);
-        var start = today >= currentMonthStart
-            ? currentMonthStart
-            : BuildSafeDate(today.AddMonths(-1).Year, today.AddMonths(-1).Month, carryOverDay);
-
-        var nextStartRef = start.AddMonths(1);
-        var nextStart = BuildSafeDate(nextStartRef.Year, nextStartRef.Month, carryOverDay);
-        var end = nextStart.AddDays(-1);
-        return (start, end);
-    }
-
-    private static DateOnly BuildSafeDate(int year, int month, int day)
-    {
-        var normalized = Math.Clamp(day, 1, 31);
-        var maxDay = DateTime.DaysInMonth(year, month);
-        return new DateOnly(year, month, Math.Min(normalized, maxDay));
     }
 
     private static IReadOnlyList<string> BuildCashflowTips(string scenario)

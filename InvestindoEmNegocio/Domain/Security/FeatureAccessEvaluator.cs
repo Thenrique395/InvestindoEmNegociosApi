@@ -5,53 +5,8 @@ namespace InvestindoEmNegocio.Domain.Security;
 
 public static class FeatureAccessEvaluator
 {
-    private static readonly IReadOnlyDictionary<UserRole, HashSet<string>> FeatureMatrix =
-        new Dictionary<UserRole, HashSet<string>>
-        {
-            [UserRole.Basic] = new(StringComparer.OrdinalIgnoreCase)
-            {
-                AppFeatureKeys.CardsAccess,
-                AppFeatureKeys.AccountsAccess,
-                AppFeatureKeys.CategoriesAccess
-            },
-            [UserRole.Intermediate] = new(StringComparer.OrdinalIgnoreCase)
-            {
-                AppFeatureKeys.CardsAccess,
-                AppFeatureKeys.AccountsAccess,
-                AppFeatureKeys.CategoriesAccess,
-                AppFeatureKeys.InvoiceImportAccess
-            },
-            [UserRole.Advanced] = new(StringComparer.OrdinalIgnoreCase)
-            {
-                AppFeatureKeys.CardsAccess,
-                AppFeatureKeys.AccountsAccess,
-                AppFeatureKeys.CategoriesAccess,
-                AppFeatureKeys.InvoiceImportAccess,
-                AppFeatureKeys.InvestmentsAccess
-            },
-            [UserRole.Admin] = new(StringComparer.OrdinalIgnoreCase)
-            {
-                AppFeatureKeys.CardsAccess,
-                AppFeatureKeys.AccountsAccess,
-                AppFeatureKeys.CategoriesAccess,
-                AppFeatureKeys.InvoiceImportAccess,
-                AppFeatureKeys.InvestmentsAccess,
-                AppFeatureKeys.AdminUsersManage,
-                AppFeatureKeys.AdminParametersManage,
-                AppFeatureKeys.AdminRobotsManage,
-                AppFeatureKeys.AdminCategoriesManage
-            }
-        };
-
     public static IReadOnlyCollection<string> GetRoleFeatures(UserRole role)
-    {
-        if (role == UserRole.Admin)
-            return AppFeatureKeys.All.ToArray();
-
-        return FeatureMatrix.TryGetValue(role, out var features)
-            ? features.ToArray()
-            : [];
-    }
+        => AppFeatureMatrix.GetRoleFeatures(role);
 
     public static bool HasFeature(ClaimsPrincipal user, string featureKey)
     {
@@ -73,7 +28,7 @@ public static class FeatureAccessEvaluator
         if (explicitFeatures.Contains(featureKey))
             return true;
 
-        return FeatureMatrix.TryGetValue(role.Value, out var allowed) && allowed.Contains(featureKey);
+        return AppFeatureMatrix.HasRoleFeature(role.Value, featureKey);
     }
 
     public static UserRole? ResolveRole(ClaimsPrincipal user)
