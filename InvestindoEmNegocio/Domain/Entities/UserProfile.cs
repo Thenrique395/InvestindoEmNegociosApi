@@ -14,6 +14,7 @@ public class UserProfile
     public string City { get; private set; } = string.Empty;
     public string State { get; private set; } = string.Empty;
     public string Country { get; private set; } = string.Empty;
+    public int CarryOverDay { get; private set; } = 1;
     public string FinancialGoal { get; private set; } = string.Empty;
     public string IntelligenceMode { get; private set; } = "B";
     public string Language { get; private set; } = "pt-BR";
@@ -40,11 +41,12 @@ public class UserProfile
         string country = "",
         string language = "pt-BR",
         string currency = "BRL",
+        int carryOverDay = 1,
         string financialGoal = "",
         string intelligenceMode = "B")
     {
         UserId = userId;
-        SetData(fullName, document, phone, birthDate, avatarUrl, city, state, country, language, currency, financialGoal, intelligenceMode);
+        SetData(fullName, document, phone, birthDate, avatarUrl, city, state, country, language, currency, carryOverDay, financialGoal, intelligenceMode);
     }
 
     public void SetData(
@@ -58,6 +60,7 @@ public class UserProfile
         string country = "",
         string language = "pt-BR",
         string currency = "BRL",
+        int carryOverDay = 1,
         string financialGoal = "",
         string intelligenceMode = "B")
     {
@@ -69,6 +72,7 @@ public class UserProfile
         City = city?.Trim() ?? string.Empty;
         State = state?.Trim() ?? string.Empty;
         Country = country?.Trim() ?? string.Empty;
+        CarryOverDay = NormalizeCarryOverDay(carryOverDay);
         FinancialGoal = financialGoal?.Trim() ?? string.Empty;
         IntelligenceMode = NormalizeIntelligenceMode(intelligenceMode);
         Language = string.IsNullOrWhiteSpace(language) ? "pt-BR" : language.Trim();
@@ -117,5 +121,11 @@ public class UserProfile
         var normalized = string.IsNullOrWhiteSpace(mode) ? "B" : mode.Trim().ToUpperInvariant();
         if (normalized is "B" or "C") return normalized;
         throw new ArgumentException("Modo de inteligência inválido. Use B ou C.");
+    }
+
+    private static int NormalizeCarryOverDay(int value)
+    {
+        if (value is >= 1 and <= 31) return value;
+        throw new ArgumentException("CarryOverDay inválido. Use um valor entre 1 e 31.");
     }
 }

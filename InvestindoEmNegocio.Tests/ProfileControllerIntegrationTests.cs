@@ -44,6 +44,7 @@ public class ProfileControllerIntegrationTests
                 country = "Brasil",
                 financialGoal = "comecar-investir",
                 language = "pt-BR",
+                carryOverDay = 12,
                 intelligenceMode = "C"
             })
         };
@@ -55,6 +56,7 @@ public class ProfileControllerIntegrationTests
         var upsertPayload = await upsertResponse.Content.ReadFromJsonAsync<UserProfileDto>();
         upsertPayload.Should().NotBeNull();
         upsertPayload!.FinancialGoal.Should().Be("comecar-investir");
+        upsertPayload!.CarryOverDay.Should().Be(12);
         upsertPayload!.IntelligenceMode.Should().Be("C");
 
         var getRequest = new HttpRequestMessage(HttpMethod.Get, "/api/v1/profile");
@@ -66,6 +68,7 @@ public class ProfileControllerIntegrationTests
         var getPayload = await getResponse.Content.ReadFromJsonAsync<UserProfileDto>();
         getPayload.Should().NotBeNull();
         getPayload!.FinancialGoal.Should().Be("comecar-investir");
+        getPayload!.CarryOverDay.Should().Be(12);
         getPayload!.IntelligenceMode.Should().Be("C");
     }
 

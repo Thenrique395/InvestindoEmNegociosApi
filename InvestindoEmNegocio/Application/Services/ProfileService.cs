@@ -42,7 +42,7 @@ public class ProfileService(
             if (existing is null)
             {
                 var profile = new UserProfile(userId, request.FullName, request.Document, request.Phone, request.BirthDate,
-                    request.AvatarUrl, request.City, request.State, request.Country, request.Language, "BRL", request.FinancialGoal, request.IntelligenceMode);
+                    request.AvatarUrl, request.City, request.State, request.Country, request.Language, "BRL", request.CarryOverDay, request.FinancialGoal, request.IntelligenceMode);
                 await profileRepository.AddAsync(profile, cancellationToken);
                 await profileRepository.SaveChangesAsync(cancellationToken);
                 cache.Remove(CacheKey(userId));
@@ -51,7 +51,7 @@ public class ProfileService(
             }
 
             existing.SetData(request.FullName, request.Document, request.Phone, request.BirthDate, request.AvatarUrl,
-                request.City, request.State, request.Country, request.Language, existing.Currency, request.FinancialGoal, request.IntelligenceMode);
+                request.City, request.State, request.Country, request.Language, existing.Currency, request.CarryOverDay, request.FinancialGoal, request.IntelligenceMode);
             await profileRepository.SaveChangesAsync(cancellationToken);
             cache.Remove(CacheKey(userId));
             _logger.LogInformation("User profile updated {UserId}", userId);
@@ -89,6 +89,7 @@ public class ProfileService(
                 existing.Country,
                 existing.Language,
                 existing.Currency,
+                existing.CarryOverDay,
                 existing.FinancialGoal,
                 existing.IntelligenceMode);
             await profileRepository.SaveChangesAsync(cancellationToken);
@@ -113,6 +114,6 @@ public class ProfileService(
         if (locales.Count == 0) locales.Add("pt-BR");
         var currency = profile.Currency ?? "BRL";
         return new UserProfileDto(profile.UserId, profile.FullName, profile.Document, profile.Phone, profile.BirthDate,
-            profile.AvatarUrl, profile.City, profile.State, profile.Country, profile.FinancialGoal, profile.IntelligenceMode, language, currency, locales);
+            profile.AvatarUrl, profile.City, profile.State, profile.Country, profile.FinancialGoal, profile.CarryOverDay, profile.IntelligenceMode, language, currency, locales);
     }
 }

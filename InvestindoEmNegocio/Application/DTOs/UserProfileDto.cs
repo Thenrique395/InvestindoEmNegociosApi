@@ -11,6 +11,7 @@ public record UserProfileDto(
     string State,
     string Country,
     string FinancialGoal,
+    int CarryOverDay,
     string IntelligenceMode,
     string Language,
     string Currency,

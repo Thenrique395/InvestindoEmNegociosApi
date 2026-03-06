@@ -172,6 +172,7 @@ CREATE TABLE user_profiles (
     "State" character varying(80),
     "Country" character varying(120),
     "FinancialGoal" character varying(80),
+    "CarryOverDay" integer NOT NULL DEFAULT 1,
     "IntelligenceMode" character varying(1) NOT NULL DEFAULT 'B',
     "Language" character varying(10),
     "Currency" character varying(10),

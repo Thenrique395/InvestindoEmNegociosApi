@@ -51,6 +51,7 @@ public class ProfileServiceTests
         result.UserId.Should().Be(userId);
         result.FullName.Should().Be("Henrique Santos");
         result.FinancialGoal.Should().Be("comecar-investir");
+        result.CarryOverDay.Should().Be(10);
         result.IntelligenceMode.Should().Be("C");
         repository.Verify(x => x.AddAsync(It.IsAny<UserProfile>(), It.IsAny<CancellationToken>()), Times.Once);
         repository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
@@ -144,6 +145,7 @@ public class ProfileServiceTests
             "Brasil",
             "comecar-investir",
             "pt-BR",
+            10,
             "C");
 
     private static UserProfile NewProfile(Guid userId) =>

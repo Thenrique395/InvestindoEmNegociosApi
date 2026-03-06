@@ -53,7 +53,7 @@ public sealed class DataPortabilityService(
                 .Where(x => x.UserId == userId)
                 .Select(x => new UserProfileData(
                     x.Id, x.FullName, x.Document, x.Phone, x.BirthDate, x.AvatarUrl, x.City, x.State, x.Country,
-                    x.FinancialGoal, x.Language, x.Currency, x.NotifyUpcomingEnabled, x.NotifyOverdueEnabled, x.NotifyEmailEnabled,
+                    x.FinancialGoal, x.CarryOverDay, x.IntelligenceMode, x.Language, x.Currency, x.NotifyUpcomingEnabled, x.NotifyOverdueEnabled, x.NotifyEmailEnabled,
                     x.NotifyInAppEnabled, x.NotifyDaysBeforeDue, x.CreatedAt, x.UpdatedAt))
                 .FirstOrDefaultAsync(cancellationToken),
             Categories = await dbContext.Categories.AsNoTracking()
@@ -174,7 +174,9 @@ public sealed class DataPortabilityService(
                     p.Country ?? string.Empty,
                     string.IsNullOrWhiteSpace(p.Language) ? "pt-BR" : p.Language,
                     string.IsNullOrWhiteSpace(p.Currency) ? "BRL" : p.Currency,
-                    p.FinancialGoal ?? string.Empty);
+                    p.CarryOverDay,
+                    p.FinancialGoal ?? string.Empty,
+                    p.IntelligenceMode);
                 profile.SetNotificationPreferences(p.NotifyUpcomingEnabled, p.NotifyOverdueEnabled, p.NotifyEmailEnabled, p.NotifyInAppEnabled, p.NotifyDaysBeforeDue);
                 await dbContext.UserProfiles.AddAsync(profile, cancellationToken);
             }
@@ -191,7 +193,9 @@ public sealed class DataPortabilityService(
                     p.Country ?? string.Empty,
                     string.IsNullOrWhiteSpace(p.Language) ? "pt-BR" : p.Language,
                     string.IsNullOrWhiteSpace(p.Currency) ? "BRL" : p.Currency,
-                    p.FinancialGoal ?? string.Empty);
+                    p.CarryOverDay,
+                    p.FinancialGoal ?? string.Empty,
+                    p.IntelligenceMode);
                 existingProfile.SetNotificationPreferences(p.NotifyUpcomingEnabled, p.NotifyOverdueEnabled, p.NotifyEmailEnabled, p.NotifyInAppEnabled, p.NotifyDaysBeforeDue);
             }
             importedRecords++;

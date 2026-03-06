@@ -143,7 +143,13 @@ public class NotificationsService(
 
         if (settings.MonthSummaryEnabled)
         {
-            var insight = await BuildCashflowInsightAsync(userId, today, culture, profile.FinancialGoal, cancellationToken);
+            var insight = await BuildCashflowInsightAsync(
+                userId,
+                today,
+                culture,
+                profile.FinancialGoal,
+                profile.CarryOverDay,
+                cancellationToken);
             if (insight is not null)
             {
                 candidates.Add(insight);
@@ -299,6 +305,7 @@ public class NotificationsService(
         DateOnly today,
         CultureInfo culture,
         string? financialGoal,
+        int carryOverDay,
         CancellationToken cancellationToken)
     {
         var installments = await installmentRepository.ListByUserAsync(userId, null, null, null, null, cancellationToken);
@@ -308,10 +315,10 @@ public class NotificationsService(
         var plans = await planRepository.ListByUserAsync(userId, null, cancellationToken);
         var planLookup = plans.Where(p => planIds.Contains(p.Id)).ToDictionary(p => p.Id);
 
-        var monthStart = new DateOnly(today.Year, today.Month, 1);
-        var monthEnd = new DateOnly(today.Year, today.Month, DateTime.DaysInMonth(today.Year, today.Month));
+        var (competenceStart, competenceEnd) = ResolveCompetenceWindow(today, carryOverDay);
+
         var monthInstallments = installments
-            .Where(i => i.DueDate >= monthStart && i.DueDate <= monthEnd)
+            .Where(i => i.DueDate >= competenceStart && i.DueDate <= competenceEnd)
             .Where(i => planLookup.ContainsKey(i.PlanId))
             .ToList();
 
@@ -363,7 +370,7 @@ public class NotificationsService(
             overdueIncomes.Count,
             dueSoonExpenses.Sum(i => i.Amount),
             projected);
-        var riskDay = EstimateRiskDay(today, monthEnd, incomeReceived, openIncomes, openExpenses);
+        var riskDay = EstimateRiskDay(today, competenceEnd, incomeReceived, openIncomes, openExpenses);
 
         var scenario = "stable";
         var title = "Insight do mês";
@@ -421,10 +428,11 @@ public class NotificationsService(
             action = "Ação recomendada: marque os recebimentos pendentes.";
         }
         else
-                    return null;
-        
+        {
+            return null;
+        }
 
-        var monthLabel = today.ToDateTime(TimeOnly.MinValue).ToString("MMMM", culture);
+        var monthLabel = $"{competenceStart:dd/MM} a {competenceEnd:dd/MM}";
         var objectiveSuffix = string.IsNullOrWhiteSpace(financialGoal) ? string.Empty : $" Objetivo: {financialGoal}.";
         var riskDaySuffix = riskDay.HasValue ? $" Dia de risco: {riskDay:dd/MM}." : string.Empty;
         var tips = BuildCashflowTips(scenario);
@@ -477,6 +485,26 @@ public class NotificationsService(
             null,
             today,
             payloadJson);
+    }
+
+    private static (DateOnly Start, DateOnly End) ResolveCompetenceWindow(DateOnly today, int carryOverDay)
+    {
+        var currentMonthStart = BuildSafeDate(today.Year, today.Month, carryOverDay);
+        var start = today >= currentMonthStart
+            ? currentMonthStart
+            : BuildSafeDate(today.AddMonths(-1).Year, today.AddMonths(-1).Month, carryOverDay);
+
+        var nextStartRef = start.AddMonths(1);
+        var nextStart = BuildSafeDate(nextStartRef.Year, nextStartRef.Month, carryOverDay);
+        var end = nextStart.AddDays(-1);
+        return (start, end);
+    }
+
+    private static DateOnly BuildSafeDate(int year, int month, int day)
+    {
+        var normalized = Math.Clamp(day, 1, 31);
+        var maxDay = DateTime.DaysInMonth(year, month);
+        return new DateOnly(year, month, Math.Min(normalized, maxDay));
     }
 
     private static IReadOnlyList<string> BuildCashflowTips(string scenario)

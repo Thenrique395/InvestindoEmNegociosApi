@@ -11,4 +11,5 @@ public record UpsertUserProfileRequest(
     string Country,
     string FinancialGoal,
     string Language,
+    int CarryOverDay = 1,
     string IntelligenceMode = "B");

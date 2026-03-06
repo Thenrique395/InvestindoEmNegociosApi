@@ -39,6 +39,9 @@ public class UserProfileConfiguration : IEntityTypeConfiguration<UserProfile>
         builder.Property(x => x.FinancialGoal)
             .IsRequired(false)
             .HasMaxLength(80);
+        builder.Property(x => x.CarryOverDay)
+            .IsRequired()
+            .HasDefaultValue(1);
         builder.Property(x => x.IntelligenceMode)
             .IsRequired()
             .HasMaxLength(1)

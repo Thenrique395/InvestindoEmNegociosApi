@@ -50,6 +50,8 @@ public sealed record UserProfileData(
     string State,
     string Country,
     string FinancialGoal,
+    int CarryOverDay,
+    string IntelligenceMode,
     string Language,
     string Currency,
     bool NotifyUpcomingEnabled,

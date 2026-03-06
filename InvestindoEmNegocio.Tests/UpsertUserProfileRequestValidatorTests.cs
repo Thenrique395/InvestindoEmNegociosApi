@@ -22,6 +22,7 @@ public class UpsertUserProfileRequestValidatorTests
             Country: "Brasil",
             FinancialGoal: "comecar-investir",
             Language: "pt-BR",
+            CarryOverDay: 10,
             IntelligenceMode: "B");
 
         var result = _sut.Validate(request);
@@ -43,6 +44,7 @@ public class UpsertUserProfileRequestValidatorTests
             Country: "",
             FinancialGoal: "",
             Language: "",
+            CarryOverDay: 1,
             IntelligenceMode: "B");
 
         var result = _sut.Validate(request);
@@ -67,6 +69,7 @@ public class UpsertUserProfileRequestValidatorTests
             Country: "Brasil",
             FinancialGoal: new string('a', 81),
             Language: "pt-BR",
+            CarryOverDay: 1,
             IntelligenceMode: "B");
 
         var result = _sut.Validate(request);
@@ -90,6 +93,7 @@ public class UpsertUserProfileRequestValidatorTests
             Country: "Brasil",
             FinancialGoal: "comecar-investir",
             Language: "pt-BR",
+            CarryOverDay: 1,
             IntelligenceMode: "X");
 
         var result = _sut.Validate(request);
@@ -97,5 +101,29 @@ public class UpsertUserProfileRequestValidatorTests
         result.IsValid.Should().BeFalse();
         result.Errors.Select(e => e.ErrorMessage)
             .Should().Contain(m => m.Contains("Modo de inteligência deve ser B ou C", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validate_Should_Fail_When_CarryOverDay_Is_Invalid()
+    {
+        var request = new UpsertUserProfileRequest(
+            FullName: "Henrique Santos",
+            Document: "12345678901",
+            Phone: "(81) 99525-7823",
+            BirthDate: new DateTime(1990, 1, 1),
+            AvatarUrl: "",
+            City: "Recife",
+            State: "PE",
+            Country: "Brasil",
+            FinancialGoal: "comecar-investir",
+            Language: "pt-BR",
+            CarryOverDay: 0,
+            IntelligenceMode: "B");
+
+        var result = _sut.Validate(request);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Select(e => e.ErrorMessage)
+            .Should().Contain(m => m.Contains("Dia de competência deve estar entre 1 e 31", StringComparison.Ordinal));
     }
 }
