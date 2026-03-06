@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using System.Security.Claims;
 using UglyToad.PdfPig.Core;
 
 namespace InvestindoEmNegocio.Tests;
@@ -64,6 +65,33 @@ public class InvoiceImportControllerTests
 
         var ex = await act.Should().ThrowAsync<AppProblemException>();
         ex.Which.StatusCode.Should().Be(StatusCodes.Status500InternalServerError);
+    }
+
+    [Fact]
+    public async Task Import_Should_Return_Ok_When_Service_Succeeds()
+    {
+        var userId = Guid.NewGuid();
+        var service = new Mock<IInvoiceImportService>();
+        service.Setup(x => x.ImportAsync(userId, It.IsAny<InvoiceImportRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new InvoiceImportResultResponse(3, 1, 0));
+
+        var controller = new InvoiceImportController(service.Object, NullLogger<InvoiceImportController>.Instance);
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                [
+                    new Claim(ClaimTypes.NameIdentifier, userId.ToString())
+                ], "test"))
+            }
+        };
+
+        var result = await controller.Import(
+            new InvoiceImportRequest(null, null, null, true, [new InvoiceImportItemRequest("01/03/2026", "Item", "R$ 10,00")]),
+            CancellationToken.None);
+
+        result.Result.Should().BeOfType<OkObjectResult>();
     }
 
     private static IFormFile BuildFile(string contentType)

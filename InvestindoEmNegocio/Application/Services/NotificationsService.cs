@@ -437,6 +437,28 @@ public class NotificationsService(
         var objectiveSuffix = string.IsNullOrWhiteSpace(financialGoal) ? string.Empty : $" Objetivo: {financialGoal}.";
         var riskDaySuffix = riskDay.HasValue ? $" Dia de risco: {riskDay:dd/MM}." : string.Empty;
         var tips = BuildCashflowTips(scenario);
+        var priority = DetermineInsightPriority(
+            projected,
+            hasCriticalOverdueExpenses,
+            overdueExpenses.Count,
+            overdueIncomes.Count,
+            incomePending,
+            healthScore);
+        var recommendations = BuildCashflowRecommendations(
+            today,
+            overdueExpenses,
+            overdueIncomes,
+            dueSoonExpenses,
+            openIncomes,
+            hasCriticalOverdueExpenses);
+        var reasonCodes = BuildReasonCodes(
+            projected,
+            hasCriticalOverdueExpenses,
+            overdueExpenses.Count,
+            overdueIncomes.Count,
+            incomePending,
+            dueSoonExpenses.Sum(i => i.Amount),
+            healthScore);
         var scoreBreakdown = BuildCashflowScoreBreakdown(
             incomeReceived,
             incomePending,
@@ -448,11 +470,7 @@ public class NotificationsService(
         var payload = new
         {
             scenario,
-            priority = projected < 0m || hasCriticalOverdueExpenses
-                ? "critical"
-                : overdueExpenses.Count > 0 || incomePending > 0m
-                    ? "warning"
-                    : "ok",
+            priority,
             healthScore,
             riskDay = riskDay?.ToString("yyyy-MM-dd"),
             overdueExpenses = overdueExpenses.Count,
@@ -464,6 +482,8 @@ public class NotificationsService(
             projectedCoverage = decimal.Round(projectedCoverage, 2),
             projectedBalance = projected,
             action,
+            reasonCodes,
+            recommendations,
             tips,
             scoreBreakdown
         };
@@ -486,6 +506,142 @@ public class NotificationsService(
             null,
             today,
             payloadJson);
+    }
+
+    private static string DetermineInsightPriority(
+        decimal projectedBalance,
+        bool hasCriticalOverdueExpenses,
+        int overdueExpensesCount,
+        int overdueIncomesCount,
+        decimal pendingIncome,
+        int healthScore)
+    {
+        if (projectedBalance < 0m || hasCriticalOverdueExpenses || healthScore < 45)
+            return "critical";
+
+        if (overdueExpensesCount > 0 || overdueIncomesCount > 0 || pendingIncome > 0m || healthScore < 70)
+            return "warning";
+
+        return "ok";
+    }
+
+    private static IReadOnlyList<object> BuildCashflowRecommendations(
+        DateOnly today,
+        IReadOnlyList<MoneyInstallment> overdueExpenses,
+        IReadOnlyList<MoneyInstallment> overdueIncomes,
+        IReadOnlyList<MoneyInstallment> dueSoonExpenses,
+        IReadOnlyList<MoneyInstallment> openIncomes,
+        bool hasCriticalOverdueExpenses)
+    {
+        var recommendations = new List<(int score, object payload)>();
+
+        if (overdueExpenses.Count > 0)
+        {
+            var firstDue = overdueExpenses.Min(i => i.DueDate).ToString("dd/MM/yyyy");
+            var amount = overdueExpenses.Sum(i => i.Amount);
+            recommendations.Add((
+                hasCriticalOverdueExpenses ? 100 : 80,
+                new
+                {
+                    id = "overdue-expenses",
+                    severity = hasCriticalOverdueExpenses ? "danger" : "warn",
+                    text = hasCriticalOverdueExpenses
+                        ? $"Você tem {overdueExpenses.Count} despesa(s) vencida(s) desde {firstDue} e o caixa não cobre o total atrasado."
+                        : $"Você tem {overdueExpenses.Count} despesa(s) vencida(s) desde {firstDue}, com caixa para quitar.",
+                    actionLabel = hasCriticalOverdueExpenses ? "Quitar despesas" : "Quitar e dar baixa",
+                    route = "/despesas",
+                    queryParams = new { focus = "overdue" },
+                    amount,
+                    dueDate = firstDue
+                }));
+        }
+
+        if (overdueIncomes.Count > 0)
+        {
+            var firstDue = overdueIncomes.Min(i => i.DueDate).ToString("dd/MM/yyyy");
+            recommendations.Add((
+                75,
+                new
+                {
+                    id = "overdue-incomes",
+                    severity = "warn",
+                    text = $"Você tem {overdueIncomes.Count} receita(s) em atraso (mais antiga em {firstDue}).",
+                    actionLabel = "Confirmar recebimentos",
+                    route = "/receitas",
+                    queryParams = new { focus = "pending" },
+                    amount = overdueIncomes.Sum(i => i.Amount),
+                    dueDate = firstDue
+                }));
+        }
+
+        if (dueSoonExpenses.Count > 0)
+        {
+            var firstDue = dueSoonExpenses.Min(i => i.DueDate).ToString("dd/MM/yyyy");
+            recommendations.Add((
+                60,
+                new
+                {
+                    id = "due-soon-expenses",
+                    severity = "warn",
+                    text = $"Há {dueSoonExpenses.Count} despesa(s) vencendo nos próximos 5 dias (primeira em {firstDue}).",
+                    actionLabel = "Ver próximas despesas",
+                    route = "/despesas",
+                    queryParams = new { focus = "upcoming" },
+                    amount = dueSoonExpenses.Sum(i => i.Amount),
+                    dueDate = firstDue
+                }));
+        }
+
+        if (openIncomes.Count > 0)
+        {
+            var nearest = openIncomes
+                .Where(i => i.DueDate >= today)
+                .OrderBy(i => i.DueDate)
+                .FirstOrDefault();
+            if (nearest is not null)
+            {
+                recommendations.Add((
+                    50,
+                    new
+                    {
+                        id = "pending-income-nearest",
+                        severity = "info",
+                        text = $"Próxima receita pendente em {nearest.DueDate:dd/MM/yyyy}.",
+                        actionLabel = "Abrir receitas",
+                        route = "/receitas",
+                        queryParams = new { focus = "pending" },
+                        amount = nearest.Amount,
+                        dueDate = nearest.DueDate.ToString("dd/MM/yyyy")
+                    }));
+            }
+        }
+
+        return recommendations
+            .OrderByDescending(i => i.score)
+            .Take(4)
+            .Select(i => i.payload)
+            .ToList();
+    }
+
+    private static IReadOnlyList<string> BuildReasonCodes(
+        decimal projectedBalance,
+        bool hasCriticalOverdueExpenses,
+        int overdueExpensesCount,
+        int overdueIncomesCount,
+        decimal pendingIncome,
+        decimal dueSoonExpenseAmount,
+        int healthScore)
+    {
+        var reasons = new List<string>();
+        if (projectedBalance < 0m) reasons.Add("projected_deficit");
+        if (hasCriticalOverdueExpenses) reasons.Add("overdue_expenses_uncovered");
+        if (overdueExpensesCount > 0 && !hasCriticalOverdueExpenses) reasons.Add("overdue_expenses_covered");
+        if (overdueIncomesCount > 0) reasons.Add("overdue_incomes");
+        if (pendingIncome > 0m) reasons.Add("pending_income");
+        if (dueSoonExpenseAmount > 0m) reasons.Add("due_soon_expenses");
+        if (healthScore < 45) reasons.Add("health_score_critical");
+        else if (healthScore < 70) reasons.Add("health_score_warning");
+        return reasons;
     }
 
     private static IReadOnlyList<string> BuildCashflowTips(string scenario)

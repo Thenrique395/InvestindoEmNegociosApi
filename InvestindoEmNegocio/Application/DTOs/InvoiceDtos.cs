@@ -39,3 +39,27 @@ public sealed record InvoiceExtractResponse(
     string? TotalCredits,
     string? CurrentBalance
 );
+
+public sealed record InvoiceImportItemRequest(
+    string? Date,
+    string Description,
+    string? Amount,
+    bool IsInstallment = false,
+    int? InstallmentCurrent = null,
+    int? InstallmentTotal = null,
+    string? BaseDescription = null
+);
+
+public sealed record InvoiceImportRequest(
+    Guid? CardId,
+    Guid? CategoryId,
+    string? DefaultDueDate,
+    bool SkipDuplicates,
+    IReadOnlyList<InvoiceImportItemRequest> Items
+);
+
+public sealed record InvoiceImportResultResponse(
+    int Created,
+    int Skipped,
+    int Failed
+);

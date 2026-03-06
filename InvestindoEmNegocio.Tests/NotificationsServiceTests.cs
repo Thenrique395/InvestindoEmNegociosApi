@@ -4,6 +4,7 @@ using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
 using Moq;
+using System.Text.Json;
 
 namespace InvestindoEmNegocio.Tests;
 
@@ -650,6 +651,95 @@ public class NotificationsServiceTests
                 n[0].PayloadJson!.Contains("\"overdueExpensesCovered\":true", StringComparison.OrdinalIgnoreCase)),
                 It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    [Fact]
+    public async Task GenerateAsync_Should_Include_Prioritized_Recommendations_And_ReasonCodes_In_Cashflow_Payload()
+    {
+        var userId = Guid.NewGuid();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var profileRepository = new Mock<IUserProfileRepository>();
+        profileRepository
+            .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserProfile(userId, "User", "123", "81999999999", null));
+
+        var settingsRepository = new Mock<INotificationSettingsRepository>();
+        settingsRepository
+            .Setup(x => x.GetOrCreateAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new NotificationSettings(
+                incomeUpcomingEnabled: false,
+                incomeDaysBefore: 0,
+                expenseUpcomingEnabled: false,
+                expenseDaysBefore: 0,
+                expenseOverdueEnabled: false,
+                cardCloseSoonEnabled: false,
+                cardCloseDaysBefore: 0,
+                cardCloseDayEnabled: false,
+                monthCloseEnabled: false,
+                monthSummaryEnabled: true,
+                goalBelowExpectedEnabled: false,
+                goalCompletedEnabled: false,
+                goalInactivityEnabled: false,
+                goalInactivityDays: 0));
+
+        var overdueExpense = new MoneyInstallment(Guid.NewGuid(), userId, 1, today.AddDays(-4), 900m);
+        var pendingIncome = new MoneyInstallment(Guid.NewGuid(), userId, 1, today.AddDays(2), 500m);
+
+        var installmentRepository = new Mock<IMoneyInstallmentRepository>();
+        installmentRepository
+            .Setup(x => x.ListByUserAsync(userId, null, null, null, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([overdueExpense, pendingIncome]);
+
+        var expensePlan = new MoneyPlan(userId, MoneyType.Expense, "Aluguel", 900m, ScheduleType.OneTime, today, null, 1);
+        typeof(MoneyPlan).GetProperty(nameof(MoneyPlan.Id))!.SetValue(expensePlan, overdueExpense.PlanId);
+        var incomePlan = new MoneyPlan(userId, MoneyType.Income, "Salário", 500m, ScheduleType.OneTime, today, null, 1);
+        typeof(MoneyPlan).GetProperty(nameof(MoneyPlan.Id))!.SetValue(incomePlan, pendingIncome.PlanId);
+
+        var planRepository = new Mock<IMoneyPlanRepository>();
+        planRepository
+            .Setup(x => x.ListByUserAsync(userId, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([expensePlan, incomePlan]);
+
+        IReadOnlyList<UserNotification>? createdNotifications = null;
+        var notificationRepository = new Mock<IUserNotificationRepository>();
+        notificationRepository
+            .Setup(x => x.ExistsAsync(userId, It.Is<string>(key => key.StartsWith("month-summary:")), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        notificationRepository
+            .Setup(x => x.ExistsAsync(userId, It.Is<string>(key => !key.StartsWith("month-summary:")), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        notificationRepository
+            .Setup(x => x.AddRangeAsync(It.IsAny<IReadOnlyList<UserNotification>>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<UserNotification>, CancellationToken>((items, _) => createdNotifications = items.ToList());
+
+        var sut = BuildSut(
+            notificationRepository: notificationRepository,
+            installmentRepository: installmentRepository,
+            planRepository: planRepository,
+            profileRepository: profileRepository,
+            settingsRepository: settingsRepository);
+
+        var generated = await sut.GenerateAsync(userId, CancellationToken.None);
+
+        generated.Should().Be(1);
+        createdNotifications.Should().NotBeNull();
+        createdNotifications!.Should().ContainSingle(n => n.Kind == NotificationKind.CashflowInsight);
+
+        var payloadJson = createdNotifications![0].PayloadJson;
+        payloadJson.Should().NotBeNullOrWhiteSpace();
+
+        using var doc = JsonDocument.Parse(payloadJson!);
+        var root = doc.RootElement;
+        root.GetProperty("priority").GetString().Should().Be("critical");
+
+        var reasonCodes = root.GetProperty("reasonCodes").EnumerateArray().Select(x => x.GetString()).ToList();
+        reasonCodes.Should().Contain("overdue_expenses_uncovered");
+
+        var recommendations = root.GetProperty("recommendations").EnumerateArray().ToList();
+        recommendations.Should().NotBeEmpty();
+        recommendations[0].GetProperty("route").GetString().Should().Be("/despesas");
+        recommendations[0].GetProperty("actionLabel").GetString().Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]

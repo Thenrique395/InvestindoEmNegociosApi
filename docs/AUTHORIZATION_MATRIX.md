@@ -77,6 +77,7 @@ Regra atual:
 - `GET /api/v1/accounts/{id}/transactions`
 - `GET|POST|PUT|DELETE /api/v1/categories`
 - `POST /api/v1/invoice-import/extract`
+- `POST /api/v1/invoice-import/import`
 
 Obs.: esses módulos já usam policies de feature:
 
