@@ -15,6 +15,7 @@ public class UserProfile
     public string State { get; private set; } = string.Empty;
     public string Country { get; private set; } = string.Empty;
     public string FinancialGoal { get; private set; } = string.Empty;
+    public string IntelligenceMode { get; private set; } = "B";
     public string Language { get; private set; } = "pt-BR";
     public string Currency { get; private set; } = "BRL";
     public bool NotifyUpcomingEnabled { get; private set; } = true;
@@ -27,13 +28,38 @@ public class UserProfile
 
     private UserProfile() { }
 
-    public UserProfile(Guid userId, string fullName, string document, string phone, DateTime? birthDate, string avatarUrl = "", string city = "", string state = "", string country = "", string language = "pt-BR", string currency = "BRL", string financialGoal = "")
+    public UserProfile(
+        Guid userId,
+        string fullName,
+        string document,
+        string phone,
+        DateTime? birthDate,
+        string avatarUrl = "",
+        string city = "",
+        string state = "",
+        string country = "",
+        string language = "pt-BR",
+        string currency = "BRL",
+        string financialGoal = "",
+        string intelligenceMode = "B")
     {
         UserId = userId;
-        SetData(fullName, document, phone, birthDate, avatarUrl, city, state, country, language, currency, financialGoal);
+        SetData(fullName, document, phone, birthDate, avatarUrl, city, state, country, language, currency, financialGoal, intelligenceMode);
     }
 
-    public void SetData(string fullName, string document, string phone, DateTime? birthDate, string avatarUrl = "", string city = "", string state = "", string country = "", string language = "pt-BR", string currency = "BRL", string financialGoal = "")
+    public void SetData(
+        string fullName,
+        string document,
+        string phone,
+        DateTime? birthDate,
+        string avatarUrl = "",
+        string city = "",
+        string state = "",
+        string country = "",
+        string language = "pt-BR",
+        string currency = "BRL",
+        string financialGoal = "",
+        string intelligenceMode = "B")
     {
         FullName = fullName.Trim();
         Document = SanitizeDocument(document);
@@ -44,6 +70,7 @@ public class UserProfile
         State = state?.Trim() ?? string.Empty;
         Country = country?.Trim() ?? string.Empty;
         FinancialGoal = financialGoal?.Trim() ?? string.Empty;
+        IntelligenceMode = NormalizeIntelligenceMode(intelligenceMode);
         Language = string.IsNullOrWhiteSpace(language) ? "pt-BR" : language.Trim();
         Currency = string.IsNullOrWhiteSpace(currency) ? "BRL" : currency.Trim().ToUpperInvariant();
         UpdatedAt = DateTime.UtcNow;
@@ -83,5 +110,12 @@ public class UserProfile
         var dt = date.Value;
         if (dt.Kind == DateTimeKind.Utc) return dt;
         return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+    }
+
+    private static string NormalizeIntelligenceMode(string? mode)
+    {
+        var normalized = string.IsNullOrWhiteSpace(mode) ? "B" : mode.Trim().ToUpperInvariant();
+        if (normalized is "B" or "C") return normalized;
+        throw new ArgumentException("Modo de inteligência inválido. Use B ou C.");
     }
 }

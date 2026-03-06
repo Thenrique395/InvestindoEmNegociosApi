@@ -43,7 +43,8 @@ public class ProfileControllerIntegrationTests
                 state = "PE",
                 country = "Brasil",
                 financialGoal = "comecar-investir",
-                language = "pt-BR"
+                language = "pt-BR",
+                intelligenceMode = "C"
             })
         };
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "token");
@@ -54,6 +55,7 @@ public class ProfileControllerIntegrationTests
         var upsertPayload = await upsertResponse.Content.ReadFromJsonAsync<UserProfileDto>();
         upsertPayload.Should().NotBeNull();
         upsertPayload!.FinancialGoal.Should().Be("comecar-investir");
+        upsertPayload!.IntelligenceMode.Should().Be("C");
 
         var getRequest = new HttpRequestMessage(HttpMethod.Get, "/api/v1/profile");
         getRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "token");
@@ -64,6 +66,7 @@ public class ProfileControllerIntegrationTests
         var getPayload = await getResponse.Content.ReadFromJsonAsync<UserProfileDto>();
         getPayload.Should().NotBeNull();
         getPayload!.FinancialGoal.Should().Be("comecar-investir");
+        getPayload!.IntelligenceMode.Should().Be("C");
     }
 
     private static async Task<WebApplication> BuildTestAppAsync()

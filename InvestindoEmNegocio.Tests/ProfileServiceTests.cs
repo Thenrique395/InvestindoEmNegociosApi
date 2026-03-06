@@ -51,6 +51,7 @@ public class ProfileServiceTests
         result.UserId.Should().Be(userId);
         result.FullName.Should().Be("Henrique Santos");
         result.FinancialGoal.Should().Be("comecar-investir");
+        result.IntelligenceMode.Should().Be("C");
         repository.Verify(x => x.AddAsync(It.IsAny<UserProfile>(), It.IsAny<CancellationToken>()), Times.Once);
         repository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -142,7 +143,8 @@ public class ProfileServiceTests
             "PE",
             "Brasil",
             "comecar-investir",
-            "pt-BR");
+            "pt-BR",
+            "C");
 
     private static UserProfile NewProfile(Guid userId) =>
         new(userId, "Henrique Santos", "12345678900", "+55 11 999999999", new DateTime(1990, 1, 1));

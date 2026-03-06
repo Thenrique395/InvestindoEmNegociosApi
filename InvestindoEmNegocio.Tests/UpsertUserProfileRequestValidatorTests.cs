@@ -21,7 +21,8 @@ public class UpsertUserProfileRequestValidatorTests
             State: "PE",
             Country: "Brasil",
             FinancialGoal: "comecar-investir",
-            Language: "pt-BR");
+            Language: "pt-BR",
+            IntelligenceMode: "B");
 
         var result = _sut.Validate(request);
 
@@ -41,7 +42,8 @@ public class UpsertUserProfileRequestValidatorTests
             State: "",
             Country: "",
             FinancialGoal: "",
-            Language: "");
+            Language: "",
+            IntelligenceMode: "B");
 
         var result = _sut.Validate(request);
 
@@ -64,12 +66,36 @@ public class UpsertUserProfileRequestValidatorTests
             State: "PE",
             Country: "Brasil",
             FinancialGoal: new string('a', 81),
-            Language: "pt-BR");
+            Language: "pt-BR",
+            IntelligenceMode: "B");
 
         var result = _sut.Validate(request);
 
         result.IsValid.Should().BeFalse();
         result.Errors.Select(e => e.ErrorMessage)
             .Should().Contain(m => m.Contains("Objetivo financeiro deve ter no máximo 80 caracteres", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Validate_Should_Fail_When_IntelligenceMode_Is_Invalid()
+    {
+        var request = new UpsertUserProfileRequest(
+            FullName: "Henrique Santos",
+            Document: "12345678901",
+            Phone: "(81) 99525-7823",
+            BirthDate: new DateTime(1990, 1, 1),
+            AvatarUrl: "",
+            City: "Recife",
+            State: "PE",
+            Country: "Brasil",
+            FinancialGoal: "comecar-investir",
+            Language: "pt-BR",
+            IntelligenceMode: "X");
+
+        var result = _sut.Validate(request);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Select(e => e.ErrorMessage)
+            .Should().Contain(m => m.Contains("Modo de inteligência deve ser B ou C", StringComparison.Ordinal));
     }
 }

@@ -21,6 +21,15 @@ public class UpsertUserProfileRequestValidator : AbstractValidator<UpsertUserPro
 
         RuleFor(x => x.FinancialGoal)
             .MaximumLength(80).WithMessage("Objetivo financeiro deve ter no máximo 80 caracteres.");
+
+        RuleFor(x => x.IntelligenceMode)
+            .NotEmpty().WithMessage("Modo de inteligência é obrigatório.")
+            .Must(mode =>
+            {
+                var normalized = (mode ?? string.Empty).Trim().ToUpperInvariant();
+                return normalized is "B" or "C";
+            })
+            .WithMessage("Modo de inteligência deve ser B ou C.");
     }
 
     private bool BeDigits11(string document)

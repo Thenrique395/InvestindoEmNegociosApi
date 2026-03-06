@@ -11,6 +11,7 @@ public record UserProfileDto(
     string State,
     string Country,
     string FinancialGoal,
+    string IntelligenceMode,
     string Language,
     string Currency,
     List<string> Locales);

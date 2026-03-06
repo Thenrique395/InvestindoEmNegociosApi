@@ -10,4 +10,5 @@ public record UpsertUserProfileRequest(
     string State,
     string Country,
     string FinancialGoal,
-    string Language);
+    string Language,
+    string IntelligenceMode = "B");
