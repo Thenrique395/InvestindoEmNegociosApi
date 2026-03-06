@@ -29,6 +29,14 @@ public class PreferencesController(IPreferencesService preferencesService) : Con
         return Ok(prefs);
     }
 
+    [HttpPost("account/delete")]
+    public async Task<IActionResult> DeleteOwnAccount([FromBody] DeleteOwnAccountRequest request, CancellationToken cancellationToken = default)
+    {
+        var userId = GetUserId();
+        await preferencesService.DeleteOwnAccountAsync(userId, request, cancellationToken);
+        return NoContent();
+    }
+
     private Guid GetUserId()
     {
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
