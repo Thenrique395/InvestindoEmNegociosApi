@@ -28,10 +28,13 @@ public class AccountTransactionRepository(InvestDbContext context) : IAccountTra
 
     public async Task<decimal> SumSignedAmountByAccountAsync(Guid accountId, Guid userId, CancellationToken cancellationToken = default)
     {
-        return await context.AccountTransactions
+        var signedAmounts = await context.AccountTransactions
             .AsNoTracking()
             .Where(t => t.AccountId == accountId && t.UserId == userId)
-            .SumAsync(t => t.Kind == AccountTransactionKind.Credit ? t.Amount : -t.Amount, cancellationToken);
+            .Select(t => t.Kind == AccountTransactionKind.Credit ? t.Amount : -t.Amount)
+            .ToListAsync(cancellationToken);
+
+        return signedAmounts.Sum();
     }
 
     public async Task<List<AccountTransaction>> ListBySourceAsync(

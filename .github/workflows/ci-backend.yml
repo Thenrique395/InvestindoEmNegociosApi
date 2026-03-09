@@ -43,8 +43,5 @@ jobs:
         with:
           dotnet-version: "9.0.x"
 
-      - name: Restore
-        run: dotnet restore InvestindoEmNegocio.sln
-
-      - name: Full test suite
-        run: dotnet test InvestindoEmNegocio.Tests/InvestindoEmNegocio.Tests.csproj --configuration Release
+      - name: Backend quality gate
+        run: bash ./scripts/quality-backend.sh

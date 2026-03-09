@@ -73,8 +73,8 @@ public class RepositoryCoverageTests
         var byPlan = await repo.ListByPlanAsync(expensePlan.Id, userId);
         byPlan.Should().HaveCount(2);
 
-        Func<Task> sumAct = async () => await repo.SumCardDebtAsync(userId);
-        await sumAct.Should().ThrowAsync<NotSupportedException>();
+        var cardDebt = await repo.SumCardDebtAsync(userId);
+        cardDebt.Should().Be(120m);
 
         var byId = await repo.GetByIdAsync(i1.Id);
         byId.Should().NotBeNull();

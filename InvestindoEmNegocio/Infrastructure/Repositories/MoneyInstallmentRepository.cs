@@ -31,7 +31,7 @@ public class MoneyInstallmentRepository(InvestDbContext context) : IMoneyInstall
 
     public async Task<decimal> SumCardDebtAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        var query = from installment in context.MoneyInstallments.AsNoTracking()
+        var amounts = await (from installment in context.MoneyInstallments.AsNoTracking()
             join plan in context.MoneyPlans.AsNoTracking() on installment.PlanId equals plan.Id
             where installment.UserId == userId
                   && plan.UserId == userId
@@ -39,9 +39,10 @@ public class MoneyInstallmentRepository(InvestDbContext context) : IMoneyInstall
                   && plan.CardId != null
                   && installment.Status != InstallmentStatus.Paid
                   && installment.Status != InstallmentStatus.Canceled
-            select installment.Amount;
+            select installment.Amount
+            ).ToListAsync(cancellationToken);
 
-        return await query.SumAsync(cancellationToken);
+        return amounts.Sum();
     }
 
     public async Task<MoneyInstallment?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
