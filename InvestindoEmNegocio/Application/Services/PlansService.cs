@@ -82,17 +82,17 @@ public class PlansService(
         paymentRepository.RemoveRange(payments);
         installmentRepository.RemoveRange(installments);
 
-        plan.GetType().GetProperty("Type")?.SetValue(plan, request.Type);
-        plan.GetType().GetProperty("Title")?.SetValue(plan, request.Title);
-        plan.GetType().GetProperty("Amount")?.SetValue(plan, request.Amount);
-        plan.GetType().GetProperty("Schedule")?.SetValue(plan, request.Schedule);
-        plan.GetType().GetProperty("StartDate")?.SetValue(plan, request.StartDate);
-        plan.GetType().GetProperty("Frequency")?.SetValue(plan, request.Frequency);
-        plan.GetType().GetProperty("InstallmentsCount")?.SetValue(plan, request.InstallmentsCount);
-        plan.GetType().GetProperty("UpdatedAt")?.SetValue(plan, DateTime.UtcNow);
-        plan.GetType().GetProperty("CategoryId")?.SetValue(plan, request.CategoryId);
-        plan.GetType().GetProperty("CardId")?.SetValue(plan, request.CardId);
-        plan.GetType().GetProperty("DefaultPaymentMethodId")?.SetValue(plan, request.DefaultPaymentMethodId);
+        plan.Update(
+            request.Type,
+            request.Title,
+            request.Amount,
+            request.Schedule,
+            request.StartDate,
+            request.Frequency,
+            request.InstallmentsCount,
+            request.DefaultPaymentMethodId,
+            request.CategoryId,
+            request.CardId);
 
         await GenerateInstallmentsAsync(plan, cancellationToken);
         await planRepository.SaveChangesAsync(cancellationToken);

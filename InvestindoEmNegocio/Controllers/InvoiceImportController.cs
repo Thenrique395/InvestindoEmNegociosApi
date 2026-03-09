@@ -75,6 +75,13 @@ public sealed class InvoiceImportController(IInvoiceImportService invoiceImportS
                 ex.Message,
                 StatusCodes.Status400BadRequest);
         }
+        catch (InvalidOperationException ex)
+        {
+            throw new AppProblemException(
+                "Importação rejeitada",
+                ex.Message,
+                StatusCodes.Status422UnprocessableEntity);
+        }
     }
 
     private Guid GetUserId()

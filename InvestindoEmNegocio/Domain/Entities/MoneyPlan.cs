@@ -37,4 +37,29 @@ public class MoneyPlan
         CategoryId = categoryId;
         CardId = cardId;
     }
+
+    public void Update(
+        MoneyType type,
+        string title,
+        decimal amount,
+        ScheduleType schedule,
+        DateOnly startDate,
+        FrequencyType? frequency = null,
+        int? installmentsCount = null,
+        int? defaultPaymentMethodId = null,
+        Guid? categoryId = null,
+        Guid? cardId = null)
+    {
+        Type = type;
+        Title = title.Trim();
+        Amount = amount;
+        Schedule = schedule;
+        StartDate = startDate;
+        Frequency = frequency;
+        InstallmentsCount = installmentsCount;
+        DefaultPaymentMethodId = defaultPaymentMethodId;
+        CategoryId = categoryId;
+        CardId = cardId;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }

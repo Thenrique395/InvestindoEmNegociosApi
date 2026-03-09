@@ -2,10 +2,12 @@ using System.Text;
 using System.Text.RegularExpressions;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
+using InvestindoEmNegocio.Application.Utils;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Finance;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.Extensions.Logging;
 using UglyToad.PdfPig;
 
 namespace InvestindoEmNegocio.Application.Services;
@@ -15,7 +17,9 @@ public sealed class InvoiceImportService(
     IPlansService plansService,
     IMoneyInstallmentRepository installmentRepository,
     IMoneyPlanRepository planRepository,
-    ICardRepository cardRepository) : IInvoiceImportService
+    ICardRepository cardRepository,
+    IInvestDbContext dbContext,
+    ILogger<InvoiceImportService> logger) : IInvoiceImportService
 {
     public Task<InvoiceExtractResponse> ExtractAsync(Stream pdfStream, CancellationToken cancellationToken)
     {
@@ -54,10 +58,10 @@ public sealed class InvoiceImportService(
         {
             selectedCard = await cardRepository.GetByIdAsync(request.CardId.Value, userId, cancellationToken);
             if (selectedCard is null)
-                throw new ArgumentException("Cartão selecionado não encontrado.");
+                throw new InvalidOperationException("Cartão selecionado não encontrado para o usuário.");
         }
 
-        var defaultDate = TryParseDate(request.DefaultDueDate, DateOnly.FromDateTime(DateTime.UtcNow));
+        var defaultDate = FinanceInputParser.ParseDateOrDefault(request.DefaultDueDate, DateOnly.FromDateTime(DateTime.UtcNow));
         var created = 0;
         var skipped = 0;
         var failed = 0;
@@ -66,6 +70,18 @@ public sealed class InvoiceImportService(
             ? await LoadExistingKeysAsync(userId, request.CardId, cancellationToken)
             : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        var requestIdempotency = string.IsNullOrWhiteSpace(request.ImportIdempotencyKey)
+            ? BuildRequestIdempotencyKey(request)
+            : request.ImportIdempotencyKey!.Trim();
+
+        logger.LogInformation(
+            "Iniciando importacao de fatura para {UserId}. Itens={Items}, CardId={CardId}, IdempotencyKey={IdempotencyKey}",
+            userId,
+            request.Items.Count,
+            request.CardId,
+            requestIdempotency);
+
+        await using var tx = await dbContext.BeginTransactionAsync(cancellationToken);
         foreach (var item in request.Items)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -77,13 +93,13 @@ public sealed class InvoiceImportService(
                 continue;
             }
 
-            if (!TryParseMoney(item.Amount, out var amount) || amount <= 0m)
+            if (!FinanceInputParser.TryParseMoney(item.Amount, out var amount) || amount <= 0m)
             {
                 skipped++;
                 continue;
             }
 
-            var purchaseDate = TryParseDate(item.Date, defaultDate);
+            var purchaseDate = FinanceInputParser.ParseDateOrDefault(item.Date, defaultDate);
             var dueDate = selectedCard is not null
                 ? CardStatementCycleCalculator.Calculate(
                     purchaseDate,
@@ -116,11 +132,21 @@ public sealed class InvoiceImportService(
                 dedupeKeys.Add(dedupeKey);
                 created++;
             }
-            catch
+            catch (Exception ex)
             {
+                logger.LogWarning(ex, "Falha ao importar item da fatura para {UserId}. Item={Description}", userId, item.Description);
                 failed++;
             }
         }
+        await tx.CommitAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Importacao de fatura finalizada para {UserId}. Created={Created}, Skipped={Skipped}, Failed={Failed}, IdempotencyKey={IdempotencyKey}",
+            userId,
+            created,
+            skipped,
+            failed,
+            requestIdempotency);
 
         return new InvoiceImportResultResponse(created, skipped, failed);
     }
@@ -168,33 +194,12 @@ public sealed class InvoiceImportService(
         return $"{title.ToUpperInvariant()}|{amount:F2}|{dueDate:yyyyMMdd}|{cardId?.ToString() ?? "NO_CARD"}";
     }
 
-    private static bool TryParseMoney(string? value, out decimal result)
+    private static string BuildRequestIdempotencyKey(InvoiceImportRequest request)
     {
-        result = 0m;
-        if (string.IsNullOrWhiteSpace(value))
-            return false;
-
-        var cleaned = value
-            .Replace("R$", "", StringComparison.OrdinalIgnoreCase)
-            .Replace(" ", string.Empty)
-            .Replace(".", string.Empty)
-            .Replace(",", ".");
-
-        return decimal.TryParse(cleaned, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out result);
-    }
-
-    private static DateOnly TryParseDate(string? value, DateOnly fallback)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return fallback;
-
-        var trimmed = value.Trim();
-        if (DateOnly.TryParseExact(trimmed, "dd/MM/yyyy", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"), System.Globalization.DateTimeStyles.None, out var full))
-            return full;
-
-        if (DateOnly.TryParseExact(trimmed, "dd/MM", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"), System.Globalization.DateTimeStyles.None, out var monthDay))
-            return new DateOnly(fallback.Year, monthDay.Month, monthDay.Day);
-
-        return fallback;
+        var normalized = string.Join('|', request.Items
+            .Select(i => $"{(i.BaseDescription ?? i.Description).Trim().ToUpperInvariant()}:{i.Amount}:{i.Date}")
+            .OrderBy(x => x, StringComparer.Ordinal));
+        var raw = $"{request.CardId}|{request.CategoryId}|{request.DefaultDueDate}|{normalized}";
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(raw)));
     }
 }

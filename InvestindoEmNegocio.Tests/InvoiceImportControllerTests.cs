@@ -88,10 +88,38 @@ public class InvoiceImportControllerTests
         };
 
         var result = await controller.Import(
-            new InvoiceImportRequest(null, null, null, true, [new InvoiceImportItemRequest("01/03/2026", "Item", "R$ 10,00")]),
+            new InvoiceImportRequest(null, null, null, null, true, [new InvoiceImportItemRequest("01/03/2026", "Item", "R$ 10,00")]),
             CancellationToken.None);
 
         result.Result.Should().BeOfType<OkObjectResult>();
+    }
+
+    [Fact]
+    public async Task Import_Should_Map_InvalidOperation_To_422_AppProblem()
+    {
+        var userId = Guid.NewGuid();
+        var service = new Mock<IInvoiceImportService>();
+        service.Setup(x => x.ImportAsync(userId, It.IsAny<InvoiceImportRequest>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Cartão selecionado não encontrado para o usuário."));
+
+        var controller = new InvoiceImportController(service.Object, NullLogger<InvoiceImportController>.Instance);
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                [
+                    new Claim(ClaimTypes.NameIdentifier, userId.ToString())
+                ], "test"))
+            }
+        };
+
+        Func<Task> act = async () => await controller.Import(
+            new InvoiceImportRequest(null, null, null, null, true, [new InvoiceImportItemRequest("01/03/2026", "Item", "R$ 10,00")]),
+            CancellationToken.None);
+
+        var ex = await act.Should().ThrowAsync<AppProblemException>();
+        ex.Which.StatusCode.Should().Be(StatusCodes.Status422UnprocessableEntity);
     }
 
     private static IFormFile BuildFile(string contentType)

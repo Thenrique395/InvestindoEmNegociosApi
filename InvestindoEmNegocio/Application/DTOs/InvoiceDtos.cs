@@ -54,6 +54,7 @@ public sealed record InvoiceImportRequest(
     Guid? CardId,
     Guid? CategoryId,
     string? DefaultDueDate,
+    string? ImportIdempotencyKey,
     bool SkipDuplicates,
     IReadOnlyList<InvoiceImportItemRequest> Items
 );

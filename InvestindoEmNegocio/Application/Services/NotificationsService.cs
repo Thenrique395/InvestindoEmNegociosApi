@@ -6,6 +6,8 @@ using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Finance;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace InvestindoEmNegocio.Application.Services;
 
@@ -17,8 +19,11 @@ public class NotificationsService(
     INotificationSettingsRepository settingsRepository,
     ICardRepository cardRepository,
     IGoalRepository goalRepository,
-    IGoalContributionRepository goalContributionRepository) : INotificationsService
+    IGoalContributionRepository goalContributionRepository,
+    ILogger<NotificationsService>? logger = null) : INotificationsService
 {
+    private readonly ILogger<NotificationsService> _logger = logger ?? NullLogger<NotificationsService>.Instance;
+
     public async Task<IReadOnlyList<NotificationDto>> ListAsync(Guid userId, bool unreadOnly, int? limit, CancellationToken cancellationToken = default)
     {
         var items = await notificationRepository.ListByUserAsync(userId, unreadOnly, limit, cancellationToken);
@@ -27,6 +32,7 @@ public class NotificationsService(
 
     public async Task<int> GenerateAsync(Guid userId, CancellationToken cancellationToken = default)
     {
+        var startedAt = DateTime.UtcNow;
         var profile = await profileRepository.GetByUserIdAsync(userId, cancellationToken);
         if (profile is null)
             return 0;
@@ -242,10 +248,24 @@ public class NotificationsService(
             .Where(n => !existingReferenceKeys.Contains(n.ReferenceKey))
             .ToList();
         if (toCreate.Count == 0)
+        {
+            _logger.LogInformation(
+                "Notifications generate finished for {UserId}. candidates={Candidates} created=0 durationMs={DurationMs}",
+                userId,
+                uniqueCandidates.Count,
+                (DateTime.UtcNow - startedAt).TotalMilliseconds);
             return 0;
+        }
 
         await notificationRepository.AddRangeAsync(toCreate, cancellationToken);
         await notificationRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Notifications generate finished for {UserId}. candidates={Candidates} created={Created} durationMs={DurationMs}",
+            userId,
+            uniqueCandidates.Count,
+            toCreate.Count,
+            (DateTime.UtcNow - startedAt).TotalMilliseconds);
         return toCreate.Count;
     }
 

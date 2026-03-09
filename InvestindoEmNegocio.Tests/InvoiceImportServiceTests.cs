@@ -6,6 +6,8 @@ using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
 using Moq;
 using InvestindoEmNegocio.Application.Interfaces;
+using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace InvestindoEmNegocio.Tests;
 
@@ -19,7 +21,9 @@ public class InvoiceImportServiceTests
             Mock.Of<IPlansService>(),
             Mock.Of<IMoneyInstallmentRepository>(),
             Mock.Of<IMoneyPlanRepository>(),
-            Mock.Of<ICardRepository>());
+            Mock.Of<ICardRepository>(),
+            Mock.Of<IInvestDbContext>(),
+            NullLogger<InvoiceImportService>.Instance);
         await using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("not-a-pdf"));
 
         Func<Task> act = async () => await sut.ExtractAsync(stream, CancellationToken.None);
@@ -55,17 +59,25 @@ public class InvoiceImportServiceTests
             .Setup(x => x.GetByIdAsync(cardId, userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(card);
 
+        var tx = new Mock<IDbContextTransaction>();
+        tx.Setup(x => x.CommitAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var dbContext = new Mock<IInvestDbContext>();
+        dbContext.Setup(x => x.BeginTransactionAsync(It.IsAny<CancellationToken>())).ReturnsAsync(tx.Object);
+
         var sut = new InvoiceImportService(
             new InvoiceParserFactory(),
             plansService.Object,
             installmentRepository.Object,
             planRepository.Object,
-            cardRepository.Object);
+            cardRepository.Object,
+            dbContext.Object,
+            NullLogger<InvoiceImportService>.Instance);
 
         var request = new InvoiceImportRequest(
             CardId: cardId,
             CategoryId: null,
             DefaultDueDate: "15/03/2026",
+            ImportIdempotencyKey: "manual-key",
             SkipDuplicates: true,
             Items:
             [
@@ -80,5 +92,7 @@ public class InvoiceImportServiceTests
         result.Skipped.Should().Be(1);
         result.Failed.Should().Be(0);
         plansService.Verify(x => x.CreateAsync(userId, It.IsAny<CreatePlanRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        dbContext.Verify(x => x.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
+        tx.Verify(x => x.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 }
