@@ -78,6 +78,9 @@ public class PreferencesServiceTests
         await dbContext.UserProfiles.AddAsync(new UserProfile(userId, "Teste", "12345678901", "(81) 99999-9999", null));
         await dbContext.Categories.AddAsync(new Category(userId, "Moradia", MoneyType.Expense));
         await dbContext.Accounts.AddAsync(new Account(userId, "Conta principal", AccountType.Checking, 1000m));
+        await dbContext.RefreshTokens.AddAsync(new RefreshToken(userId, "refresh-hash", DateTime.UtcNow.AddDays(7)));
+        await dbContext.PasswordResetTokens.AddAsync(new PasswordResetToken(userId, "reset-hash", DateTime.UtcNow.AddHours(1)));
+        await dbContext.AuditLogs.AddAsync(new AuditLog(userId, "account.delete.requested", "User", userId.ToString(), null, null, null));
         await dbContext.SaveChangesAsync();
 
         var sut = new PreferencesService(profileRepository, userRepository, dbContext);
@@ -89,6 +92,9 @@ public class PreferencesServiceTests
         (await dbContext.UserProfiles.CountAsync(x => x.UserId == userId)).Should().Be(0);
         (await dbContext.Categories.CountAsync(x => x.UserId == userId)).Should().Be(0);
         (await dbContext.Accounts.CountAsync(x => x.UserId == userId)).Should().Be(0);
+        (await dbContext.RefreshTokens.CountAsync(x => x.UserId == userId)).Should().Be(0);
+        (await dbContext.PasswordResetTokens.CountAsync(x => x.UserId == userId)).Should().Be(0);
+        (await dbContext.AuditLogs.CountAsync(x => x.UserId == userId)).Should().Be(0);
     }
 
     [Fact]
@@ -112,6 +118,36 @@ public class PreferencesServiceTests
         await act.Should().ThrowAsync<AppProblemException>()
             .Where(ex => ex.Title == "Senha inválida");
         (await dbContext.Users.CountAsync(x => x.Id == userId)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetPrivacySummaryAsync_Should_Report_Runtime_Privacy_Controls()
+    {
+        await using var dbContext = CreateDbContext();
+        var userRepository = new UserRepository(dbContext);
+        var profileRepository = new UserProfileRepository(dbContext);
+        var user = new User("Teste", "teste@teste.com", BCrypt.Net.BCrypt.HashPassword("Senha@123"));
+        var userId = user.Id;
+
+        await dbContext.Users.AddAsync(user);
+        await dbContext.RefreshTokens.AddRangeAsync(
+            new RefreshToken(userId, "refresh-1", DateTime.UtcNow.AddHours(2)),
+            new RefreshToken(userId, "refresh-2", DateTime.UtcNow.AddHours(-1)));
+        await dbContext.PasswordResetTokens.AddAsync(new PasswordResetToken(userId, "reset-1", DateTime.UtcNow.AddHours(2)));
+        await dbContext.AuditLogs.AddRangeAsync(
+            new AuditLog(userId, "login", "Auth", null, null, null, null),
+            new AuditLog(userId, "export", "DataPortability", null, null, null, null));
+        await dbContext.SaveChangesAsync();
+
+        var sut = new PreferencesService(profileRepository, userRepository, dbContext);
+
+        var result = await sut.GetPrivacySummaryAsync(userId);
+
+        result.ActiveSessions.Should().Be(1);
+        result.PendingPasswordResetRequests.Should().Be(1);
+        result.AuditEntries.Should().Be(2);
+        result.SelfServiceDeletionEnabled.Should().BeTrue();
+        result.DeletionScope.Should().Contain("tokens de sessão, reset de senha e trilha de auditoria");
     }
 
     private static InvestDbContext CreateDbContext()

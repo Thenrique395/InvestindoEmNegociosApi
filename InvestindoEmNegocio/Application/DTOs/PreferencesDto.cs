@@ -9,3 +9,14 @@ public record NotificationPreferencesDto(
     bool EmailEnabled,
     int DaysBeforeDue
 );
+
+public record PrivacySummaryDto(
+    int ActiveSessions,
+    int PendingPasswordResetRequests,
+    int AuditEntries,
+    bool DataExportEnabled,
+    bool SelfServiceDeletionEnabled,
+    IReadOnlyList<string> DeletionScope,
+    IReadOnlyList<string> ProductionControls,
+    string ScalabilityPhase,
+    string RetentionPolicy);

@@ -5,5 +5,7 @@ public enum InvestmentType
     RF,
     ACOES,
     FUNDOS,
-    CRIPTO
+    CRIPTO,
+    IMOVEL,
+    VEICULO
 }

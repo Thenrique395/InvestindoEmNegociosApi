@@ -153,6 +153,7 @@ public record RecommendationEngineResponse(
 public record WealthAssetBreakdownResponse(
     decimal AccountsBalance,
     decimal InvestmentsBalance,
+    decimal TangibleAssetsBalance,
     decimal TotalAssets);
 
 public record WealthLiabilityBreakdownResponse(
@@ -174,6 +175,7 @@ public record NetWorthHistoryPointResponse(
     string Label,
     decimal AccountsBalance,
     decimal InvestmentsBalance,
+    decimal TangibleAssetsBalance,
     decimal TotalAssets,
     decimal TotalLiabilities,
     decimal NetWorth,

@@ -6,6 +6,7 @@ namespace InvestindoEmNegocio.Application.Interfaces;
 
 public interface IInvestDbContext
 {
+    DbSet<User> Users { get; }
     DbSet<UserProfile> UserProfiles { get; }
     DbSet<Category> Categories { get; }
     DbSet<UserCategorizationFeedback> UserCategorizationFeedback { get; }
@@ -22,6 +23,9 @@ public interface IInvestDbContext
     DbSet<InvestmentPosition> InvestmentPositions { get; }
     DbSet<InvestmentMovement> InvestmentMovements { get; }
     DbSet<UserOnboarding> UserOnboardings { get; }
+    DbSet<RefreshToken> RefreshTokens { get; }
+    DbSet<PasswordResetToken> PasswordResetTokens { get; }
+    DbSet<AuditLog> AuditLogs { get; }
     DbSet<UserNotification> UserNotifications { get; }
     DbSet<RobotExecutionLog> RobotExecutionLogs { get; }
 

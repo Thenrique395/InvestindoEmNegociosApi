@@ -203,7 +203,8 @@ public class AccountsServiceTests
         var positions = new List<InvestmentPositionDto>
         {
             new(Guid.NewGuid(), InvestmentType.ACOES, "PETR4", 10m, 20m, DateOnly.FromDateTime(DateTime.UtcNow), "Broker", "Ações", null, [], "PETR4", 30m),
-            new(Guid.NewGuid(), InvestmentType.RF, "Tesouro", 1m, 500m, DateOnly.FromDateTime(DateTime.UtcNow), "Conta", "Renda Fixa", null, [])
+            new(Guid.NewGuid(), InvestmentType.RF, "Tesouro", 1m, 500m, DateOnly.FromDateTime(DateTime.UtcNow), "Conta", "Renda Fixa", null, []),
+            new(Guid.NewGuid(), InvestmentType.IMOVEL, "Apartamento Boa Viagem", 1m, 350000m, DateOnly.FromDateTime(DateTime.UtcNow), "Patrimônio", "Imóvel", null, [])
         };
         investmentsService.Setup(x => x.ListPositionsAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(positions);
@@ -223,12 +224,13 @@ public class AccountsServiceTests
 
         result.Assets.AccountsBalance.Should().Be(1250m);
         result.Assets.InvestmentsBalance.Should().Be(800m);
-        result.Assets.TotalAssets.Should().Be(2050m);
+        result.Assets.TangibleAssetsBalance.Should().Be(350000m);
+        result.Assets.TotalAssets.Should().Be(352050m);
         result.Liabilities.CardDebt.Should().Be(400m);
         result.Liabilities.OtherOpenLiabilities.Should().Be(150m);
         result.Liabilities.TotalLiabilities.Should().Be(550m);
-        result.NetWorth.Should().Be(1500m);
-        result.InvestmentPositionsCount.Should().Be(2);
+        result.NetWorth.Should().Be(351500m);
+        result.InvestmentPositionsCount.Should().Be(3);
         result.OpenLiabilitiesCount.Should().Be(2);
     }
 

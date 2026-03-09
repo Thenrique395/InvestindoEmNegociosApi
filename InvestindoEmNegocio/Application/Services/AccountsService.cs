@@ -206,17 +206,18 @@ public class AccountsService(
         var positions = await investmentsService.ListPositionsAsync(userId, cancellationToken);
         var enrichedPositions = await investmentsService.EnrichWithMarketAsync(positions, cancellationToken);
         var activePositions = enrichedPositions.Where(p => p.Quantity > 0).ToList();
-        var investmentsBalance = activePositions.Sum(CalculatePositionValue);
+        var investmentsBalance = activePositions.Where(IsFinancialInvestment).Sum(CalculatePositionValue);
+        var tangibleAssetsBalance = activePositions.Where(IsTangibleAsset).Sum(CalculatePositionValue);
 
         var openLiabilities = await BuildOpenDebtItemsAsync(userId, cancellationToken);
         var cardDebt = openLiabilities.Where(i => i.Family == "card").Sum(i => i.OpenAmount);
         var totalLiabilities = openLiabilities.Sum(i => i.OpenAmount);
         var otherOpenLiabilities = Math.Max(totalLiabilities - cardDebt, 0m);
-        var totalAssets = accountsBalance + investmentsBalance;
+        var totalAssets = accountsBalance + investmentsBalance + tangibleAssetsBalance;
 
         return new NetWorthSummaryResponse(
             anchorDate,
-            new WealthAssetBreakdownResponse(accountsBalance, investmentsBalance, totalAssets),
+            new WealthAssetBreakdownResponse(accountsBalance, investmentsBalance, tangibleAssetsBalance, totalAssets),
             new WealthLiabilityBreakdownResponse(cardDebt, otherOpenLiabilities, totalLiabilities),
             totalAssets - totalLiabilities,
             activePositions.Count,
@@ -282,7 +283,13 @@ public class AccountsService(
             });
 
             var pointEstimated = false;
-            var investmentsBalance = enrichedPositions.Sum(position =>
+            var investmentsBalance = enrichedPositions.Where(IsFinancialInvestment).Sum(position =>
+            {
+                var value = CalculateInvestmentValueAt(position, month, out var estimated);
+                pointEstimated |= estimated;
+                return value;
+            });
+            var tangibleAssetsBalance = enrichedPositions.Where(IsTangibleAsset).Sum(position =>
             {
                 var value = CalculateInvestmentValueAt(position, month, out var estimated);
                 pointEstimated |= estimated;
@@ -298,7 +305,7 @@ public class AccountsService(
                 return Math.Max(installment.Amount - paidUntilMonthEnd, 0m);
             });
 
-            var totalAssets = accountsBalance + investmentsBalance;
+            var totalAssets = accountsBalance + investmentsBalance + tangibleAssetsBalance;
             var netWorth = totalAssets - liabilities;
             hasEstimatedPoints |= pointEstimated;
 
@@ -307,6 +314,7 @@ public class AccountsService(
                 month.ToString("MM/yy"),
                 accountsBalance,
                 investmentsBalance,
+                tangibleAssetsBalance,
                 totalAssets,
                 liabilities,
                 netWorth,
@@ -316,6 +324,10 @@ public class AccountsService(
         if (hasEstimatedPoints)
         {
             notes.Add("Série patrimonial estimada a partir de movimentos de investimento e preços atuais quando não há marcação histórica mensal.");
+        }
+        if (enrichedPositions.Any(IsTangibleAsset))
+        {
+            notes.Add("Imóveis e veículos entram como ativos patrimoniais manuais, valorizados pelo saldo atual informado no cadastro.");
         }
 
         return new NetWorthHistoryResponse(
@@ -526,6 +538,12 @@ public class AccountsService(
             new DateOnly(anchorDate.Year, startMonth, 1),
             new DateOnly(anchorDate.Year, endMonth, DateTime.DaysInMonth(anchorDate.Year, endMonth)));
     }
+
+    private static bool IsFinancialInvestment(InvestmentPositionDto position) =>
+        position.Type is InvestmentType.RF or InvestmentType.ACOES or InvestmentType.FUNDOS or InvestmentType.CRIPTO;
+
+    private static bool IsTangibleAsset(InvestmentPositionDto position) =>
+        position.Type is InvestmentType.IMOVEL or InvestmentType.VEICULO;
 
     private static decimal CalculatePositionValue(InvestmentPositionDto position)
     {

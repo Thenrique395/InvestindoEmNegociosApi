@@ -12,6 +12,33 @@ namespace InvestindoEmNegocio.Controllers;
 [Authorize(Policy = AppAuthorizationPolicies.FeatureAdminParametersManage)]
 public class AdminParametersController(IAdminParametersService adminParametersService) : ControllerBase
 {
+    [HttpGet("scalability-runtime")]
+    public IActionResult GetScalabilityRuntime()
+    {
+        return Ok(new ScalabilityRuntimeDto(
+            "phase-1-runtime-hardened",
+            [
+                "memory cache",
+                "rate limiter",
+                "response compression",
+                "OpenTelemetry + Serilog",
+                "HTTP resilience policies",
+                "background workers"
+            ],
+            [
+                "replica de leitura",
+                "cache distribuído",
+                "jobs desacoplados por fila",
+                "snapshots mensais imutáveis"
+            ],
+            [
+                "DW analítico",
+                "engines especializadas",
+                "event streaming",
+                "processamento near-real-time"
+            ]));
+    }
+
     [HttpGet("payment-methods")]
     public async Task<IActionResult> ListPaymentMethods(CancellationToken cancellationToken)
     {

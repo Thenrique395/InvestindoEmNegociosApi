@@ -29,6 +29,14 @@ public class PreferencesController(IPreferencesService preferencesService) : Con
         return Ok(prefs);
     }
 
+    [HttpGet("privacy-summary")]
+    public async Task<IActionResult> GetPrivacySummary(CancellationToken cancellationToken = default)
+    {
+        var userId = GetUserId();
+        var summary = await preferencesService.GetPrivacySummaryAsync(userId, cancellationToken);
+        return Ok(summary);
+    }
+
     [HttpPost("account/delete")]
     public async Task<IActionResult> DeleteOwnAccount([FromBody] DeleteOwnAccountRequest request, CancellationToken cancellationToken = default)
     {
