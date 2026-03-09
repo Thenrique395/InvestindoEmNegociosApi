@@ -12,4 +12,5 @@ public record InstallmentResponse(
     int? StatementYear = null,
     int? StatementMonth = null,
     DateOnly? StatementCloseDate = null,
-    DateOnly? StatementDueDate = null);
+    DateOnly? StatementDueDate = null,
+    string? StatementReference = null);

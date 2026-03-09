@@ -59,12 +59,14 @@ public class MoreControllersSmokeTests
                 50,
                 "Transfer",
                 "AccountTransfer",
+                "Transfer",
+                "Transferência",
                 Guid.NewGuid(),
                 DateTime.UtcNow)]);
         accounts.Setup(x => x.TransferAsync(It.IsAny<Guid>(), It.IsAny<AccountTransferRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new AccountTransferResponse(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 50, DateTime.UtcNow, "Transfer"));
 
-        var c = new AccountsController(accounts.Object);
+        var c = new AccountsController(accounts.Object, Mock.Of<IOfxImportService>(), Mock.Of<ICsvImportService>());
         SetAuth(c, UserRole.Intermediate);
 
         (await c.List(CancellationToken.None)).Should().BeOfType<OkObjectResult>();

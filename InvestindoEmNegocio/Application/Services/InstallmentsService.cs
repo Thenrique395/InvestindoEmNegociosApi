@@ -33,7 +33,8 @@ public class InstallmentsService(
             i.StatementYear,
             i.StatementMonth,
             i.StatementCloseDate,
-            i.StatementDueDate)).ToList();
+            i.StatementDueDate,
+            FormatStatementReference(i.StatementYear, i.StatementMonth))).ToList();
     }
 
     public async Task<IReadOnlyList<InstallmentPaymentResponse>?> ListPaymentsAsync(Guid userId, Guid installmentId, CancellationToken cancellationToken = default)
@@ -51,7 +52,7 @@ public class InstallmentsService(
 
         var reversals = await accountTransactionRepository.ListBySourceAsync(
             userId,
-            "InstallmentPaymentReversal",
+            AccountTransactionSourceTypes.InstallmentPaymentReversal,
             positivePaymentIds,
             cancellationToken) ?? [];
         var reversedIds = reversals
@@ -106,7 +107,7 @@ public class InstallmentsService(
                 transactionKind,
                 request.PaidAmount,
                 $"Pagamento parcela {installment.InstallmentNo} - {plan.Title}",
-                "InstallmentPayment",
+                AccountTransactionSourceTypes.InstallmentPayment,
                 payment.Id);
 
             await accountTransactionRepository.AddAsync(transaction, cancellationToken);
@@ -138,7 +139,7 @@ public class InstallmentsService(
 
         var existingReversalTransactions = await accountTransactionRepository.ListBySourceAsync(
             userId,
-            "InstallmentPaymentReversal",
+            AccountTransactionSourceTypes.InstallmentPaymentReversal,
             [paymentId],
             cancellationToken) ?? [];
         if (existingReversalTransactions.Count > 0)
@@ -179,7 +180,7 @@ public class InstallmentsService(
                     reversalKind,
                     payment.PaidAmount,
                     $"Estorno pagamento parcela {installment.InstallmentNo} - {plan.Title}",
-                    "InstallmentPaymentReversal",
+                    AccountTransactionSourceTypes.InstallmentPaymentReversal,
                     paymentId);
 
                 await accountTransactionRepository.AddAsync(reversalTransaction, cancellationToken);
@@ -238,6 +239,13 @@ public class InstallmentsService(
             .ThenBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(a => a.Id)
             .First();
+    }
+
+    private static string? FormatStatementReference(int? year, int? month)
+    {
+        if (!year.HasValue || !month.HasValue)
+            return null;
+        return $"{month.Value:D2}/{year.Value}";
     }
 
     public async Task<bool> AnticipateAsync(Guid userId, Guid installmentId, AnticipationRequest request, CancellationToken cancellationToken = default)

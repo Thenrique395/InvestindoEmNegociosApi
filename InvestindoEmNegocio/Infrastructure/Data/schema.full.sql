@@ -16,6 +16,18 @@ CREATE TABLE categories (
     CONSTRAINT "PK_categories" PRIMARY KEY ("Id")
 );
 
+CREATE TABLE user_categorization_feedback (
+    "Id" uuid NOT NULL,
+    "UserId" uuid NOT NULL,
+    "Type" text NOT NULL,
+    "NormalizedPattern" character varying(160) NOT NULL,
+    "CategoryId" uuid NOT NULL,
+    "Hits" integer NOT NULL DEFAULT 1,
+    "FirstLearnedAt" timestamp with time zone NOT NULL,
+    "LastLearnedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_user_categorization_feedback" PRIMARY KEY ("Id")
+);
+
 CREATE TABLE goal_contributions (
     "Id" uuid NOT NULL,
     "GoalId" uuid NOT NULL,
@@ -383,6 +395,10 @@ CREATE UNIQUE INDEX "IX_accounts_UserId_Name" ON accounts ("UserId", "Name");
 CREATE INDEX "IX_accounts_UserId_IsActive" ON accounts ("UserId", "IsActive");
 
 CREATE UNIQUE INDEX "IX_categories_UserId_Name" ON categories ("UserId", "Name");
+
+CREATE UNIQUE INDEX "IX_user_categorization_feedback_UserId_Type_NormalizedPattern" ON user_categorization_feedback ("UserId", "Type", "NormalizedPattern");
+
+CREATE INDEX "IX_user_categorization_feedback_UserId_Type_LastLearnedAt" ON user_categorization_feedback ("UserId", "Type", "LastLearnedAt");
 
 CREATE INDEX "IX_goal_contributions_GoalId_Date" ON goal_contributions ("GoalId", "Date");
 

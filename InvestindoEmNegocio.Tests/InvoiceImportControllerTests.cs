@@ -17,10 +17,12 @@ public class InvoiceImportControllerTests
     [Fact]
     public async Task Extract_Should_Return_Ok_When_Service_Succeeds()
     {
+        var userId = Guid.NewGuid();
         var service = new Mock<IInvoiceImportService>();
-        service.Setup(x => x.ExtractAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+        service.Setup(x => x.ExtractAsync(userId, It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new InvoiceExtractResponse("R$ 10,00", null, null, null, null, [], "raw", null, null, null, null, null, null, null, null, null, null, null));
         var controller = new InvoiceImportController(service.Object, NullLogger<InvoiceImportController>.Instance);
+        SetAuth(controller, userId);
 
         var result = await controller.Extract(new UploadInvoiceRequest { File = BuildFile("application/pdf") }, CancellationToken.None);
 
@@ -42,10 +44,12 @@ public class InvoiceImportControllerTests
     [Fact]
     public async Task Extract_Should_Map_Known_Exceptions_To_AppProblem()
     {
+        var userId = Guid.NewGuid();
         var service = new Mock<IInvoiceImportService>();
-        service.Setup(x => x.ExtractAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+        service.Setup(x => x.ExtractAsync(userId, It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new PdfDocumentFormatException("invalid"));
         var controller = new InvoiceImportController(service.Object, NullLogger<InvoiceImportController>.Instance);
+        SetAuth(controller, userId);
 
         Func<Task> act = async () => await controller.Extract(new UploadInvoiceRequest { File = BuildFile("application/pdf") }, CancellationToken.None);
 
@@ -56,15 +60,31 @@ public class InvoiceImportControllerTests
     [Fact]
     public async Task Extract_Should_Map_Unexpected_Exception_To_500_AppProblem()
     {
+        var userId = Guid.NewGuid();
         var service = new Mock<IInvoiceImportService>();
-        service.Setup(x => x.ExtractAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+        service.Setup(x => x.ExtractAsync(userId, It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
         var controller = new InvoiceImportController(service.Object, NullLogger<InvoiceImportController>.Instance);
+        SetAuth(controller, userId);
 
         Func<Task> act = async () => await controller.Extract(new UploadInvoiceRequest { File = BuildFile("application/pdf") }, CancellationToken.None);
 
         var ex = await act.Should().ThrowAsync<AppProblemException>();
         ex.Which.StatusCode.Should().Be(StatusCodes.Status500InternalServerError);
+    }
+
+    private static void SetAuth(ControllerBase controller, Guid userId)
+    {
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                [
+                    new Claim(ClaimTypes.NameIdentifier, userId.ToString())
+                ], "test"))
+            }
+        };
     }
 
     [Fact]

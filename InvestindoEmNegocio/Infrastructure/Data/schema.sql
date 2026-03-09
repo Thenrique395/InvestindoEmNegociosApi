@@ -54,6 +54,24 @@ CREATE INDEX IF NOT EXISTS "IX_account_transactions_UserId_OccurredAt"
 CREATE INDEX IF NOT EXISTS "IX_account_transactions_SourceType_SourceId"
     ON account_transactions ("SourceType", "SourceId");
 
+CREATE TABLE IF NOT EXISTS user_categorization_feedback (
+    "Id" uuid NOT NULL,
+    "UserId" uuid NOT NULL,
+    "Type" text NOT NULL,
+    "NormalizedPattern" character varying(160) NOT NULL,
+    "CategoryId" uuid NOT NULL,
+    "Hits" integer NOT NULL DEFAULT 1,
+    "FirstLearnedAt" timestamp with time zone NOT NULL,
+    "LastLearnedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_user_categorization_feedback" PRIMARY KEY ("Id")
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_user_categorization_feedback_UserId_Type_NormalizedPattern"
+    ON user_categorization_feedback ("UserId", "Type", "NormalizedPattern");
+
+CREATE INDEX IF NOT EXISTS "IX_user_categorization_feedback_UserId_Type_LastLearnedAt"
+    ON user_categorization_feedback ("UserId", "Type", "LastLearnedAt");
+
 CREATE TABLE IF NOT EXISTS user_notifications (
     "Id" uuid NOT NULL,
     "UserId" uuid NOT NULL,

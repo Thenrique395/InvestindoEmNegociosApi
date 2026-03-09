@@ -243,6 +243,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IAuthFacadeService, AuthFacadeService>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
+        services.AddScoped<IImportIdentityEngine, ImportIdentityEngine>();
+        services.AddScoped<IBankStatementImportEngine, BankStatementImportEngine>();
         services.AddScoped<IRobotTask, ReminderRobotTask>();
         services.AddScoped<IRobotRunner, RobotRunner>();
         services.AddScoped<IAuditService, AuditService>();
@@ -252,7 +254,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IOnboardingService, OnboardingService>();
         services.AddScoped<ICardsService, CardsService>();
         services.AddScoped<IAccountsService, AccountsService>();
+        services.AddScoped<IOfxImportService, OfxImportService>();
+        services.AddScoped<ICsvImportService, CsvImportService>();
         services.AddScoped<ICategoriesService, CategoriesService>();
+        services.AddScoped<ICategorizationService, CategorizationService>();
+        services.AddScoped<IRecurrenceDetectorService, RecurrenceDetectorService>();
         services.AddScoped<IGoalsService, GoalsService>();
         services.AddScoped<IGoalContributionsService, GoalContributionsService>();
         services.AddScoped<IInstallmentsService, InstallmentsService>();

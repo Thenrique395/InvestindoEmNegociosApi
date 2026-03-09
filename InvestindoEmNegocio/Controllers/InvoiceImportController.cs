@@ -37,8 +37,9 @@ public sealed class InvoiceImportController(IInvoiceImportService invoiceImportS
 
         try
         {
+            var userId = GetUserId();
             await using var stream = file.OpenReadStream();
-            var result = await invoiceImportService.ExtractAsync(stream, cancellationToken);
+            var result = await invoiceImportService.ExtractAsync(userId, stream, cancellationToken);
             return Ok(result);
         }
         catch (PdfDocumentFormatException ex)

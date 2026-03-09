@@ -64,7 +64,8 @@ public class PlansService(
             i.StatementYear,
             i.StatementMonth,
             i.StatementCloseDate,
-            i.StatementDueDate)).ToList();
+            i.StatementDueDate,
+            FormatStatementReference(i.StatementYear, i.StatementMonth))).ToList();
         return new PlanDetailsResponse(ToResponse(plan), responseInstallments);
     }
 
@@ -127,7 +128,7 @@ public class PlansService(
         var paymentIds = payments.Select(p => p.Id).ToList();
         var transactions = await accountTransactionRepository.ListBySourceAsync(
             userId,
-            "InstallmentPayment",
+            AccountTransactionSourceTypes.InstallmentPayment,
             paymentIds,
             cancellationToken) ?? [];
 
@@ -238,6 +239,13 @@ public class PlansService(
             default:
                 throw new ArgumentOutOfRangeException(nameof(request.Schedule), request.Schedule, "Schedule inválido.");
         }
+    }
+
+    private static string? FormatStatementReference(int? year, int? month)
+    {
+        if (!year.HasValue || !month.HasValue)
+            return null;
+        return $"{month.Value:D2}/{year.Value}";
     }
 
     private static PlanResponse ToResponse(MoneyPlan p) =>

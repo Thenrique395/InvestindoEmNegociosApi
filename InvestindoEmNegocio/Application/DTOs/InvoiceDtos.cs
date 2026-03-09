@@ -16,7 +16,14 @@ public sealed record InvoiceItemDto(
     bool IsInstallment = false,
     int? InstallmentCurrent = null,
     int? InstallmentTotal = null,
-    string? BaseDescription = null
+    string? BaseDescription = null,
+    Guid? SuggestedCategoryId = null,
+    string? SuggestedCategoryName = null,
+    decimal? SuggestedCategoryConfidence = null,
+    int? SuggestedCategoryScore = null,
+    string? SuggestedCategoryConfidenceBand = null,
+    string? SuggestedCategoryReasonCode = null,
+    RecurrenceSuggestionDto? SuggestedRecurrence = null
 );
 
 public sealed record InvoiceExtractResponse(
@@ -47,7 +54,8 @@ public sealed record InvoiceImportItemRequest(
     bool IsInstallment = false,
     int? InstallmentCurrent = null,
     int? InstallmentTotal = null,
-    string? BaseDescription = null
+    string? BaseDescription = null,
+    Guid? CategoryId = null
 );
 
 public sealed record InvoiceImportRequest(

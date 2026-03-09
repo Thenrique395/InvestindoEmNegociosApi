@@ -34,6 +34,8 @@ public record AccountTransactionResponse(
     decimal Amount,
     string Description,
     string? SourceType,
+    string? SourceGroup,
+    string? SourceLabel,
     Guid? SourceId,
     DateTime CreatedAt);
 

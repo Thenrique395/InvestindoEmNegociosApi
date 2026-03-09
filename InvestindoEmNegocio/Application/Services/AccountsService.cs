@@ -101,6 +101,8 @@ public class AccountsService(
             t.Amount,
             t.Description,
             t.SourceType,
+            ResolveSourceGroup(t.SourceType),
+            ResolveSourceLabel(t.SourceType),
             t.SourceId,
             t.CreatedAt)).ToList();
     }
@@ -131,7 +133,7 @@ public class AccountsService(
             Domain.Enums.AccountTransactionKind.Debit,
             request.Amount,
             description,
-            sourceType: "AccountTransfer",
+            sourceType: AccountTransactionSourceTypes.AccountTransfer,
             sourceId: transferId), cancellationToken);
 
         await accountTransactionRepository.AddAsync(new AccountTransaction(
@@ -141,7 +143,7 @@ public class AccountsService(
             Domain.Enums.AccountTransactionKind.Credit,
             request.Amount,
             description,
-            sourceType: "AccountTransfer",
+            sourceType: AccountTransactionSourceTypes.AccountTransfer,
             sourceId: transferId), cancellationToken);
 
         await accountRepository.SaveChangesAsync(cancellationToken);
@@ -179,11 +181,35 @@ public class AccountsService(
 
     private static AccountTransactionType ResolveTransactionType(AccountTransaction transaction)
     {
-        if (string.Equals(transaction.SourceType, "AccountTransfer", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(transaction.SourceType, AccountTransactionSourceTypes.AccountTransfer, StringComparison.OrdinalIgnoreCase))
             return AccountTransactionType.Transfer;
 
         return transaction.Kind == Domain.Enums.AccountTransactionKind.Credit
             ? AccountTransactionType.Income
             : AccountTransactionType.Expense;
+    }
+
+    private static string? ResolveSourceGroup(string? sourceType)
+    {
+        return sourceType switch
+        {
+            AccountTransactionSourceTypes.InstallmentPayment => "FinancialEntry",
+            AccountTransactionSourceTypes.InstallmentPaymentReversal => "FinancialEntryReversal",
+            AccountTransactionSourceTypes.AccountTransfer => "Transfer",
+            AccountTransactionSourceTypes.BankStatementImport => "Import",
+            _ => string.IsNullOrWhiteSpace(sourceType) ? null : "Other"
+        };
+    }
+
+    private static string? ResolveSourceLabel(string? sourceType)
+    {
+        return sourceType switch
+        {
+            AccountTransactionSourceTypes.InstallmentPayment => "Receita/Despesa",
+            AccountTransactionSourceTypes.InstallmentPaymentReversal => "Estorno",
+            AccountTransactionSourceTypes.AccountTransfer => "Transferência",
+            AccountTransactionSourceTypes.BankStatementImport => "Importação de extrato",
+            _ => string.IsNullOrWhiteSpace(sourceType) ? null : sourceType
+        };
     }
 }

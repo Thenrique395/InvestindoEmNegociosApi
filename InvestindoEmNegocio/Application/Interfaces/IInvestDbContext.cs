@@ -8,6 +8,7 @@ public interface IInvestDbContext
 {
     DbSet<UserProfile> UserProfiles { get; }
     DbSet<Category> Categories { get; }
+    DbSet<UserCategorizationFeedback> UserCategorizationFeedback { get; }
     DbSet<Card> Cards { get; }
     DbSet<Account> Accounts { get; }
     DbSet<AccountTransaction> AccountTransactions { get; }

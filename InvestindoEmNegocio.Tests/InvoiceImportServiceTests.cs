@@ -22,11 +22,14 @@ public class InvoiceImportServiceTests
             Mock.Of<IMoneyInstallmentRepository>(),
             Mock.Of<IMoneyPlanRepository>(),
             Mock.Of<ICardRepository>(),
+            new ImportIdentityEngine(),
+            Mock.Of<ICategorizationService>(),
+            Mock.Of<IRecurrenceDetectorService>(),
             Mock.Of<IInvestDbContext>(),
             NullLogger<InvoiceImportService>.Instance);
         await using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("not-a-pdf"));
 
-        Func<Task> act = async () => await sut.ExtractAsync(stream, CancellationToken.None);
+        Func<Task> act = async () => await sut.ExtractAsync(Guid.NewGuid(), stream, CancellationToken.None);
 
         await act.Should().ThrowAsync<Exception>();
     }
@@ -70,6 +73,9 @@ public class InvoiceImportServiceTests
             installmentRepository.Object,
             planRepository.Object,
             cardRepository.Object,
+            new ImportIdentityEngine(),
+            Mock.Of<ICategorizationService>(),
+            Mock.Of<IRecurrenceDetectorService>(),
             dbContext.Object,
             NullLogger<InvoiceImportService>.Instance);
 

@@ -18,10 +18,13 @@ public sealed class InvoiceImportService(
     IMoneyInstallmentRepository installmentRepository,
     IMoneyPlanRepository planRepository,
     ICardRepository cardRepository,
+    IImportIdentityEngine importIdentityEngine,
+    ICategorizationService categorizationService,
+    IRecurrenceDetectorService recurrenceDetectorService,
     IInvestDbContext dbContext,
     ILogger<InvoiceImportService> logger) : IInvoiceImportService
 {
-    public Task<InvoiceExtractResponse> ExtractAsync(Stream pdfStream, CancellationToken cancellationToken)
+    public async Task<InvoiceExtractResponse> ExtractAsync(Guid userId, Stream pdfStream, CancellationToken cancellationToken)
     {
         using var document = PdfDocument.Open(pdfStream);
         var builder = new StringBuilder();
@@ -45,7 +48,38 @@ public sealed class InvoiceImportService(
             .ToList();
 
         var rawText = builder.ToString();
-        return Task.FromResult(parserFactory.Parse(rawText, normalized));
+        var parsed = parserFactory.Parse(rawText, normalized);
+        var suggestedItems = new List<InvoiceItemDto>(parsed.Items.Count);
+        foreach (var item in parsed.Items)
+        {
+            var description = !string.IsNullOrWhiteSpace(item.BaseDescription)
+                ? item.BaseDescription!
+                : item.Description;
+            var suggestion = await categorizationService.SuggestAsync(userId, MoneyType.Expense, description, cancellationToken);
+            var parsedDate = FinanceInputParser.ParseDateOrDefault(item.Date, DateOnly.FromDateTime(DateTime.UtcNow));
+            var parsedAmount = FinanceInputParser.TryParseMoney(item.Amount, out var amount) ? amount : 0m;
+            var recurrence = parsedAmount > 0
+                ? await recurrenceDetectorService.SuggestAsync(
+                    userId,
+                    MoneyType.Expense,
+                    description,
+                    parsedAmount,
+                    parsedDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
+                    cancellationToken)
+                : null;
+            suggestedItems.Add(item with
+            {
+                SuggestedCategoryId = suggestion?.CategoryId,
+                SuggestedCategoryName = suggestion?.CategoryName,
+                SuggestedCategoryConfidence = suggestion?.Confidence,
+                SuggestedCategoryScore = suggestion?.Score,
+                SuggestedCategoryConfidenceBand = suggestion?.ConfidenceBand,
+                SuggestedCategoryReasonCode = suggestion?.ReasonCode,
+                SuggestedRecurrence = recurrence
+            });
+        }
+
+        return parsed with { Items = suggestedItems };
     }
 
     public async Task<InvoiceImportResultResponse> ImportAsync(Guid userId, InvoiceImportRequest request, CancellationToken cancellationToken)
@@ -107,7 +141,7 @@ public sealed class InvoiceImportService(
                     selectedCard.DueDay).StatementDueDate
                 : purchaseDate;
 
-            var dedupeKey = BuildImportKey(title, amount, dueDate, request.CardId);
+            var dedupeKey = importIdentityEngine.BuildInvoiceImportKey(title, amount, dueDate, request.CardId);
             if (request.SkipDuplicates && dedupeKeys.Contains(dedupeKey))
             {
                 skipped++;
@@ -123,12 +157,21 @@ public sealed class InvoiceImportService(
                 Frequency: null,
                 InstallmentsCount: 1,
                 DefaultPaymentMethodId: null,
-                CategoryId: request.CategoryId,
+                CategoryId: item.CategoryId ?? request.CategoryId,
                 CardId: request.CardId);
 
             try
             {
                 await plansService.CreateAsync(userId, createRequest, cancellationToken);
+                if (createRequest.CategoryId.HasValue)
+                {
+                    await categorizationService.LearnAsync(
+                        userId,
+                        MoneyType.Expense,
+                        title,
+                        createRequest.CategoryId.Value,
+                        cancellationToken);
+                }
                 dedupeKeys.Add(dedupeKey);
                 created++;
             }
@@ -173,7 +216,7 @@ public sealed class InvoiceImportService(
             if (cardId.HasValue && planCardId != cardId)
                 continue;
 
-            var key = BuildImportKey(plan.Title, installment.Amount, installment.DueDate, planCardId);
+            var key = importIdentityEngine.BuildInvoiceImportKey(plan.Title, installment.Amount, installment.DueDate, planCardId);
             keys.Add(key);
         }
 
@@ -187,11 +230,6 @@ public sealed class InvoiceImportService(
             : item.Description;
         baseTitle = Regex.Replace(baseTitle ?? string.Empty, "\\s+", " ").Trim();
         return baseTitle;
-    }
-
-    private static string BuildImportKey(string title, decimal amount, DateOnly dueDate, Guid? cardId)
-    {
-        return $"{title.ToUpperInvariant()}|{amount:F2}|{dueDate:yyyyMMdd}|{cardId?.ToString() ?? "NO_CARD"}";
     }
 
     private static string BuildRequestIdempotencyKey(InvoiceImportRequest request)
