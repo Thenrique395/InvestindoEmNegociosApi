@@ -78,6 +78,134 @@ public class AccountsController(
         return Ok(balance);
     }
 
+    [HttpGet("summary/real-balance")]
+    public async Task<ActionResult<RealAvailableBalanceResponse>> RealBalance(
+        [FromQuery] string? period,
+        [FromQuery] DateOnly? referenceDate,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var summary = await accountsService.GetRealAvailableBalanceAsync(userId, period ?? "month", referenceDate, cancellationToken);
+            return Ok(summary);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new AppProblemException("Período inválido", ex.Message, StatusCodes.Status400BadRequest);
+        }
+    }
+
+    [HttpGet("summary/debts")]
+    public async Task<ActionResult<DebtSummaryResponse>> Debts(
+        [FromQuery] DateOnly? referenceDate,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        var summary = await accountsService.GetDebtSummaryAsync(userId, referenceDate, cancellationToken);
+        return Ok(summary);
+    }
+
+    [HttpGet("summary/net-worth")]
+    public async Task<ActionResult<NetWorthSummaryResponse>> NetWorth(
+        [FromQuery] DateOnly? referenceDate,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        var summary = await accountsService.GetNetWorthSummaryAsync(userId, referenceDate, cancellationToken);
+        return Ok(summary);
+    }
+
+    [HttpGet("summary/net-worth/history")]
+    public async Task<ActionResult<NetWorthHistoryResponse>> NetWorthHistory(
+        [FromQuery] int? months,
+        [FromQuery] DateOnly? referenceDate,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var summary = await accountsService.GetNetWorthHistoryAsync(userId, months ?? 12, referenceDate, cancellationToken);
+            return Ok(summary);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new AppProblemException("Parâmetro inválido", ex.Message, StatusCodes.Status400BadRequest);
+        }
+    }
+
+    [HttpGet("summary/projection")]
+    public async Task<ActionResult<CashflowProjectionResponse>> Projection(
+        [FromQuery] string? period,
+        [FromQuery] DateOnly? referenceDate,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var summary = await accountsService.GetProjectionAsync(userId, period ?? "month", referenceDate, cancellationToken);
+            return Ok(summary);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new AppProblemException("Período inválido", ex.Message, StatusCodes.Status400BadRequest);
+        }
+    }
+
+    [HttpGet("summary/risk")]
+    public async Task<ActionResult<RiskBotAssessmentResponse>> Risk(
+        [FromQuery] string? period,
+        [FromQuery] DateOnly? referenceDate,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var summary = await accountsService.GetRiskAssessmentAsync(userId, period ?? "month", referenceDate, cancellationToken);
+            return Ok(summary);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new AppProblemException("Período inválido", ex.Message, StatusCodes.Status400BadRequest);
+        }
+    }
+
+    [HttpGet("summary/insights")]
+    public async Task<ActionResult<InsightEngineResponse>> Insights(
+        [FromQuery] string? period,
+        [FromQuery] DateOnly? referenceDate,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var summary = await accountsService.GetInsightsAsync(userId, period ?? "month", referenceDate, cancellationToken);
+            return Ok(summary);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new AppProblemException("Período inválido", ex.Message, StatusCodes.Status400BadRequest);
+        }
+    }
+
+    [HttpGet("summary/recommendations")]
+    public async Task<ActionResult<RecommendationEngineResponse>> Recommendations(
+        [FromQuery] string? period,
+        [FromQuery] DateOnly? referenceDate,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var summary = await accountsService.GetRecommendationsAsync(userId, period ?? "month", referenceDate, cancellationToken);
+            return Ok(summary);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new AppProblemException("Período inválido", ex.Message, StatusCodes.Status400BadRequest);
+        }
+    }
+
     [HttpGet("{id:guid}/transactions")]
     public async Task<IActionResult> Transactions(
         Guid id,

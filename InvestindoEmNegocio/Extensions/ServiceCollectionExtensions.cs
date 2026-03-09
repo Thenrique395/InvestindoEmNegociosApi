@@ -253,6 +253,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IInvestmentsFacadeService, InvestmentsFacadeService>();
         services.AddScoped<IOnboardingService, OnboardingService>();
         services.AddScoped<ICardsService, CardsService>();
+        services.AddScoped<ICashflowProjectionEngine, CashflowProjectionEngine>();
+        services.AddScoped<IRiskBotService, RiskBotService>();
+        services.AddScoped<IInsightEngineService, InsightEngineService>();
+        services.AddScoped<IRecommendationEngineService, RecommendationEngineService>();
         services.AddScoped<IAccountsService, AccountsService>();
         services.AddScoped<IOfxImportService, OfxImportService>();
         services.AddScoped<ICsvImportService, CsvImportService>();

@@ -49,6 +49,30 @@ public class MoreControllersSmokeTests
             .ReturnsAsync([new AccountResponse(accountId, "Conta", AccountType.Checking, 0, 100, true, DateTime.UtcNow, DateTime.UtcNow)]);
         accounts.Setup(x => x.GetBalanceAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new AccountBalanceResponse(accountId, 0, 100, 100));
+        accounts.Setup(x => x.GetRealAvailableBalanceAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<DateOnly?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new RealAvailableBalanceResponse("month", new DateOnly(2026, 3, 9), new DateOnly(2026, 3, 1), new DateOnly(2026, 3, 31), 1000m, 200m, 2, 300m, 1, 800m, 1100m, 50m, 1, 75m));
+        accounts.Setup(x => x.GetProjectionAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<DateOnly?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CashflowProjectionResponse("month", new DateOnly(2026, 3, 9), new DateOnly(2026, 3, 9), new DateOnly(2026, 3, 31), 1000m, 850m, 500m, new DateOnly(2026, 3, 12), null, [
+                new CashflowProjectionPointResponse(new DateOnly(2026, 3, 9), 1000m, 0m, 0, 200m, 1, 800m)
+            ]));
+        accounts.Setup(x => x.GetRiskAssessmentAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<DateOnly?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new RiskBotAssessmentResponse("month", new DateOnly(2026, 3, 9), 62, "warning", "warning", null, 80m, 110m, 850m, ["pending_income"], ["Base: 100"], [
+                new RiskBotRecommendationResponse("pending-income", "info", "Próxima receita pendente.", "Abrir receitas", "/receitas", new Dictionary<string, string> { ["focus"] = "pending" }, 100m, new DateOnly(2026, 3, 10))
+            ]));
+        accounts.Setup(x => x.GetInsightsAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<DateOnly?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new InsightEngineResponse("month", new DateOnly(2026, 3, 9),
+                new InsightEngineItemResponse("preventive", "preventive-upcoming-window", "warning", "Janela preventiva", "Há pressão de vencimentos próxima.", "Acompanhar vencimentos.", 62, null, 80m, 110m, 850m, ["Score: 62/100"], ["Reserve caixa"], ["pending_income"], ["Base: 100"], [
+                    new RiskBotRecommendationResponse("pending-income", "info", "Próxima receita pendente.", "Abrir receitas", "/receitas", new Dictionary<string, string> { ["focus"] = "pending" }, 100m, new DateOnly(2026, 3, 10))
+                ]),
+                [
+                    new InsightEngineItemResponse("preventive", "preventive-upcoming-window", "warning", "Janela preventiva", "Há pressão de vencimentos próxima.", "Acompanhar vencimentos.", 62, null, 80m, 110m, 850m, ["Score: 62/100"], ["Reserve caixa"], ["pending_income"], ["Base: 100"], [
+                        new RiskBotRecommendationResponse("pending-income", "info", "Próxima receita pendente.", "Abrir receitas", "/receitas", new Dictionary<string, string> { ["focus"] = "pending" }, 100m, new DateOnly(2026, 3, 10))
+                    ])
+                ]));
+        accounts.Setup(x => x.GetRecommendationsAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<DateOnly?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new RecommendationEngineResponse("month", new DateOnly(2026, 3, 9), 50, [
+                new RecommendationItemResponse("due-soon-expenses", 83, "warn", "risk-bot", "Ação recomendada", "Há despesas vencendo.", "Ver próximas despesas", "/despesas", new Dictionary<string, string> { ["focus"] = "upcoming" }, ["due_soon_expenses"], 100m, new DateOnly(2026, 3, 10))
+            ]));
         accounts.Setup(x => x.ListTransactionsAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([new AccountTransactionResponse(
                 Guid.NewGuid(),
@@ -71,6 +95,11 @@ public class MoreControllersSmokeTests
 
         (await c.List(CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await c.Balance(accountId, CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await c.RealBalance("month", new DateOnly(2026, 3, 9), CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
+        (await c.Projection("month", new DateOnly(2026, 3, 9), CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
+        (await c.Risk("month", new DateOnly(2026, 3, 9), CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
+        (await c.Insights("month", new DateOnly(2026, 3, 9), CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
+        (await c.Recommendations("month", new DateOnly(2026, 3, 9), CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
         (await c.Transactions(accountId, null, null, CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await c.Transfer(new AccountTransferRequest(Guid.NewGuid(), Guid.NewGuid(), 50), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
     }
