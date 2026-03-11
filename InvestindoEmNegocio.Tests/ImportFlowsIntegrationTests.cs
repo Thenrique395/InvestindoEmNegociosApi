@@ -139,13 +139,13 @@ public class ImportFlowsIntegrationTests
         var request = new InvoiceImportRequest(
             cardId,
             CategoryId: null,
-            DefaultDueDate: "2026-03-18",
+            DefaultDueDate: "18/03/2026",
             ImportIdempotencyKey: null,
             SkipDuplicates: true,
             Items:
             [
                 new InvoiceImportItemRequest(
-                    Date: "2026-03-05",
+                    Date: "05/03/2026",
                     Description: "Mercado Fatura",
                     Amount: "300,00",
                     BaseDescription: "Mercado Fatura")
