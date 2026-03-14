@@ -108,7 +108,7 @@ public class InvoiceImportControllerTests
         };
 
         var result = await controller.Import(
-            new InvoiceImportRequest(null, null, null, null, true, [new InvoiceImportItemRequest("01/03/2026", "Item", "R$ 10,00")]),
+            new InvoiceImportRequest(null, null, null, null, null, null, true, [new InvoiceImportItemRequest("01/03/2026", "Item", "R$ 10,00")]),
             CancellationToken.None);
 
         result.Result.Should().BeOfType<OkObjectResult>();
@@ -135,7 +135,7 @@ public class InvoiceImportControllerTests
         };
 
         Func<Task> act = async () => await controller.Import(
-            new InvoiceImportRequest(null, null, null, null, true, [new InvoiceImportItemRequest("01/03/2026", "Item", "R$ 10,00")]),
+            new InvoiceImportRequest(null, null, null, null, null, null, true, [new InvoiceImportItemRequest("01/03/2026", "Item", "R$ 10,00")]),
             CancellationToken.None);
 
         var ex = await act.Should().ThrowAsync<AppProblemException>();

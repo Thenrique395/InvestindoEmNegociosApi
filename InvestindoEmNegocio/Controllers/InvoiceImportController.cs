@@ -85,6 +85,31 @@ public sealed class InvoiceImportController(IInvoiceImportService invoiceImportS
         }
     }
 
+    [HttpPost("reconcile")]
+    public async Task<ActionResult<InvoiceReconciliationResponse>> Reconcile([FromBody] InvoiceImportRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var result = await invoiceImportService.ReconcileAsync(userId, request, cancellationToken);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new AppProblemException(
+                "Conciliação inválida",
+                ex.Message,
+                StatusCodes.Status400BadRequest);
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new AppProblemException(
+                "Conciliação rejeitada",
+                ex.Message,
+                StatusCodes.Status422UnprocessableEntity);
+        }
+    }
+
     private Guid GetUserId()
     {
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);

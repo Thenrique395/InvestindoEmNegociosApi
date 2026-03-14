@@ -194,6 +194,147 @@ public sealed class InvoiceImportService(
         return new InvoiceImportResultResponse(created, skipped, failed);
     }
 
+    public async Task<InvoiceReconciliationResponse> ReconcileAsync(Guid userId, InvoiceImportRequest request, CancellationToken cancellationToken)
+    {
+        if (!request.CardId.HasValue)
+            throw new ArgumentException("Selecione um cartão para conciliar a fatura.");
+        if (request.Items is null || request.Items.Count == 0)
+            throw new ArgumentException("Nenhum item de fatura foi enviado para conciliação.");
+
+        var card = await cardRepository.GetByIdAsync(request.CardId.Value, userId, cancellationToken);
+        if (card is null)
+            throw new InvalidOperationException("Cartão selecionado não encontrado para o usuário.");
+
+        var plans = await planRepository.ListByUserAsync(userId, MoneyType.Expense, cancellationToken);
+        var cardPlans = plans
+            .Where(x => x.CardId == card.Id)
+            .ToDictionary(x => x.Id, x => x.Title);
+        var installments = await installmentRepository.ListByUserAsync(
+            userId,
+            null,
+            null,
+            null,
+            MoneyType.Expense,
+            cancellationToken);
+        var cardInstallments = installments
+            .Where(x => cardPlans.ContainsKey(x.PlanId))
+            .Where(x => x.StatementYear.HasValue && x.StatementMonth.HasValue && x.StatementCloseDate.HasValue && x.StatementDueDate.HasValue)
+            .ToList();
+
+        var existingByKey = cardInstallments
+            .GroupBy(x =>
+            {
+                var title = cardPlans.GetValueOrDefault(x.PlanId, "Despesa");
+                return importIdentityEngine.BuildInvoiceImportKey(title, x.Amount, x.DueDate, card.Id);
+            }, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        decimal? parsedInvoiceTotal = FinanceInputParser.TryParseMoney(request.InvoiceTotal, out var totalAmount)
+            ? totalAmount
+            : null;
+        var parsedCloseDate = string.IsNullOrWhiteSpace(request.StatementCloseDate)
+            ? (DateOnly?)null
+            : FinanceInputParser.ParseDateOrDefault(request.StatementCloseDate, DateOnly.FromDateTime(DateTime.UtcNow));
+        var parsedDueDate = string.IsNullOrWhiteSpace(request.DefaultDueDate)
+            ? (DateOnly?)null
+            : FinanceInputParser.ParseDateOrDefault(request.DefaultDueDate, DateOnly.FromDateTime(DateTime.UtcNow));
+
+        var items = new List<InvoiceReconciliationItemResponse>(request.Items.Count);
+        var projectedByCycle = new Dictionary<string, (decimal importedNew, decimal duplicateAmount, int importedNewCount, int duplicateCount)>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var item in request.Items)
+        {
+            var title = NormalizeTitle(item);
+            if (string.IsNullOrWhiteSpace(title))
+                continue;
+            if (!FinanceInputParser.TryParseMoney(item.Amount, out var amount) || amount <= 0m)
+                continue;
+
+            var purchaseDate = FinanceInputParser.ParseDateOrDefault(item.Date, parsedDueDate ?? DateOnly.FromDateTime(DateTime.UtcNow));
+            var cycle = CardStatementCycleCalculator.Calculate(purchaseDate, card.StatementCloseDay, card.DueDay);
+            var dedupeKey = importIdentityEngine.BuildInvoiceImportKey(title, amount, cycle.StatementDueDate, card.Id);
+            var duplicate = existingByKey.TryGetValue(dedupeKey, out var existingInstallment);
+            var statementReference = $"{cycle.StatementMonth:00}/{cycle.StatementYear:0000}";
+            var cycleKey = $"{cycle.StatementYear}-{cycle.StatementMonth:00}";
+
+            if (!projectedByCycle.ContainsKey(cycleKey))
+                projectedByCycle[cycleKey] = (0m, 0m, 0, 0);
+
+            var acc = projectedByCycle[cycleKey];
+            if (duplicate)
+                projectedByCycle[cycleKey] = (acc.importedNew, acc.duplicateAmount + amount, acc.importedNewCount, acc.duplicateCount + 1);
+            else
+                projectedByCycle[cycleKey] = (acc.importedNew + amount, acc.duplicateAmount, acc.importedNewCount + 1, acc.duplicateCount);
+
+            items.Add(new InvoiceReconciliationItemResponse(
+                title,
+                item.BaseDescription,
+                item.Date,
+                amount,
+                duplicate,
+                duplicate ? "duplicate_statement_item" : "new_statement_item",
+                cycle.StatementYear,
+                cycle.StatementMonth,
+                statementReference,
+                cycle.StatementDueDate,
+                existingInstallment?.Id));
+        }
+
+        var cycles = projectedByCycle
+            .OrderByDescending(x => x.Key)
+            .Select(entry =>
+            {
+                var year = int.Parse(entry.Key[..4]);
+                var month = int.Parse(entry.Key[5..7]);
+                var currentInstallments = cardInstallments
+                    .Where(x => x.StatementYear == year && x.StatementMonth == month)
+                    .ToList();
+                var currentTotal = currentInstallments.Sum(x => x.Amount);
+                var closeDate = currentInstallments.FirstOrDefault()?.StatementCloseDate
+                    ?? parsedCloseDate
+                    ?? BuildDate(year, month, card.StatementCloseDay);
+                var dueDate = currentInstallments.FirstOrDefault()?.StatementDueDate
+                    ?? parsedDueDate
+                    ?? CardStatementCycleCalculator.Calculate(closeDate.AddMonths(-1), card.StatementCloseDay, card.DueDay).StatementDueDate;
+                var projectedTotal = currentTotal + entry.Value.importedNew;
+                var referencesParsedCycle = (!parsedCloseDate.HasValue || parsedCloseDate.Value == closeDate)
+                    && (!parsedDueDate.HasValue || parsedDueDate.Value == dueDate);
+                decimal? difference = parsedInvoiceTotal.HasValue && referencesParsedCycle
+                    ? projectedTotal - parsedInvoiceTotal.Value
+                    : null;
+
+                return new InvoiceReconciliationCycleResponse(
+                    year,
+                    month,
+                    closeDate,
+                    dueDate,
+                    $"{month:00}/{year:0000}",
+                    currentTotal,
+                    entry.Value.importedNew,
+                    entry.Value.duplicateAmount,
+                    projectedTotal,
+                    referencesParsedCycle ? parsedInvoiceTotal : null,
+                    difference,
+                    currentInstallments.Count,
+                    entry.Value.importedNewCount,
+                    entry.Value.duplicateCount,
+                    referencesParsedCycle && difference.HasValue && Math.Abs(difference.Value) < 0.01m);
+            })
+            .ToList();
+
+        return new InvoiceReconciliationResponse(
+            card.Id,
+            card.Nickname,
+            request.InvoiceTotal,
+            request.DefaultDueDate,
+            request.StatementCloseDate,
+            items.Count,
+            items.Count(x => !x.IsDuplicate),
+            items.Count(x => x.IsDuplicate),
+            items,
+            cycles);
+    }
+
     private async Task<HashSet<string>> LoadExistingKeysAsync(Guid userId, Guid? cardId, CancellationToken cancellationToken)
     {
         var plans = await planRepository.ListByUserAsync(userId, MoneyType.Expense, cancellationToken);
@@ -239,5 +380,11 @@ public sealed class InvoiceImportService(
             .OrderBy(x => x, StringComparer.Ordinal));
         var raw = $"{request.CardId}|{request.CategoryId}|{request.DefaultDueDate}|{normalized}";
         return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(raw)));
+    }
+
+    private static DateOnly BuildDate(int year, int month, int day)
+    {
+        var safeDay = Math.Min(day, DateTime.DaysInMonth(year, month));
+        return new DateOnly(year, month, safeDay);
     }
 }

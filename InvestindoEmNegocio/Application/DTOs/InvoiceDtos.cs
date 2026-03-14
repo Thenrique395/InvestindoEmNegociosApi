@@ -62,6 +62,8 @@ public sealed record InvoiceImportRequest(
     Guid? CardId,
     Guid? CategoryId,
     string? DefaultDueDate,
+    string? StatementCloseDate,
+    string? InvoiceTotal,
     string? ImportIdempotencyKey,
     bool SkipDuplicates,
     IReadOnlyList<InvoiceImportItemRequest> Items
@@ -71,4 +73,49 @@ public sealed record InvoiceImportResultResponse(
     int Created,
     int Skipped,
     int Failed
+);
+
+public sealed record InvoiceReconciliationItemResponse(
+    string Description,
+    string? BaseDescription,
+    string? Date,
+    decimal Amount,
+    bool IsDuplicate,
+    string MatchReason,
+    int StatementYear,
+    int StatementMonth,
+    string StatementReference,
+    DateOnly StatementDueDate,
+    Guid? ExistingInstallmentId
+);
+
+public sealed record InvoiceReconciliationCycleResponse(
+    int StatementYear,
+    int StatementMonth,
+    DateOnly StatementCloseDate,
+    DateOnly StatementDueDate,
+    string StatementReference,
+    decimal CurrentTotalAmount,
+    decimal ImportedNewAmount,
+    decimal DuplicateAmount,
+    decimal ProjectedTotalAmount,
+    decimal? ParsedInvoiceTotalAmount,
+    decimal? DifferenceAmount,
+    int ExistingItemsCount,
+    int ImportedNewItemsCount,
+    int DuplicateItemsCount,
+    bool ReadyToClose
+);
+
+public sealed record InvoiceReconciliationResponse(
+    Guid CardId,
+    string CardName,
+    string? ParsedInvoiceTotal,
+    string? ParsedDueDate,
+    string? ParsedCloseDate,
+    int TotalItems,
+    int NewItems,
+    int DuplicateItems,
+    IReadOnlyList<InvoiceReconciliationItemResponse> Items,
+    IReadOnlyList<InvoiceReconciliationCycleResponse> Cycles
 );

@@ -140,6 +140,8 @@ public class ImportFlowsIntegrationTests
             cardId,
             CategoryId: null,
             DefaultDueDate: "18/03/2026",
+            StatementCloseDate: null,
+            InvoiceTotal: null,
             ImportIdempotencyKey: null,
             SkipDuplicates: true,
             Items:
