@@ -11,6 +11,8 @@ namespace InvestindoEmNegocio.Application.Services;
 public class PreferencesService(
     IUserProfileRepository profileRepository,
     IUserRepository userRepository,
+    IRefreshTokenRepository refreshTokenRepository,
+    IAuditService auditService,
     IInvestDbContext dbContext) : IPreferencesService
 {
     private static NotificationPreferencesDto BuildDefaultNotifications() =>
@@ -92,6 +94,8 @@ public class PreferencesService(
             ProductionControls:
             [
                 "JWT com refresh token",
+                "revogação self-service de sessões",
+                "lockout por tentativas inválidas",
                 "segregação por UserId",
                 "rate limiting",
                 "observabilidade OpenTelemetry",
@@ -100,6 +104,54 @@ public class PreferencesService(
             ],
             ScalabilityPhase: "phase-1-runtime-hardened",
             RetentionPolicy: "A exclusão self-service remove os dados operacionais da conta e revoga artefatos de autenticação imediatamente.");
+    }
+
+    public async Task<SecuritySummaryDto> GetSecuritySummaryAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        var user = await userRepository.GetByIdAsync(userId, cancellationToken)
+            ?? throw new AppProblemException("Usuário não encontrado", "Usuário não encontrado.", StatusCodes.Status404NotFound);
+
+        var activeSessions = await dbContext.RefreshTokens
+            .CountAsync(x => x.UserId == userId && !x.RevokedAt.HasValue && x.ExpiresAt > now, cancellationToken);
+
+        return new SecuritySummaryDto(
+            activeSessions,
+            user.FailedLoginAttempts,
+            user.IsLocked(now),
+            user.LockoutUntil,
+            user.LastLoginAt,
+            Controls:
+            [
+                "JWT com refresh token rotativo",
+                "lockout após múltiplas tentativas inválidas",
+                "revogação de sessões ativas pelo próprio usuário",
+                "revalidação de senha para exclusão da conta"
+            ],
+            Recommendations:
+            [
+                "Troque a senha após uso em dispositivo compartilhado.",
+                "Revogue sessões ao suspeitar de acesso indevido.",
+                "Mantenha e-mail e senha de recuperação atualizados."
+            ]);
+    }
+
+    public async Task<RevokeSessionsResponse> RevokeOwnSessionsAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        var activeSessions = await dbContext.RefreshTokens
+            .Where(x => x.UserId == userId && !x.RevokedAt.HasValue && x.ExpiresAt > now)
+            .ToListAsync(cancellationToken);
+
+        foreach (var token in activeSessions)
+        {
+            token.Revoke(now);
+        }
+
+        await refreshTokenRepository.SaveChangesAsync(cancellationToken);
+        await auditService.LogAsync(userId, "REVOKE_OWN_SESSIONS", "RefreshToken", userId.ToString(), null, null, $"count={activeSessions.Count}", cancellationToken);
+
+        return new RevokeSessionsResponse(activeSessions.Count, now);
     }
 
     public async Task DeleteOwnAccountAsync(Guid userId, DeleteOwnAccountRequest request, CancellationToken cancellationToken = default)
@@ -153,6 +205,7 @@ public class PreferencesService(
         dbContext.GoalContributions.RemoveRange(dbContext.GoalContributions.Where(x => x.UserId == userId));
         dbContext.UserCategorizationFeedback.RemoveRange(dbContext.UserCategorizationFeedback.Where(x => x.UserId == userId));
         dbContext.RobotExecutionLogs.RemoveRange(dbContext.RobotExecutionLogs.Where(x => x.TriggeredByUserId == userId));
+        dbContext.UserSubscriptions.RemoveRange(dbContext.UserSubscriptions.Where(x => x.UserId == userId));
         dbContext.InvestmentMovements.RemoveRange(dbContext.InvestmentMovements.Where(x => positionIds.Contains(x.PositionId)));
         dbContext.UserNotifications.RemoveRange(dbContext.UserNotifications.Where(x => x.UserId == userId));
         dbContext.InvestmentPositions.RemoveRange(dbContext.InvestmentPositions.Where(x => x.UserId == userId));

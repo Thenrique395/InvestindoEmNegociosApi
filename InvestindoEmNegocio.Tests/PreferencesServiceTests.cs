@@ -23,7 +23,12 @@ public class PreferencesServiceTests
         profileRepository
             .Setup(x => x.GetByUserIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((UserProfile?)null);
-        var sut = new PreferencesService(profileRepository.Object, Mock.Of<IUserRepository>(), Mock.Of<IInvestDbContext>());
+        var sut = new PreferencesService(
+            profileRepository.Object,
+            Mock.Of<IUserRepository>(),
+            Mock.Of<IRefreshTokenRepository>(),
+            Mock.Of<IAuditService>(),
+            Mock.Of<IInvestDbContext>());
 
         var result = await sut.GetAsync(Guid.NewGuid());
 
@@ -44,7 +49,12 @@ public class PreferencesServiceTests
         profileRepository
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((UserProfile?)null);
-        var sut = new PreferencesService(profileRepository.Object, Mock.Of<IUserRepository>(), Mock.Of<IInvestDbContext>());
+        var sut = new PreferencesService(
+            profileRepository.Object,
+            Mock.Of<IUserRepository>(),
+            Mock.Of<IRefreshTokenRepository>(),
+            Mock.Of<IAuditService>(),
+            Mock.Of<IInvestDbContext>());
 
         var request = new UpdatePreferencesRequest(
             "USD",
@@ -83,7 +93,7 @@ public class PreferencesServiceTests
         await dbContext.AuditLogs.AddAsync(new AuditLog(userId, "account.delete.requested", "User", userId.ToString(), null, null, null));
         await dbContext.SaveChangesAsync();
 
-        var sut = new PreferencesService(profileRepository, userRepository, dbContext);
+        var sut = new PreferencesService(profileRepository, userRepository, new RefreshTokenRepository(dbContext), Mock.Of<IAuditService>(), dbContext);
         var request = new DeleteOwnAccountRequest("Senha@123", "EXCLUIR");
 
         await sut.DeleteOwnAccountAsync(userId, request);
@@ -110,7 +120,7 @@ public class PreferencesServiceTests
         await dbContext.UserProfiles.AddAsync(new UserProfile(userId, "Teste", "12345678901", "(81) 99999-9999", null));
         await dbContext.SaveChangesAsync();
 
-        var sut = new PreferencesService(profileRepository, userRepository, dbContext);
+        var sut = new PreferencesService(profileRepository, userRepository, new RefreshTokenRepository(dbContext), Mock.Of<IAuditService>(), dbContext);
         var request = new DeleteOwnAccountRequest("SenhaErrada", "EXCLUIR");
 
         var act = async () => await sut.DeleteOwnAccountAsync(userId, request);
@@ -139,7 +149,7 @@ public class PreferencesServiceTests
             new AuditLog(userId, "export", "DataPortability", null, null, null, null));
         await dbContext.SaveChangesAsync();
 
-        var sut = new PreferencesService(profileRepository, userRepository, dbContext);
+        var sut = new PreferencesService(profileRepository, userRepository, new RefreshTokenRepository(dbContext), Mock.Of<IAuditService>(), dbContext);
 
         var result = await sut.GetPrivacySummaryAsync(userId);
 
@@ -148,6 +158,57 @@ public class PreferencesServiceTests
         result.AuditEntries.Should().Be(2);
         result.SelfServiceDeletionEnabled.Should().BeTrue();
         result.DeletionScope.Should().Contain("tokens de sessão, reset de senha e trilha de auditoria");
+    }
+
+    [Fact]
+    public async Task RevokeOwnSessionsAsync_Should_Revoke_Only_Active_Sessions()
+    {
+        await using var dbContext = CreateDbContext();
+        var userRepository = new UserRepository(dbContext);
+        var profileRepository = new UserProfileRepository(dbContext);
+        var refreshTokenRepository = new RefreshTokenRepository(dbContext);
+        var user = new User("Teste", "teste@teste.com", BCrypt.Net.BCrypt.HashPassword("Senha@123"));
+        var userId = user.Id;
+
+        await dbContext.Users.AddAsync(user);
+        await dbContext.RefreshTokens.AddRangeAsync(
+            new RefreshToken(userId, "refresh-1", DateTime.UtcNow.AddHours(2)),
+            new RefreshToken(userId, "refresh-2", DateTime.UtcNow.AddHours(2)),
+            new RefreshToken(userId, "refresh-3", DateTime.UtcNow.AddHours(-2)));
+        await dbContext.SaveChangesAsync();
+
+        var sut = new PreferencesService(profileRepository, userRepository, refreshTokenRepository, Mock.Of<IAuditService>(), dbContext);
+
+        var result = await sut.RevokeOwnSessionsAsync(userId);
+
+        result.RevokedSessions.Should().Be(2);
+        (await dbContext.RefreshTokens.CountAsync(x => x.UserId == userId && x.RevokedAt.HasValue)).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetSecuritySummaryAsync_Should_Report_Login_State_And_Last_Login()
+    {
+        await using var dbContext = CreateDbContext();
+        var userRepository = new UserRepository(dbContext);
+        var profileRepository = new UserProfileRepository(dbContext);
+        var refreshTokenRepository = new RefreshTokenRepository(dbContext);
+        var user = new User("Teste", "teste@teste.com", BCrypt.Net.BCrypt.HashPassword("Senha@123"));
+        user.RegisterFailedLogin(DateTime.UtcNow, 5, TimeSpan.FromMinutes(15));
+        user.UpdateLastLogin(DateTime.UtcNow.AddMinutes(-10));
+        var userId = user.Id;
+
+        await dbContext.Users.AddAsync(user);
+        await dbContext.RefreshTokens.AddAsync(new RefreshToken(userId, "refresh-1", DateTime.UtcNow.AddHours(2)));
+        await dbContext.SaveChangesAsync();
+
+        var sut = new PreferencesService(profileRepository, userRepository, refreshTokenRepository, Mock.Of<IAuditService>(), dbContext);
+
+        var result = await sut.GetSecuritySummaryAsync(userId);
+
+        result.ActiveSessions.Should().Be(1);
+        result.FailedLoginAttempts.Should().Be(1);
+        result.LastLoginAt.Should().NotBeNull();
+        result.Controls.Should().Contain("revogação de sessões ativas pelo próprio usuário");
     }
 
     private static InvestDbContext CreateDbContext()

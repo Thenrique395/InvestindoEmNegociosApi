@@ -1,0 +1,93 @@
+using FluentAssertions;
+using InvestindoEmNegocio.Application.Interfaces;
+using InvestindoEmNegocio.Application.Services;
+using InvestindoEmNegocio.Domain.Entities;
+using InvestindoEmNegocio.Domain.Enums;
+using InvestindoEmNegocio.Infrastructure.Data;
+using InvestindoEmNegocio.Infrastructure.Repositories;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Moq;
+
+namespace InvestindoEmNegocio.Tests;
+
+public class SubscriptionsServiceTests
+{
+    [Fact]
+    public async Task ChangeAsync_Should_Promote_User_And_Return_New_Session()
+    {
+        await using var dbContext = CreateDbContext();
+        var user = new User("Teste", "teste@teste.com", "hash");
+        await dbContext.Users.AddAsync(user);
+        await dbContext.SaveChangesAsync();
+
+        var jwt = new Mock<IJwtTokenGenerator>();
+        jwt.Setup(x => x.Generate(It.IsAny<User>()))
+            .Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
+
+        var sut = new SubscriptionsService(
+            new UserRepository(dbContext),
+            new UserSubscriptionRepository(dbContext),
+            new RefreshTokenRepository(dbContext),
+            jwt.Object);
+
+        var result = await sut.ChangeAsync(user.Id, new("intermediate", "Monthly"));
+
+        result.Current.PlanCode.Should().Be("intermediate");
+        result.Current.Role.Should().Be("Intermediate");
+        result.Session.Token.Should().Be("jwt-token");
+        (await dbContext.Users.SingleAsync()).Role.Should().Be(UserRole.Intermediate);
+        (await dbContext.UserSubscriptions.SingleAsync()).PlanCode.Should().Be("intermediate");
+    }
+
+    [Fact]
+    public async Task CancelAsync_Should_Downgrade_To_Basic_And_Stop_AutoRenew()
+    {
+        await using var dbContext = CreateDbContext();
+        var user = new User("Teste", "teste@teste.com", "hash");
+        user.SetRole(UserRole.Advanced);
+        await dbContext.Users.AddAsync(user);
+        await dbContext.UserSubscriptions.AddAsync(new UserSubscription(
+            user.Id,
+            "advanced",
+            UserRole.Advanced,
+            SubscriptionBillingCycle.Monthly,
+            59.90m,
+            "BRL",
+            DateTime.UtcNow.AddMonths(-1),
+            DateTime.UtcNow.AddDays(20)));
+        await dbContext.SaveChangesAsync();
+
+        var jwt = new Mock<IJwtTokenGenerator>();
+        var sut = new SubscriptionsService(
+            new UserRepository(dbContext),
+            new UserSubscriptionRepository(dbContext),
+            new RefreshTokenRepository(dbContext),
+            jwt.Object);
+
+        jwt.Setup(x => x.Generate(It.IsAny<User>()))
+            .Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
+
+        var result = await sut.CancelAsync(user.Id);
+
+        result.Current.PlanCode.Should().Be("advanced");
+        result.Current.AutoRenew.Should().BeFalse();
+        result.Current.Status.Should().Be("Cancelled");
+        result.Session.Token.Should().Be("jwt-token");
+        (await dbContext.Users.SingleAsync()).Role.Should().Be(UserRole.Basic);
+    }
+
+    private static InvestDbContext CreateDbContext()
+    {
+        var connection = new SqliteConnection("DataSource=:memory:");
+        connection.Open();
+
+        var options = new DbContextOptionsBuilder<InvestDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        var context = new InvestDbContext(options);
+        context.Database.EnsureCreated();
+        return context;
+    }
+}

@@ -331,6 +331,22 @@ CREATE TABLE IF NOT EXISTS monthly_financial_snapshots (
     CONSTRAINT "FK_monthly_financial_snapshots_users_UserId" FOREIGN KEY ("UserId") REFERENCES users ("Id") ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS user_subscriptions (
+    id uuid PRIMARY KEY,
+    user_id uuid NOT NULL UNIQUE,
+    plan_code varchar(32) NOT NULL,
+    role_granted integer NOT NULL,
+    billing_cycle integer NOT NULL,
+    status integer NOT NULL,
+    price_amount numeric(14,2) NOT NULL,
+    currency varchar(8) NOT NULL,
+    auto_renew boolean NOT NULL DEFAULT TRUE,
+    started_at timestamp without time zone NOT NULL,
+    renews_at timestamp without time zone NOT NULL,
+    cancelled_at timestamp without time zone NULL,
+    updated_at timestamp without time zone NOT NULL
+);
+
 CREATE UNIQUE INDEX IF NOT EXISTS "IX_monthly_financial_snapshots_UserId_Year_Month"
     ON monthly_financial_snapshots ("UserId", "Year", "Month");
 

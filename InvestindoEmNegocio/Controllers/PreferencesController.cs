@@ -37,6 +37,22 @@ public class PreferencesController(IPreferencesService preferencesService) : Con
         return Ok(summary);
     }
 
+    [HttpGet("security-summary")]
+    public async Task<IActionResult> GetSecuritySummary(CancellationToken cancellationToken = default)
+    {
+        var userId = GetUserId();
+        var summary = await preferencesService.GetSecuritySummaryAsync(userId, cancellationToken);
+        return Ok(summary);
+    }
+
+    [HttpPost("sessions/revoke")]
+    public async Task<IActionResult> RevokeOwnSessions(CancellationToken cancellationToken = default)
+    {
+        var userId = GetUserId();
+        var response = await preferencesService.RevokeOwnSessionsAsync(userId, cancellationToken);
+        return Ok(response);
+    }
+
     [HttpPost("account/delete")]
     public async Task<IActionResult> DeleteOwnAccount([FromBody] DeleteOwnAccountRequest request, CancellationToken cancellationToken = default)
     {

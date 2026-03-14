@@ -215,6 +215,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddApplicationDependencies(this IServiceCollection services)
     {
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IUserSubscriptionRepository, UserSubscriptionRepository>();
         services.AddScoped<IUserFeatureOverrideRepository, UserFeatureOverrideRepository>();
         services.AddScoped<IUserProfileRepository, UserProfileRepository>();
         services.AddScoped<ICardRepository, CardRepository>();
@@ -276,6 +277,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPlansService, PlansService>();
         services.AddScoped<IIncomeSummaryService, IncomeSummaryService>();
         services.AddScoped<IPreferencesService, PreferencesService>();
+        services.AddScoped<ISubscriptionsService, SubscriptionsService>();
         services.AddScoped<INotificationsService, NotificationsService>();
         services.AddScoped<IAdminUsersService, AdminUsersService>();
         services.AddScoped<IAdminParametersService, AdminParametersService>();

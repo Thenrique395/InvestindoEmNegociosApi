@@ -7,5 +7,7 @@ public interface IPreferencesService
     Task<PreferencesDto> GetAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<PreferencesDto> UpdateAsync(Guid userId, UpdatePreferencesRequest request, CancellationToken cancellationToken = default);
     Task<PrivacySummaryDto> GetPrivacySummaryAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<SecuritySummaryDto> GetSecuritySummaryAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<RevokeSessionsResponse> RevokeOwnSessionsAsync(Guid userId, CancellationToken cancellationToken = default);
     Task DeleteOwnAccountAsync(Guid userId, DeleteOwnAccountRequest request, CancellationToken cancellationToken = default);
 }

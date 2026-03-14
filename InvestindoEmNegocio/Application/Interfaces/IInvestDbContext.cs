@@ -22,6 +22,7 @@ public interface IInvestDbContext
     DbSet<InvestmentAllocationTarget> InvestmentAllocationTargets { get; }
     DbSet<InvestmentPosition> InvestmentPositions { get; }
     DbSet<InvestmentMovement> InvestmentMovements { get; }
+    DbSet<UserSubscription> UserSubscriptions { get; }
     DbSet<UserOnboarding> UserOnboardings { get; }
     DbSet<RefreshToken> RefreshTokens { get; }
     DbSet<PasswordResetToken> PasswordResetTokens { get; }
