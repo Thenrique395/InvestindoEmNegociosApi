@@ -38,7 +38,15 @@ public class CashflowProjectionEngineTests
                 new MoneyInstallment(Guid.NewGuid(), userId, 1, today.AddDays(3), 500m)
             ]);
 
-        var sut = new CashflowProjectionEngine(accountRepository.Object, transactionRepository.Object, installmentRepository.Object);
+        var loanInstallmentRepository = new Mock<ILoanInstallmentRepository>();
+        loanInstallmentRepository.Setup(x => x.ListByUserAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var sut = new CashflowProjectionEngine(
+            accountRepository.Object,
+            transactionRepository.Object,
+            installmentRepository.Object,
+            loanInstallmentRepository.Object);
 
         var result = await sut.ProjectAsync(userId, "month", today);
 

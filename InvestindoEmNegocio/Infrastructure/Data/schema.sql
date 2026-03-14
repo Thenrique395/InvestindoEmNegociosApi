@@ -259,6 +259,81 @@ END $$;
 CREATE INDEX IF NOT EXISTS "IX_money_payments_AccountId"
     ON money_payments ("AccountId");
 
+CREATE TABLE IF NOT EXISTS loan_contracts (
+    "Id" uuid NOT NULL,
+    "UserId" uuid NOT NULL,
+    "Title" character varying(160) NOT NULL,
+    "PrincipalAmount" numeric(14,2) NOT NULL,
+    "AnnualInterestRate" numeric(7,4) NOT NULL,
+    "TermMonths" integer NOT NULL,
+    "AmortizationType" text NOT NULL,
+    "StartDate" date NOT NULL,
+    "PaymentDay" integer NOT NULL,
+    "MonthlyPayment" numeric(14,2) NOT NULL,
+    "TotalCost" numeric(14,2) NOT NULL,
+    "TotalInterest" numeric(14,2) NOT NULL,
+    "Status" text NOT NULL,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    "UpdatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_loan_contracts" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_loan_contracts_users_UserId" FOREIGN KEY ("UserId") REFERENCES users ("Id") ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS "IX_loan_contracts_UserId_CreatedAt"
+    ON loan_contracts ("UserId", "CreatedAt");
+
+CREATE INDEX IF NOT EXISTS "IX_loan_contracts_UserId_Status"
+    ON loan_contracts ("UserId", "Status");
+
+CREATE TABLE IF NOT EXISTS loan_installments (
+    "Id" uuid NOT NULL,
+    "ContractId" uuid NOT NULL,
+    "UserId" uuid NOT NULL,
+    "InstallmentNo" integer NOT NULL,
+    "DueDate" date NOT NULL,
+    "BeginningBalance" numeric(14,2) NOT NULL,
+    "PrincipalAmount" numeric(14,2) NOT NULL,
+    "InterestAmount" numeric(14,2) NOT NULL,
+    "TotalAmount" numeric(14,2) NOT NULL,
+    "EndingBalance" numeric(14,2) NOT NULL,
+    "Status" text NOT NULL,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    "UpdatedAt" timestamp with time zone NOT NULL,
+    "PaidAt" timestamp with time zone NULL,
+    CONSTRAINT "PK_loan_installments" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_loan_installments_loan_contracts_ContractId" FOREIGN KEY ("ContractId") REFERENCES loan_contracts ("Id") ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS "IX_loan_installments_UserId_DueDate"
+    ON loan_installments ("UserId", "DueDate");
+
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_loan_installments_ContractId_InstallmentNo"
+    ON loan_installments ("ContractId", "InstallmentNo");
+
+CREATE TABLE IF NOT EXISTS monthly_financial_snapshots (
+    "Id" uuid NOT NULL,
+    "UserId" uuid NOT NULL,
+    "Year" integer NOT NULL,
+    "Month" integer NOT NULL,
+    "SnapshotLabel" character varying(7) NOT NULL,
+    "RealAvailableBalance" numeric(14,2) NOT NULL,
+    "ProjectedBalance" numeric(14,2) NOT NULL,
+    "PendingExpenses" numeric(14,2) NOT NULL,
+    "PendingIncomes" numeric(14,2) NOT NULL,
+    "TotalDebt" numeric(14,2) NOT NULL,
+    "NetWorth" numeric(14,2) NOT NULL,
+    "RiskScore" integer NOT NULL,
+    "RiskClassification" character varying(40) NOT NULL,
+    "PrimaryInsight" character varying(500) NOT NULL,
+    "RecommendationsJson" character varying(4000) NOT NULL,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_monthly_financial_snapshots" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_monthly_financial_snapshots_users_UserId" FOREIGN KEY ("UserId") REFERENCES users ("Id") ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_monthly_financial_snapshots_UserId_Year_Month"
+    ON monthly_financial_snapshots ("UserId", "Year", "Month");
+
 DO $$
 BEGIN
     IF EXISTS (

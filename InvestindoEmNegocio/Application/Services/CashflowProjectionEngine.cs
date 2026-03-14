@@ -8,7 +8,8 @@ namespace InvestindoEmNegocio.Application.Services;
 public sealed class CashflowProjectionEngine(
     IAccountRepository accountRepository,
     IAccountTransactionRepository accountTransactionRepository,
-    IMoneyInstallmentRepository moneyInstallmentRepository) : ICashflowProjectionEngine
+    IMoneyInstallmentRepository moneyInstallmentRepository,
+    ILoanInstallmentRepository loanInstallmentRepository) : ICashflowProjectionEngine
 {
     public async Task<CashflowProjectionResponse> ProjectAsync(
         Guid userId,
@@ -42,6 +43,7 @@ public sealed class CashflowProjectionEngine(
             periodEnd,
             MoneyType.Income,
             cancellationToken);
+        var loanExpenses = await loanInstallmentRepository.ListByUserAsync(userId, cancellationToken) ?? [];
 
         var expensesByDay = expenses
             .Where(IsOpenExpense)
@@ -50,6 +52,13 @@ public sealed class CashflowProjectionEngine(
                 EffectiveDate = item.DueDate < anchorDate ? anchorDate : item.DueDate,
                 item.Amount
             })
+            .Concat(loanExpenses
+                .Where(x => x.Status == LoanInstallmentStatus.Open && x.DueDate <= periodEnd)
+                .Select(x => new
+                {
+                    EffectiveDate = x.DueDate < anchorDate ? anchorDate : x.DueDate,
+                    Amount = x.TotalAmount
+                }))
             .GroupBy(x => x.EffectiveDate)
             .ToDictionary(g => g.Key, g => new { Amount = g.Sum(x => x.Amount), Count = g.Count() });
 

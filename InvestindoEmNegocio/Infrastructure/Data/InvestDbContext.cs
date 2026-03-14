@@ -26,6 +26,9 @@ public class InvestDbContext(DbContextOptions<InvestDbContext> options) : DbCont
     public DbSet<InvestmentAllocationTarget> InvestmentAllocationTargets => Set<InvestmentAllocationTarget>();
     public DbSet<InvestmentPosition> InvestmentPositions => Set<InvestmentPosition>();
     public DbSet<InvestmentMovement> InvestmentMovements => Set<InvestmentMovement>();
+    public DbSet<LoanContract> LoanContracts => Set<LoanContract>();
+    public DbSet<LoanInstallment> LoanInstallments => Set<LoanInstallment>();
+    public DbSet<MonthlyFinancialSnapshot> MonthlyFinancialSnapshots => Set<MonthlyFinancialSnapshot>();
     public DbSet<UserOnboarding> UserOnboardings => Set<UserOnboarding>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();

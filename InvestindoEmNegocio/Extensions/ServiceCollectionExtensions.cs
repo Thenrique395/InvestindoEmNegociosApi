@@ -231,6 +231,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IInvestmentGoalRepository, InvestmentGoalRepository>();
         services.AddScoped<IInvestmentAllocationTargetRepository, InvestmentAllocationTargetRepository>();
         services.AddScoped<IInvestmentPositionRepository, InvestmentPositionRepository>();
+        services.AddScoped<ILoanContractRepository, LoanContractRepository>();
+        services.AddScoped<ILoanInstallmentRepository, LoanInstallmentRepository>();
+        services.AddScoped<IMonthlyFinancialSnapshotRepository, MonthlyFinancialSnapshotRepository>();
         services.AddScoped<IUserOnboardingRepository, UserOnboardingRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
@@ -258,6 +261,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IInsightEngineService, InsightEngineService>();
         services.AddScoped<IRecommendationEngineService, RecommendationEngineService>();
         services.AddScoped<IAccountsService, AccountsService>();
+        services.AddScoped<ILoansService, LoansService>();
+        services.AddScoped<IMonthlyFinancialSnapshotService, MonthlyFinancialSnapshotService>();
+        services.AddScoped<IFinancialAssistantService, FinancialAssistantService>();
         services.AddScoped<IOfxImportService, OfxImportService>();
         services.AddScoped<ICsvImportService, CsvImportService>();
         services.AddScoped<ICategoriesService, CategoriesService>();

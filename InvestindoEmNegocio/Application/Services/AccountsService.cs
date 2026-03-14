@@ -14,6 +14,8 @@ public class AccountsService(
     IMoneyPaymentRepository moneyPaymentRepository,
     IMoneyPlanRepository moneyPlanRepository,
     ICardRepository cardRepository,
+    ILoanContractRepository loanContractRepository,
+    ILoanInstallmentRepository loanInstallmentRepository,
     IInvestmentsService investmentsService,
     ICashflowProjectionEngine cashflowProjectionEngine,
     IRiskBotService riskBotService,
@@ -126,17 +128,25 @@ public class AccountsService(
             periodEnd,
             Domain.Enums.MoneyType.Income,
             cancellationToken);
+        var pendingLoanInstallments = await loanInstallmentRepository.ListByUserAsync(userId, cancellationToken) ?? [];
 
         var openExpenseItems = pendingExpenses
             .Where(i => i.Status == InstallmentStatus.Open || i.Status == InstallmentStatus.PartiallyPaid)
             .ToList();
+        var openLoanItems = pendingLoanInstallments
+            .Where(i => i.Status == LoanInstallmentStatus.Open && i.DueDate >= periodStart && i.DueDate <= periodEnd)
+            .ToList();
 
-        var pendingExpensesAmount = openExpenseItems.Sum(i => i.Amount);
+        var pendingExpensesAmount = openExpenseItems.Sum(i => i.Amount) + openLoanItems.Sum(i => i.TotalAmount);
         var pendingIncomesAmount = pendingIncomes.Sum(i => i.Amount);
-        var overdueExpenses = openExpenseItems.Where(i => i.DueDate < today).ToList();
+        var overdueExpensesAmount = openExpenseItems.Where(i => i.DueDate < today).Sum(i => i.Amount)
+            + openLoanItems.Where(i => i.DueDate < today).Sum(i => i.TotalAmount);
+        var overdueExpensesCount = openExpenseItems.Count(i => i.DueDate < today)
+            + openLoanItems.Count(i => i.DueDate < today);
         var dueSoonExpensesAmount = openExpenseItems
             .Where(i => i.DueDate >= today && i.DueDate <= dueSoonLimit)
-            .Sum(i => i.Amount);
+            .Sum(i => i.Amount)
+            + openLoanItems.Where(i => i.DueDate >= today && i.DueDate <= dueSoonLimit).Sum(i => i.TotalAmount);
 
         return new RealAvailableBalanceResponse(
             normalizedPeriod,
@@ -145,13 +155,13 @@ public class AccountsService(
             periodEnd,
             activeAccountsBalance,
             pendingExpensesAmount,
-            openExpenseItems.Count,
+            openExpenseItems.Count + openLoanItems.Count,
             pendingIncomesAmount,
             pendingIncomes.Count,
             activeAccountsBalance - pendingExpensesAmount,
             activeAccountsBalance - pendingExpensesAmount + pendingIncomesAmount,
-            overdueExpenses.Sum(i => i.Amount),
-            overdueExpenses.Count,
+            overdueExpensesAmount,
+            overdueExpensesCount,
             dueSoonExpensesAmount);
     }
 
@@ -640,6 +650,8 @@ public class AccountsService(
 
         var plans = await moneyPlanRepository.ListByUserAsync(userId, Domain.Enums.MoneyType.Expense, cancellationToken);
         var cards = await cardRepository.ListByUserAsync(userId, cancellationToken);
+        var loanContracts = await loanContractRepository.ListByUserAsync(userId, cancellationToken) ?? [];
+        var loanInstallments = await loanInstallmentRepository.ListByUserAsync(userId, cancellationToken) ?? [];
         var payments = await moneyPaymentRepository.ListByInstallmentIdsAsync(openInstallments.Select(i => i.Id), cancellationToken);
 
         var planLookup = plans.ToDictionary(p => p.Id, p => p);
@@ -648,7 +660,7 @@ public class AccountsService(
             .GroupBy(p => p.InstallmentId)
             .ToDictionary(g => g.Key, g => g.Sum(p => p.PaidAmount));
 
-        return openInstallments
+        var debtItems = openInstallments
             .Select(installment =>
             {
                 var plan = planLookup.GetValueOrDefault(installment.PlanId);
@@ -681,5 +693,26 @@ public class AccountsService(
             .Where(i => i is not null)
             .Cast<DebtSummaryItemResponse>()
             .ToList();
+
+        debtItems.AddRange(loanInstallments
+            .Where(x => x.Status == LoanInstallmentStatus.Open)
+            .Select(x =>
+            {
+                var contract = loanContracts.FirstOrDefault(c => c.Id == x.ContractId);
+                return new DebtSummaryItemResponse(
+                    x.Id,
+                    x.ContractId,
+                    "liability",
+                    contract?.Title ?? "Empréstimo",
+                    "Contrato de empréstimo",
+                    x.DueDate,
+                    x.TotalAmount,
+                    0m,
+                    x.TotalAmount,
+                    x.Status.ToString(),
+                    null);
+            }));
+
+        return debtItems;
     }
 }
