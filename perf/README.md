@@ -1,70 +1,59 @@
-# Performance and Load Tests (k6)
+# Testes de Performance com k6
 
-This folder contains k6 scripts for API load/performance tests.
+Este diretório concentra os scripts de carga da API.
 
-## Prerequisites
+## Estrutura
 
-- k6 installed: https://k6.io/docs/get-started/installation/
-- Backend running and reachable (local, docker, or VPS)
-- Valid user credentials
+- `scripts/login-stress.js`
+- `scripts/api-read-load.js`
+- `scripts/api-full-suite.js`
+- `scripts/dataportability-export-load.js`
+- `scripts/dataportability-import-load.js`
+- `config/`
+- `data/`
+- `results/`
 
-## Folder structure
+## Pré-requisitos
 
-- `scripts/login-stress.js`: login stress/spike test
-- `scripts/api-read-load.js`: authenticated read endpoints load test
-- `scripts/api-full-suite.js`: full API suite (all major modules)
-- `scripts/dataportability-export-load.js`: export endpoint load test
-- `scripts/dataportability-import-load.js`: import endpoint load test
-- `data/`: input files used by tests
-- `results/`: output summary files
+- `k6` instalado
+- API acessível
+- credenciais válidas
 
-## Configuration file (recommended)
+## Configuração
 
-Default config file:
-
-- `perf/config/default.json`
-
-Create your local file:
+Arquivo recomendado:
 
 ```bash
 cp perf/config/local.example.json perf/config/local.json
 ```
 
-Then fill credentials and URL in `perf/config/local.json`.
+Depois disso:
 
-Run any script using this file:
+- preencher `baseUrl`
+- preencher usuário e senha
+- usar `PERF_CONFIG` na execução
 
-```bash
-k6 run -e PERF_CONFIG=./perf/config/local.json perf/scripts/api-full-suite.js
-```
+## Comandos principais
 
-## Env vars (optional override)
-
-You can override any value from file with env vars (`BASE_URL`, `EMAIL`, `PASSWORD`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `WRITE_MODE`, etc.).
-
-## Run tests
-
-### 1) Login stress
+### Login
 
 ```bash
 k6 run -e PERF_CONFIG=./perf/config/local.json perf/scripts/login-stress.js
 ```
 
-### 2) API reads load
+### Leituras autenticadas
 
 ```bash
 k6 run -e PERF_CONFIG=./perf/config/local.json perf/scripts/api-read-load.js
 ```
 
-### 3) Full API suite (major modules)
-
-Default read-only:
+### Suíte principal
 
 ```bash
 k6 run -e PERF_CONFIG=./perf/config/local.json perf/scripts/api-full-suite.js
 ```
 
-With admin + writes:
+### Suíte principal com escrita
 
 ```bash
 k6 run \
@@ -75,15 +64,13 @@ k6 run \
   perf/scripts/api-full-suite.js
 ```
 
-### 4) Data portability export
+### Export de portabilidade
 
 ```bash
 k6 run -e PERF_CONFIG=./perf/config/local.json perf/scripts/dataportability-export-load.js
 ```
 
-### 5) Data portability import
-
-Requires a JSON snapshot file (see `perf/data/README.md`).
+### Import de portabilidade
 
 ```bash
 k6 run \
@@ -92,17 +79,23 @@ k6 run \
   perf/scripts/dataportability-import-load.js
 ```
 
-## Save reports
+## Relatório
 
 ```bash
-k6 run -e PERF_CONFIG=./perf/config/local.json perf/scripts/api-full-suite.js --summary-export=perf/results/api-full-baseline.json
+k6 run \
+  -e PERF_CONFIG=./perf/config/local.json \
+  perf/scripts/api-full-suite.js \
+  --summary-export=perf/results/api-full-baseline.json
 ```
 
-## Suggested first-pass targets
+## Alvos iniciais
 
-- Errors (`http_req_failed`) < 1-2%
-- Auth p95 < 900ms
-- Main reads p95 < 1200ms
-- Import p95 < 3000ms
+- `http_req_failed` < `2%`
+- auth `p95` < `900ms`
+- leituras principais `p95` < `1200ms`
+- import `p95` < `3000ms`
 
-Tune targets with production baseline over time.
+## Regra de manutenção
+
+- manter aqui só instrução operacional
+- resultados e números históricos ficam em `results/`, não neste README

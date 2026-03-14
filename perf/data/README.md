@@ -1,14 +1,14 @@
-# Test data for k6
+# Dados de teste do k6
 
-Place snapshot files used by `dataportability-import-load.js` here.
+Esta pasta guarda arquivos de entrada usados pelos scripts de carga.
 
-Recommended filename:
+## Arquivo esperado
 
 - `user-snapshot.json`
 
-## Generate snapshot from API export
+## Como gerar
 
-Use a valid JWT token:
+Com um token JWT válido:
 
 ```bash
 curl -sS \
@@ -17,14 +17,16 @@ curl -sS \
   -o perf/data/user-snapshot.json
 ```
 
-Then run import load test:
+## Como usar no import load
 
 ```bash
 k6 run \
   -e PERF_CONFIG=./perf/config/local.json \
-  -e BASE_URL=http://localhost:5059 \
-  -e EMAIL=seu-email@dominio.com \
-  -e PASSWORD=sua-senha \
   -e IMPORT_FILE=./perf/data/user-snapshot.json \
   perf/scripts/dataportability-import-load.js
 ```
+
+## Regra de manutenção
+
+- não versionar snapshots sensíveis de usuário real
+- usar apenas massa anonimizada ou descartável
