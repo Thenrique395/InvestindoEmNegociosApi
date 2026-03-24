@@ -115,6 +115,7 @@ public static class ServiceCollectionExtensions
         services.Configure<PasswordResetOptions>(configuration.GetSection(PasswordResetOptions.SectionName));
         services.Configure<SmtpEmailOptions>(configuration.GetSection(SmtpEmailOptions.SectionName));
         services.Configure<RobotsOptions>(configuration.GetSection(RobotsOptions.SectionName));
+        services.Configure<StripeOptions>(configuration.GetSection(StripeOptions.SectionName));
         return services;
     }
 
@@ -215,6 +216,8 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddApplicationDependencies(this IServiceCollection services)
     {
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IBillingCheckoutRepository, BillingCheckoutRepository>();
+        services.AddScoped<IBillingWebhookEventRepository, BillingWebhookEventRepository>();
         services.AddScoped<IUserSubscriptionRepository, UserSubscriptionRepository>();
         services.AddScoped<IUserFeatureOverrideRepository, UserFeatureOverrideRepository>();
         services.AddScoped<IUserProfileRepository, UserProfileRepository>();
@@ -278,6 +281,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IIncomeSummaryService, IncomeSummaryService>();
         services.AddScoped<IPreferencesService, PreferencesService>();
         services.AddScoped<ISubscriptionsService, SubscriptionsService>();
+        services.AddScoped<IBillingService, BillingService>();
         services.AddScoped<INotificationsService, NotificationsService>();
         services.AddScoped<IAdminUsersService, AdminUsersService>();
         services.AddScoped<IAdminParametersService, AdminParametersService>();

@@ -42,6 +42,11 @@ services:
       Smtp__Password: ${SMTP_PASS:-}
       Smtp__FromEmail: ${SMTP_FROM_EMAIL:-}
       Smtp__FromName: ${SMTP_FROM_NAME:-Investindo em Negocios}
+      Stripe__SecretKey: ${STRIPE_SECRET_KEY:-}
+      Stripe__WebhookSecret: ${STRIPE_WEBHOOK_SECRET:-}
+      Stripe__PublishableKey: ${STRIPE_PUBLISHABLE_KEY:-}
+      Stripe__FrontendBaseUrl: ${STRIPE_FRONTEND_BASE_URL:-http://localhost:4200}
+      Stripe__PaymentMethodTypes: ${STRIPE_PAYMENT_METHOD_TYPES:-card}
     depends_on:
       postgres:
         condition: service_healthy

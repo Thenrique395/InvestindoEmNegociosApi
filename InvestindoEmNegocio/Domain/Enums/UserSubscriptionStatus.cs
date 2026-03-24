@@ -2,6 +2,10 @@ namespace InvestindoEmNegocio.Domain.Enums;
 
 public enum UserSubscriptionStatus
 {
-    Active = 1,
-    Cancelled = 2
+    PendingActivation = 1,
+    Active = 2,
+    PastDue = 3,
+    Cancelled = 4,
+    Expired = 5,
+    Refunded = 6
 }

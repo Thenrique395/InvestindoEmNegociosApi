@@ -14,7 +14,11 @@ public sealed class UserSubscriptionConfiguration : IEntityTypeConfiguration<Use
         builder.Property(x => x.PlanCode).HasMaxLength(32).IsRequired();
         builder.Property(x => x.Currency).HasMaxLength(8).IsRequired();
         builder.Property(x => x.PriceAmount).HasPrecision(14, 2);
+        builder.Property(x => x.ExternalCustomerId).HasMaxLength(120);
+        builder.Property(x => x.ExternalSubscriptionId).HasMaxLength(120);
+        builder.Property(x => x.ExternalPriceId).HasMaxLength(120);
 
         builder.HasIndex(x => x.UserId).IsUnique();
+        builder.HasIndex(x => x.ExternalSubscriptionId);
     }
 }

@@ -14,5 +14,8 @@ public enum NotificationKind
     GoalInactive = 9,
     Upcoming = 10,
     Overdue = 11,
-    CashflowInsight = 12
+    CashflowInsight = 12,
+    BillingPending = 13,
+    BillingApproved = 14,
+    BillingFailed = 15
 }

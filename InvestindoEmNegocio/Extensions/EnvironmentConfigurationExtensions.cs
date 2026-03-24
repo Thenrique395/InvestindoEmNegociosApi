@@ -24,6 +24,11 @@ public static class EnvironmentConfigurationExtensions
         PromoteEnvAlias("SMTP_PASS", "Smtp__Password");
         PromoteEnvAlias("SMTP_FROM_EMAIL", "Smtp__FromEmail");
         PromoteEnvAlias("SMTP_FROM_NAME", "Smtp__FromName");
+        PromoteEnvAlias("STRIPE_SECRET_KEY", "Stripe__SecretKey");
+        PromoteEnvAlias("STRIPE_WEBHOOK_SECRET", "Stripe__WebhookSecret");
+        PromoteEnvAlias("STRIPE_PUBLISHABLE_KEY", "Stripe__PublishableKey");
+        PromoteEnvAlias("STRIPE_FRONTEND_BASE_URL", "Stripe__FrontendBaseUrl");
+        PromoteEnvAlias("STRIPE_PAYMENT_METHOD_TYPES", "Stripe__PaymentMethodTypes");
         PromoteEnvAlias("ROBOTS_ENABLED", "Robots__Enabled");
         PromoteEnvAlias("ROBOTS_RUN_ON_STARTUP", "Robots__RunOnStartup");
         PromoteEnvAlias("ROBOTS_DAILY_RUN_TIME_UTC", "Robots__DailyRunTimeUtc");
@@ -60,6 +65,15 @@ public static class EnvironmentConfigurationExtensions
                      ("Smtp__Password", "Smtp:Password"),
                      ("Smtp__FromEmail", "Smtp:FromEmail"),
                      ("Smtp__FromName", "Smtp:FromName"),
+                     ("Stripe__SecretKey", "Stripe:SecretKey"),
+                     ("Stripe__WebhookSecret", "Stripe:WebhookSecret"),
+                     ("Stripe__PublishableKey", "Stripe:PublishableKey"),
+                     ("Stripe__FrontendBaseUrl", "Stripe:FrontendBaseUrl"),
+                     ("Stripe__PortalReturnPath", "Stripe:PortalReturnPath"),
+                     ("Stripe__SuccessPath", "Stripe:SuccessPath"),
+                     ("Stripe__CancelPath", "Stripe:CancelPath"),
+                     ("Stripe__FailedPath", "Stripe:FailedPath"),
+                     ("Stripe__PaymentMethodTypes", "Stripe:PaymentMethodTypes"),
                      ("Robots__Enabled", "Robots:Enabled"),
                      ("Robots__RunOnStartup", "Robots:RunOnStartup"),
                      ("Robots__DailyRunTimeUtc", "Robots:DailyRunTimeUtc")

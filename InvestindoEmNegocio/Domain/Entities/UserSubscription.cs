@@ -13,6 +13,9 @@ public class UserSubscription
     public decimal PriceAmount { get; private set; }
     public string Currency { get; private set; }
     public bool AutoRenew { get; private set; } = true;
+    public string? ExternalCustomerId { get; private set; }
+    public string? ExternalSubscriptionId { get; private set; }
+    public string? ExternalPriceId { get; private set; }
     public DateTime StartedAt { get; private set; } = DateTime.UtcNow;
     public DateTime RenewsAt { get; private set; }
     public DateTime? CancelledAt { get; private set; }
@@ -40,18 +43,22 @@ public class UserSubscription
         BillingCycle = billingCycle;
         PriceAmount = priceAmount;
         Currency = currency;
+        Status = UserSubscriptionStatus.PendingActivation;
         StartedAt = startsAtUtc;
         RenewsAt = renewsAtUtc;
     }
 
-    public void ChangePlan(
+    public void Activate(
         string planCode,
         UserRole roleGranted,
         SubscriptionBillingCycle billingCycle,
         decimal priceAmount,
         string currency,
         DateTime nowUtc,
-        DateTime renewsAtUtc)
+        DateTime renewsAtUtc,
+        string? externalCustomerId = null,
+        string? externalSubscriptionId = null,
+        string? externalPriceId = null)
     {
         PlanCode = planCode;
         RoleGranted = roleGranted;
@@ -62,14 +69,70 @@ public class UserSubscription
         AutoRenew = true;
         CancelledAt = null;
         RenewsAt = renewsAtUtc;
+        if (!string.IsNullOrWhiteSpace(externalCustomerId)) ExternalCustomerId = externalCustomerId;
+        if (!string.IsNullOrWhiteSpace(externalSubscriptionId)) ExternalSubscriptionId = externalSubscriptionId;
+        if (!string.IsNullOrWhiteSpace(externalPriceId)) ExternalPriceId = externalPriceId;
         UpdatedAt = nowUtc;
     }
 
-    public void CancelAutoRenew(DateTime nowUtc)
+    public void MarkPendingActivation(
+        string planCode,
+        UserRole roleGranted,
+        SubscriptionBillingCycle billingCycle,
+        decimal priceAmount,
+        string currency,
+        DateTime nowUtc,
+        DateTime renewsAtUtc,
+        string? externalCustomerId = null,
+        string? externalSubscriptionId = null,
+        string? externalPriceId = null)
+    {
+        PlanCode = planCode;
+        RoleGranted = roleGranted;
+        BillingCycle = billingCycle;
+        PriceAmount = priceAmount;
+        Currency = currency;
+        Status = UserSubscriptionStatus.PendingActivation;
+        AutoRenew = true;
+        CancelledAt = null;
+        RenewsAt = renewsAtUtc;
+        if (!string.IsNullOrWhiteSpace(externalCustomerId)) ExternalCustomerId = externalCustomerId;
+        if (!string.IsNullOrWhiteSpace(externalSubscriptionId)) ExternalSubscriptionId = externalSubscriptionId;
+        if (!string.IsNullOrWhiteSpace(externalPriceId)) ExternalPriceId = externalPriceId;
+        UpdatedAt = nowUtc;
+    }
+
+    public void ScheduleCancellation(DateTime nowUtc)
+    {
+        AutoRenew = false;
+        UpdatedAt = nowUtc;
+    }
+
+    public void CancelNow(DateTime nowUtc)
     {
         AutoRenew = false;
         Status = UserSubscriptionStatus.Cancelled;
         CancelledAt = nowUtc;
+        UpdatedAt = nowUtc;
+    }
+
+    public void MarkPastDue(DateTime nowUtc)
+    {
+        Status = UserSubscriptionStatus.PastDue;
+        UpdatedAt = nowUtc;
+    }
+
+    public void MarkExpired(DateTime nowUtc)
+    {
+        Status = UserSubscriptionStatus.Expired;
+        AutoRenew = false;
+        UpdatedAt = nowUtc;
+    }
+
+    public void MarkRefunded(DateTime nowUtc)
+    {
+        Status = UserSubscriptionStatus.Refunded;
+        AutoRenew = false;
         UpdatedAt = nowUtc;
     }
 }

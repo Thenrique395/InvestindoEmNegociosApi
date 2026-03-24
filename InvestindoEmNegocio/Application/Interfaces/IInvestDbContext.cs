@@ -7,6 +7,8 @@ namespace InvestindoEmNegocio.Application.Interfaces;
 public interface IInvestDbContext
 {
     DbSet<User> Users { get; }
+    DbSet<BillingCheckout> BillingCheckouts { get; }
+    DbSet<BillingWebhookEvent> BillingWebhookEvents { get; }
     DbSet<UserProfile> UserProfiles { get; }
     DbSet<Category> Categories { get; }
     DbSet<UserCategorizationFeedback> UserCategorizationFeedback { get; }

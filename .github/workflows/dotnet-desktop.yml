@@ -123,6 +123,11 @@ jobs:
           SMTP_PASS=${{ secrets.SMTP_PASS }}
           SMTP_FROM_EMAIL=${{ vars.SMTP_FROM_EMAIL }}
           SMTP_FROM_NAME=${{ vars.SMTP_FROM_NAME }}
+          STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          STRIPE_PUBLISHABLE_KEY=${{ vars.STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_FRONTEND_BASE_URL=${{ vars.STRIPE_FRONTEND_BASE_URL }}
+          STRIPE_PAYMENT_METHOD_TYPES=${{ vars.STRIPE_PAYMENT_METHOD_TYPES }}
           EOF
 
       - name: Upload compose + schema to VPS

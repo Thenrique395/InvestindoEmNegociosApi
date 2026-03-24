@@ -5,8 +5,10 @@ using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Infrastructure.Data;
 using InvestindoEmNegocio.Infrastructure.Repositories;
+using InvestindoEmNegocio.Infrastructure.Services;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace InvestindoEmNegocio.Tests;
@@ -14,7 +16,7 @@ namespace InvestindoEmNegocio.Tests;
 public class SubscriptionsServiceTests
 {
     [Fact]
-    public async Task ChangeAsync_Should_Promote_User_And_Return_New_Session()
+    public async Task ChangeAsync_Should_Activate_Basic_Plan_And_Return_New_Session()
     {
         await using var dbContext = CreateDbContext();
         var user = new User("Teste", "teste@teste.com", "hash");
@@ -29,15 +31,16 @@ public class SubscriptionsServiceTests
             new UserRepository(dbContext),
             new UserSubscriptionRepository(dbContext),
             new RefreshTokenRepository(dbContext),
-            jwt.Object);
+            jwt.Object,
+            Options.Create(new StripeOptions()));
 
-        var result = await sut.ChangeAsync(user.Id, new("intermediate", "Monthly"));
+        var result = await sut.ChangeAsync(user.Id, new("basic", "Monthly"));
 
-        result.Current.PlanCode.Should().Be("intermediate");
-        result.Current.Role.Should().Be("Intermediate");
+        result.Current.PlanCode.Should().Be("basic");
+        result.Current.Role.Should().Be("Basic");
         result.Session.Token.Should().Be("jwt-token");
-        (await dbContext.Users.SingleAsync()).Role.Should().Be(UserRole.Intermediate);
-        (await dbContext.UserSubscriptions.SingleAsync()).PlanCode.Should().Be("intermediate");
+        (await dbContext.Users.SingleAsync()).Role.Should().Be(UserRole.Basic);
+        (await dbContext.UserSubscriptions.SingleAsync()).PlanCode.Should().Be("basic");
     }
 
     [Fact]
@@ -63,7 +66,8 @@ public class SubscriptionsServiceTests
             new UserRepository(dbContext),
             new UserSubscriptionRepository(dbContext),
             new RefreshTokenRepository(dbContext),
-            jwt.Object);
+            jwt.Object,
+            Options.Create(new StripeOptions()));
 
         jwt.Setup(x => x.Generate(It.IsAny<User>()))
             .Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));

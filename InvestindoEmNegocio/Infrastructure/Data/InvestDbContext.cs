@@ -8,6 +8,8 @@ namespace InvestindoEmNegocio.Infrastructure.Data;
 public class InvestDbContext(DbContextOptions<InvestDbContext> options) : DbContext(options), IInvestDbContext
 {
     public DbSet<User> Users => Set<User>();
+    public DbSet<BillingCheckout> BillingCheckouts => Set<BillingCheckout>();
+    public DbSet<BillingWebhookEvent> BillingWebhookEvents => Set<BillingWebhookEvent>();
     public DbSet<UserFeatureOverride> UserFeatureOverrides => Set<UserFeatureOverride>();
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
     public DbSet<PaymentMethod> PaymentMethods => Set<PaymentMethod>();

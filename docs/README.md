@@ -11,6 +11,7 @@ Este diretório concentra os documentos normativos e operacionais da API.
 - Smoke e playbooks operacionais:
   - [SMOKE_TESTS_SUITE.md](./SMOKE_TESTS_SUITE.md)
   - [FLUXO_SALDO_TRANSACOES_PLAYBOOK.md](./FLUXO_SALDO_TRANSACOES_PLAYBOOK.md)
+  - [BILLING_STRIPE_PLAYBOOK.md](./BILLING_STRIPE_PLAYBOOK.md)
 
 ## Regra de manutenção
 

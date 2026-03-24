@@ -256,6 +256,83 @@ BEGIN
     END IF;
 END $$;
 
+CREATE TABLE IF NOT EXISTS billing_checkouts (
+    "Id" uuid NOT NULL,
+    "UserId" uuid NOT NULL,
+    "Provider" character varying(32) NOT NULL,
+    "PlanCode" character varying(32) NOT NULL,
+    "RoleRequested" integer NOT NULL,
+    "BillingCycle" integer NOT NULL,
+    "Amount" numeric(14,2) NOT NULL,
+    "Currency" character varying(8) NOT NULL,
+    "Status" integer NOT NULL,
+    "ProviderCheckoutId" character varying(120) NULL,
+    "ProviderCustomerId" character varying(120) NULL,
+    "ProviderSubscriptionId" character varying(120) NULL,
+    "ProviderPaymentIntentId" character varying(120) NULL,
+    "CheckoutUrl" character varying(1000) NULL,
+    "ProviderPaymentStatus" character varying(60) NULL,
+    "LastProviderEventType" character varying(120) NULL,
+    "FailureReason" character varying(500) NULL,
+    "EmailSuccessSent" boolean NOT NULL DEFAULT FALSE,
+    "EmailPendingSent" boolean NOT NULL DEFAULT FALSE,
+    "EmailFailureSent" boolean NOT NULL DEFAULT FALSE,
+    "ExpiresAt" timestamp with time zone NULL,
+    "CompletedAt" timestamp with time zone NULL,
+    "RefundedAt" timestamp with time zone NULL,
+    "CancelledAt" timestamp with time zone NULL,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    "UpdatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_billing_checkouts" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_billing_checkouts_users_UserId" FOREIGN KEY ("UserId") REFERENCES users ("Id") ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_billing_checkouts_ProviderCheckoutId"
+    ON billing_checkouts ("ProviderCheckoutId");
+
+CREATE INDEX IF NOT EXISTS "IX_billing_checkouts_ProviderSubscriptionId"
+    ON billing_checkouts ("ProviderSubscriptionId");
+
+CREATE INDEX IF NOT EXISTS "IX_billing_checkouts_ProviderPaymentIntentId"
+    ON billing_checkouts ("ProviderPaymentIntentId");
+
+CREATE INDEX IF NOT EXISTS "IX_billing_checkouts_UserId_Status_CreatedAt"
+    ON billing_checkouts ("UserId", "Status", "CreatedAt");
+
+CREATE TABLE IF NOT EXISTS billing_webhook_events (
+    "Id" uuid NOT NULL,
+    "Provider" character varying(32) NOT NULL,
+    "ProviderEventId" character varying(120) NOT NULL,
+    "EventType" character varying(120) NOT NULL,
+    "UserId" uuid NULL,
+    "BillingCheckoutId" uuid NULL,
+    "Processed" boolean NOT NULL DEFAULT FALSE,
+    "Success" boolean NOT NULL DEFAULT FALSE,
+    "PayloadJson" text NOT NULL,
+    "ErrorMessage" character varying(1000) NULL,
+    "ReceivedAt" timestamp with time zone NOT NULL,
+    "ProcessedAt" timestamp with time zone NULL,
+    CONSTRAINT "PK_billing_webhook_events" PRIMARY KEY ("Id")
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_billing_webhook_events_Provider_ProviderEventId"
+    ON billing_webhook_events ("Provider", "ProviderEventId");
+
+CREATE INDEX IF NOT EXISTS "IX_billing_webhook_events_ReceivedAt"
+    ON billing_webhook_events ("ReceivedAt");
+
+ALTER TABLE IF EXISTS user_subscriptions
+    ADD COLUMN IF NOT EXISTS "ExternalCustomerId" character varying(120) NULL;
+
+ALTER TABLE IF EXISTS user_subscriptions
+    ADD COLUMN IF NOT EXISTS "ExternalSubscriptionId" character varying(120) NULL;
+
+ALTER TABLE IF EXISTS user_subscriptions
+    ADD COLUMN IF NOT EXISTS "ExternalPriceId" character varying(120) NULL;
+
+CREATE INDEX IF NOT EXISTS "IX_user_subscriptions_ExternalSubscriptionId"
+    ON user_subscriptions ("ExternalSubscriptionId");
+
 CREATE INDEX IF NOT EXISTS "IX_money_payments_AccountId"
     ON money_payments ("AccountId");
 

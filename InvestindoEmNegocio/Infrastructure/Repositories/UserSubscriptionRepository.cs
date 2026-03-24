@@ -10,6 +10,12 @@ public sealed class UserSubscriptionRepository(InvestDbContext context) : IUserS
     public Task<UserSubscription?> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
         => context.UserSubscriptions.FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken);
 
+    public Task<UserSubscription?> GetByExternalSubscriptionIdAsync(string externalSubscriptionId, CancellationToken cancellationToken = default)
+        => context.UserSubscriptions.FirstOrDefaultAsync(x => x.ExternalSubscriptionId == externalSubscriptionId, cancellationToken);
+
+    public Task<UserSubscription?> GetByExternalCustomerIdAsync(string externalCustomerId, CancellationToken cancellationToken = default)
+        => context.UserSubscriptions.FirstOrDefaultAsync(x => x.ExternalCustomerId == externalCustomerId, cancellationToken);
+
     public Task AddAsync(UserSubscription subscription, CancellationToken cancellationToken = default)
         => context.UserSubscriptions.AddAsync(subscription, cancellationToken).AsTask();
 

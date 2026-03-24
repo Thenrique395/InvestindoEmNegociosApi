@@ -6,7 +6,10 @@ using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
+using InvestindoEmNegocio.Infrastructure.Services;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
+using Stripe;
 
 namespace InvestindoEmNegocio.Application.Services;
 
@@ -14,13 +17,16 @@ public sealed class SubscriptionsService(
     IUserRepository userRepository,
     IUserSubscriptionRepository userSubscriptionRepository,
     IRefreshTokenRepository refreshTokenRepository,
-    IJwtTokenGenerator jwtTokenGenerator) : ISubscriptionsService
+    IJwtTokenGenerator jwtTokenGenerator,
+    IOptions<StripeOptions> stripeOptions) : ISubscriptionsService
 {
+    private readonly StripeOptions _stripeOptions = stripeOptions.Value;
     private static readonly IReadOnlyList<string> Notes =
     [
-        "A mudança de plano atualiza o role do usuário e renova a sessão imediatamente.",
+        "Planos pagos só ativam o acesso após confirmação do pagamento.",
         "Plano Admin não é vendido por self-service.",
-        "Cancelamento interrompe renovação automática e retorna para Basic ao fim da vigência."
+        "Cancelamento agenda o fim da renovação automática no gateway de pagamento.",
+        "Falhas de pagamento e renovação são sincronizadas por webhook."
     ];
 
     public async Task<SubscriptionCatalogResponse> GetCatalogAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -69,16 +75,21 @@ public sealed class SubscriptionsService(
         var price = cycle == SubscriptionBillingCycle.Yearly ? plan.YearlyPrice : plan.MonthlyPrice;
 
         var subscription = await userSubscriptionRepository.GetByUserIdAsync(userId, cancellationToken);
+        if (plan.Code != "basic")
+        {
+            throw new AppProblemException(
+                "Pagamento necessário",
+                "Planos pagos devem ser contratados pelo checkout de cobrança antes da ativação.",
+                StatusCodes.Status402PaymentRequired);
+        }
+
         if (subscription is null)
         {
             subscription = new UserSubscription(userId, plan.Code, plan.Role, cycle, price, "BRL", now, renewsAt);
             await userSubscriptionRepository.AddAsync(subscription, cancellationToken);
         }
-        else
-        {
-            subscription.ChangePlan(plan.Code, plan.Role, cycle, price, "BRL", now, renewsAt);
-        }
 
+        subscription.Activate(plan.Code, plan.Role, cycle, price, "BRL", now, renewsAt);
         user.SetRole(plan.Role);
         await userRepository.SaveChangesAsync(cancellationToken);
         await userSubscriptionRepository.SaveChangesAsync(cancellationToken);
@@ -102,9 +113,23 @@ public sealed class SubscriptionsService(
             await userSubscriptionRepository.AddAsync(subscription, cancellationToken);
         }
 
-        subscription.CancelAutoRenew(DateTime.UtcNow);
-        user.SetRole(UserRole.Basic);
-        await userRepository.SaveChangesAsync(cancellationToken);
+        if (!string.IsNullOrWhiteSpace(subscription.ExternalSubscriptionId) && !string.IsNullOrWhiteSpace(_stripeOptions.SecretKey))
+        {
+            StripeConfiguration.ApiKey = _stripeOptions.SecretKey;
+            var stripeSubscriptionService = new SubscriptionService();
+            await stripeSubscriptionService.UpdateAsync(
+                subscription.ExternalSubscriptionId,
+                new SubscriptionUpdateOptions { CancelAtPeriodEnd = true },
+                cancellationToken: cancellationToken);
+            subscription.ScheduleCancellation(DateTime.UtcNow);
+        }
+        else
+        {
+            subscription.CancelNow(DateTime.UtcNow);
+            user.SetRole(UserRole.Basic);
+            await userRepository.SaveChangesAsync(cancellationToken);
+        }
+
         await userSubscriptionRepository.SaveChangesAsync(cancellationToken);
         var session = await ReissueSessionAsync(user, DateTime.UtcNow, cancellationToken);
         return new SubscriptionChangeResponse(BuildCurrent(user, subscription), session, Notes);
