@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace InvestindoEmNegocio.Infrastructure.Services;
 
 public sealed class StripeOptions
@@ -13,4 +16,5 @@ public sealed class StripeOptions
     public string CancelPath { get; set; } = "/checkout/pendente";
     public string FailedPath { get; set; } = "/checkout/falha";
     public string[] PaymentMethodTypes { get; set; } = ["card"];
+    public Dictionary<string, string> PriceIds { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }

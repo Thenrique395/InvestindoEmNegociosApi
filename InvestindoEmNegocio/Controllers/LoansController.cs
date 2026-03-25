@@ -11,7 +11,7 @@ namespace InvestindoEmNegocio.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Route("api/v1/[controller]")]
-[Authorize(Policy = AppAuthorizationPolicies.AtLeastBasic)]
+[Authorize(Policy = AppAuthorizationPolicies.AtLeastIntermediate)]
 public class LoansController(ILoansService loansService) : ControllerBase
 {
     [HttpGet]

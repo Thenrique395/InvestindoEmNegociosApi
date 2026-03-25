@@ -9,12 +9,36 @@ services:
       - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
-      - ./schema.full.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 10
+
+  schema-bootstrap:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./InvestindoEmNegocio/Infrastructure/Data/schema.sql:/schema/schema.sql:ro
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        until pg_isready -h postgres -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"; do
+          sleep 1
+        done
+        if psql -h postgres -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -tAc "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users'" | grep -q 1; then
+          echo "Schema already initialized. Skipping bootstrap."
+          exit 0
+        fi
+        psql -v ON_ERROR_STOP=1 -1 -h postgres -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -f /schema/schema.sql
 
   backend:
     image: ghcr.io/thenrique395/investindoemnegociosapi:latest
@@ -47,9 +71,12 @@ services:
       Stripe__PublishableKey: ${STRIPE_PUBLISHABLE_KEY:-}
       Stripe__FrontendBaseUrl: ${STRIPE_FRONTEND_BASE_URL:-http://localhost:4200}
       Stripe__PaymentMethodTypes: ${STRIPE_PAYMENT_METHOD_TYPES:-card}
+      Database__ApplySchemaOnStartup: "false"
     depends_on:
       postgres:
         condition: service_healthy
+      schema-bootstrap:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:5059/health/ready"]
       interval: 10s

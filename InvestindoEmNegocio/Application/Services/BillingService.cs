@@ -44,19 +44,20 @@ public sealed class BillingService(
         var checkout = new BillingCheckout(userId, plan.Code, plan.Role, cycle, amount, "BRL");
         await billingCheckoutRepository.AddAsync(checkout, cancellationToken);
         await billingCheckoutRepository.SaveChangesAsync(cancellationToken);
+        var existingSubscription = await userSubscriptionRepository.GetByUserIdAsync(userId, cancellationToken);
 
         StripeConfiguration.ApiKey = _options.SecretKey;
         var frontendBase = _options.FrontendBaseUrl.TrimEnd('/');
         var successUrl = $"{frontendBase}{_options.SuccessPath}?session_id={{CHECKOUT_SESSION_ID}}&checkout_id={checkout.Id}";
         var cancelUrl = $"{frontendBase}{_options.CancelPath}?checkout_id={checkout.Id}";
+        var priceId = ResolveConfiguredPriceId(plan.Code, cycle);
 
         var sessionService = new SessionService();
-        var session = await sessionService.CreateAsync(new SessionCreateOptions
+        var createOptions = new SessionCreateOptions
         {
             Mode = "subscription",
             SuccessUrl = successUrl,
             CancelUrl = cancelUrl,
-            CustomerEmail = user.Email,
             ClientReferenceId = user.Id.ToString(),
             PaymentMethodTypes = (_options.PaymentMethodTypes?.Length ?? 0) > 0
                 ? (_options.PaymentMethodTypes ?? ["card"]).Where(x => !string.IsNullOrWhiteSpace(x)).ToList()
@@ -68,9 +69,36 @@ public sealed class BillingService(
                 ["planCode"] = plan.Code,
                 ["billingCycle"] = cycle.ToString()
             },
-            LineItems =
-            [
-                new SessionLineItemOptions
+            SubscriptionData = new SessionSubscriptionDataOptions
+            {
+                Metadata = new Dictionary<string, string>
+                {
+                    ["userId"] = userId.ToString(),
+                    ["checkoutId"] = checkout.Id.ToString(),
+                    ["planCode"] = plan.Code,
+                    ["billingCycle"] = cycle.ToString()
+                }
+            }
+        };
+
+        if (!string.IsNullOrWhiteSpace(existingSubscription?.ExternalCustomerId))
+        {
+            createOptions.Customer = existingSubscription.ExternalCustomerId;
+        }
+        else
+        {
+            createOptions.CustomerEmail = user.Email;
+        }
+
+        createOptions.LineItems =
+        [
+            !string.IsNullOrWhiteSpace(priceId)
+                ? new SessionLineItemOptions
+                {
+                    Quantity = 1,
+                    Price = priceId
+                }
+                : new SessionLineItemOptions
                 {
                     Quantity = 1,
                     PriceData = new SessionLineItemPriceDataOptions
@@ -88,18 +116,9 @@ public sealed class BillingService(
                         }
                     }
                 }
-            ],
-            SubscriptionData = new SessionSubscriptionDataOptions
-            {
-                Metadata = new Dictionary<string, string>
-                {
-                    ["userId"] = userId.ToString(),
-                    ["checkoutId"] = checkout.Id.ToString(),
-                    ["planCode"] = plan.Code,
-                    ["billingCycle"] = cycle.ToString()
-                }
-            }
-        }, cancellationToken: cancellationToken);
+        ];
+
+        var session = await sessionService.CreateAsync(createOptions, cancellationToken: cancellationToken);
 
         checkout.Start(session.Id, session.Url ?? string.Empty, session.ExpiresAt, session.PaymentStatus, now);
         checkout.AttachProviderObjects(session.CustomerId, session.SubscriptionId, session.PaymentIntentId, now);
@@ -446,6 +465,17 @@ public sealed class BillingService(
 
     private static long ToCents(decimal amount)
         => Convert.ToInt64(Math.Round(amount * 100m, MidpointRounding.AwayFromZero));
+
+    private string? ResolveConfiguredPriceId(string planCode, SubscriptionBillingCycle cycle)
+    {
+        if (_options.PriceIds is null || _options.PriceIds.Count == 0)
+            return null;
+
+        var key = $"{planCode}.{cycle}".ToLowerInvariant();
+        return _options.PriceIds.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : null;
+    }
 
     private static DateTime ResolveRenewalAt(Subscription subscription)
     {

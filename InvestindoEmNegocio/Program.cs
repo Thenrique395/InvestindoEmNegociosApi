@@ -7,6 +7,8 @@ const string CorsPolicy = "AllowFrontend";
 var isDevelopment = builder.Environment.IsDevelopment();
 
 builder.LoadEnvironmentVariablesFromConfiguration();
+var applySchemaOnStartup = builder.Configuration.GetValue<bool?>("Database:ApplySchemaOnStartup") ?? true;
+var bootstrapOnly = builder.Configuration.GetValue<bool>("Database:BootstrapOnly");
 var otelSettings = builder.AddAppObservability();
 
 builder.Services
@@ -29,6 +31,15 @@ app.UseAppPipeline(CorsPolicy);
 app.MapControllers();
 app.MapHealthEndpoints();
 
-await app.ApplyDatabaseSchemaAsync();
+if (applySchemaOnStartup)
+{
+    await app.ApplyDatabaseSchemaAsync();
+}
+
+if (bootstrapOnly)
+{
+    app.Logger.LogInformation("BootstrapOnly habilitado. Encerrando aplicação após preparar o banco.");
+    return;
+}
 
 app.Run();

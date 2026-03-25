@@ -71,6 +71,7 @@ public class InstallmentsController(IInstallmentsService installmentsService, IA
     }
 
     [HttpPost("{id:guid}/anticipations")]
+    [Authorize(Policy = AppAuthorizationPolicies.AtLeastIntermediate)]
     // Antecipar uma parcela futura: move vencimento para a data informada, marca status e registra data original.
     public async Task<IActionResult> Anticipate(Guid id, [FromBody] AnticipationRequest request, CancellationToken cancellationToken)
     {
