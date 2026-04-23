@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authorization;
@@ -7,10 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-[Route("api/v1/[controller]")]
-[Authorize(Policy = AppAuthorizationPolicies.AtLeastBasic)]
-public class NotificationsController(INotificationsService notificationsService) : ControllerBase
+[Route("api/notifications")]
+[Route("api/v1/notifications")]
+[Authorize(Policy = AppAuthorizationPolicies.FeatureNotificationsAccess)]
+public class NotificationsController(INotificationsService notificationsService) : AuthenticatedControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] bool unreadOnly = false, [FromQuery] int? limit = 50, CancellationToken cancellationToken = default)
@@ -36,9 +35,4 @@ public class NotificationsController(INotificationsService notificationsService)
         return NoContent();
     }
 
-    private Guid GetUserId()
-    {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
-        return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Usuário não autenticado.");
-    }
 }

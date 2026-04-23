@@ -27,14 +27,14 @@ internal static class SubscriptionPlanCatalog
             0m,
             false,
             [
-                "Dashboard, despesas, receitas, cartões, contas e metas",
+                "Dashboard essencial, despesas, receitas, metas simples e categorias padrão",
                 "Centro de privacidade e exportação de dados",
-                "Snapshot, empréstimos e assistente em modo essencial"
+                "Conta principal automática para leitura básica"
             ],
             new Dictionary<string, string>
             {
-                ["contas"] = "1 conta principal",
-                ["cartoes"] = "até 2 cartões",
+                ["contas"] = "1 conta principal sem gestão avançada",
+                ["cartoes"] = "não incluído",
                 ["importacao-fatura"] = "não incluída",
                 ["investimentos"] = "não incluído"
             }),
@@ -48,9 +48,10 @@ internal static class SubscriptionPlanCatalog
             true,
             [
                 "Tudo do Basic",
+                "Contas e cartões gerenciáveis",
                 "Calendário financeiro",
                 "Categorias personalizadas",
-                "Importação de fatura e workflows avançados"
+                "Importação OFX/CSV/fatura e workflows avançados"
             ],
             new Dictionary<string, string>
             {

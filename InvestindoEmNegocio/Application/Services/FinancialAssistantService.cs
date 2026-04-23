@@ -3,7 +3,7 @@ using InvestindoEmNegocio.Application.Interfaces;
 
 namespace InvestindoEmNegocio.Application.Services;
 
-public class FinancialAssistantService(IAccountsService accountsService) : IFinancialAssistantService
+public class FinancialAssistantService(IAccountAnalyticsService accountAnalyticsService) : IFinancialAssistantService
 {
     private const int MaxQuestionLength = 600;
     private static readonly string[] BlockedTopics =
@@ -17,13 +17,13 @@ public class FinancialAssistantService(IAccountsService accountsService) : IFina
     public async Task<FinancialAssistantPromptContextResponse> BuildContextAsync(Guid userId, DateOnly? referenceDate = null, CancellationToken cancellationToken = default)
     {
         var anchor = referenceDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
-        var realBalance = await accountsService.GetRealAvailableBalanceAsync(userId, "month", anchor, cancellationToken);
-        var debts = await accountsService.GetDebtSummaryAsync(userId, anchor, cancellationToken);
-        var netWorth = await accountsService.GetNetWorthSummaryAsync(userId, anchor, cancellationToken);
-        var projection = await accountsService.GetProjectionAsync(userId, "month", anchor, cancellationToken);
-        var risk = await accountsService.GetRiskAssessmentAsync(userId, "month", anchor, cancellationToken);
-        var insights = await accountsService.GetInsightsAsync(userId, "month", anchor, cancellationToken);
-        var recommendations = await accountsService.GetRecommendationsAsync(userId, "month", anchor, cancellationToken);
+        var realBalance = await accountAnalyticsService.GetRealAvailableBalanceAsync(userId, "month", anchor, cancellationToken);
+        var debts = await accountAnalyticsService.GetDebtSummaryAsync(userId, anchor, cancellationToken);
+        var netWorth = await accountAnalyticsService.GetNetWorthSummaryAsync(userId, anchor, cancellationToken);
+        var projection = await accountAnalyticsService.GetProjectionAsync(userId, "month", anchor, cancellationToken);
+        var risk = await accountAnalyticsService.GetRiskAssessmentAsync(userId, "month", anchor, cancellationToken);
+        var insights = await accountAnalyticsService.GetInsightsAsync(userId, "month", anchor, cancellationToken);
+        var recommendations = await accountAnalyticsService.GetRecommendationsAsync(userId, "month", anchor, cancellationToken);
 
         return new FinancialAssistantPromptContextResponse(
             anchor,

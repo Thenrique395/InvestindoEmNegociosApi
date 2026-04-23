@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
@@ -12,12 +11,12 @@ using System.Linq;
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-[Route("api/v1/[controller]")]
-[Authorize(Policy = AppAuthorizationPolicies.AtLeastBasic)]
-public class InstallmentsController(IInstallmentsService installmentsService, IAuditService auditService) : ControllerBase
+[Route("api/installments")]
+[Route("api/v1/installments")]
+public class InstallmentsController(IInstallmentsService installmentsService, IAuditService auditService) : AuthenticatedControllerBase
 {
     [HttpGet]
+    [Authorize(Policy = AppAuthorizationPolicies.FeatureInstallmentsRead)]
     // Lista parcelas do usuário com filtros opcionais por status, vencimento e tipo (receita/despesa).
     public async Task<IActionResult> List([FromQuery] InstallmentStatus? status, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] MoneyType? type, [FromQuery] ListQuery query, CancellationToken cancellationToken = default)
     {
@@ -40,55 +39,8 @@ public class InstallmentsController(IInstallmentsService installmentsService, IA
         return Ok(items);
     }
 
-    [HttpPost("{id:guid}/payments")]
-    // Registra um pagamento (ou antecipação) para a parcela e atualiza o status conforme o total pago.
-    public async Task<IActionResult> Pay(Guid id, [FromBody] PaymentRequest request, CancellationToken cancellationToken)
-    {
-        var userId = GetUserId();
-        var paid = await installmentsService.PayAsync(userId, id, request, cancellationToken);
-        if (!paid) return NotFound();
-        return Ok();
-    }
-
-    [HttpGet("{id:guid}/payments")]
-    // Lista pagamentos de uma parcela, incluindo indicador de elegibilidade para estorno.
-    public async Task<IActionResult> ListPayments(Guid id, CancellationToken cancellationToken)
-    {
-        var userId = GetUserId();
-        var payments = await installmentsService.ListPaymentsAsync(userId, id, cancellationToken);
-        if (payments is null) return NotFound();
-        return Ok(payments);
-    }
-
-    [HttpPost("{id:guid}/payments/{paymentId:guid}/reversals")]
-    // Estorna um pagamento já lançado, gerando ajuste de saldo e recalculando o status da parcela.
-    public async Task<IActionResult> ReversePayment(Guid id, Guid paymentId, [FromBody] PaymentReversalRequest? request, CancellationToken cancellationToken)
-    {
-        var userId = GetUserId();
-        var reversed = await installmentsService.ReversePaymentAsync(userId, id, paymentId, request ?? new PaymentReversalRequest(), cancellationToken);
-        if (!reversed) return NotFound();
-        return Ok();
-    }
-
-    [HttpPost("{id:guid}/anticipations")]
-    [Authorize(Policy = AppAuthorizationPolicies.AtLeastIntermediate)]
-    // Antecipar uma parcela futura: move vencimento para a data informada, marca status e registra data original.
-    public async Task<IActionResult> Anticipate(Guid id, [FromBody] AnticipationRequest request, CancellationToken cancellationToken)
-    {
-        var userId = GetUserId();
-        try
-        {
-            var anticipated = await installmentsService.AnticipateAsync(userId, id, request, cancellationToken);
-            if (!anticipated) return NotFound();
-            return Ok();
-        }
-        catch (InvalidOperationException ex)
-        {
-            throw new AppProblemException("Parcela inválida", ex.Message, StatusCodes.Status400BadRequest);
-        }
-    }
-
     [HttpDelete("{id:guid}")]
+    [Authorize(Policy = AppAuthorizationPolicies.FeatureInstallmentsManage)]
     // Remove apenas a parcela (e pagamentos) sem excluir o plano inteiro.
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
@@ -106,23 +58,4 @@ public class InstallmentsController(IInstallmentsService installmentsService, IA
         }
     }
 
-    private Guid GetUserId()
-    {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
-        return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Usuário não autenticado.");
-    }
-
-    private string? GetIpAddress()
-    {
-        var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(forwarded))
-            return forwarded.Split(',')[0].Trim();
-
-        return HttpContext.Connection.RemoteIpAddress?.ToString();
-    }
-
-    private string? GetUserAgent()
-    {
-        return Request.Headers["User-Agent"].ToString();
-    }
 }

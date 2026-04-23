@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Infrastructure.Auth;
@@ -8,10 +7,10 @@ using Microsoft.AspNetCore.Mvc;
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-[Route("api/v1/[controller]")]
-[Authorize(Policy = AppAuthorizationPolicies.AtLeastIntermediate)]
-public class FinancialAssistantController(IFinancialAssistantService financialAssistantService) : ControllerBase
+[Route("api/financialassistant")]
+[Route("api/v1/financialassistant")]
+[Authorize(Policy = AppAuthorizationPolicies.FeatureFinancialAssistantAccess)]
+public class FinancialAssistantController(IFinancialAssistantService financialAssistantService) : AuthenticatedControllerBase
 {
     [HttpGet("context")]
     public async Task<IActionResult> Context([FromQuery] DateOnly? referenceDate, CancellationToken cancellationToken)
@@ -27,9 +26,4 @@ public class FinancialAssistantController(IFinancialAssistantService financialAs
         return Ok(await financialAssistantService.ChatAsync(userId, request, cancellationToken));
     }
 
-    private Guid GetUserId()
-    {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
-        return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Usuário não autenticado.");
-    }
 }

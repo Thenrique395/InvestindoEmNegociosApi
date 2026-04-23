@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Infrastructure.Auth;
@@ -14,7 +13,7 @@ namespace InvestindoEmNegocio.Controllers;
 [Authorize(Policy = AppAuthorizationPolicies.FeatureAdminRobotsManage)]
 [EnableRateLimiting("admin-robots")]
 public class AdminRobotsController(
-    IAdminRobotsService adminRobotsService) : ControllerBase
+    IAdminRobotsService adminRobotsService) : AuthenticatedControllerBase
 {
     [HttpGet("monitor")]
     public async Task<IActionResult> Monitor(
@@ -53,9 +52,4 @@ public class AdminRobotsController(
         return Ok(results);
     }
 
-    private Guid? GetUserIdOrNull()
-    {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
-        return Guid.TryParse(claim, out var id) ? id : null;
-    }
 }

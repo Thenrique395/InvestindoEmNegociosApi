@@ -25,10 +25,7 @@ public class PreferencesServiceTests
             .ReturnsAsync((UserProfile?)null);
         var sut = new PreferencesService(
             profileRepository.Object,
-            Mock.Of<IUserRepository>(),
-            Mock.Of<IRefreshTokenRepository>(),
-            Mock.Of<IAuditService>(),
-            Mock.Of<IInvestDbContext>());
+            Mock.Of<IUserPrivacyCenterService>());
 
         var result = await sut.GetAsync(Guid.NewGuid());
 
@@ -51,10 +48,7 @@ public class PreferencesServiceTests
             .ReturnsAsync((UserProfile?)null);
         var sut = new PreferencesService(
             profileRepository.Object,
-            Mock.Of<IUserRepository>(),
-            Mock.Of<IRefreshTokenRepository>(),
-            Mock.Of<IAuditService>(),
-            Mock.Of<IInvestDbContext>());
+            Mock.Of<IUserPrivacyCenterService>());
 
         var request = new UpdatePreferencesRequest(
             "USD",
@@ -93,7 +87,9 @@ public class PreferencesServiceTests
         await dbContext.AuditLogs.AddAsync(new AuditLog(userId, "account.delete.requested", "User", userId.ToString(), null, null, null));
         await dbContext.SaveChangesAsync();
 
-        var sut = new PreferencesService(profileRepository, userRepository, new RefreshTokenRepository(dbContext), Mock.Of<IAuditService>(), dbContext);
+        var sut = new PreferencesService(
+            profileRepository,
+            new UserPrivacyCenterService(userRepository, new RefreshTokenRepository(dbContext), Mock.Of<IAuditService>(), dbContext));
         var request = new DeleteOwnAccountRequest("Senha@123", "EXCLUIR");
 
         await sut.DeleteOwnAccountAsync(userId, request);
@@ -120,7 +116,9 @@ public class PreferencesServiceTests
         await dbContext.UserProfiles.AddAsync(new UserProfile(userId, "Teste", "12345678901", "(81) 99999-9999", null));
         await dbContext.SaveChangesAsync();
 
-        var sut = new PreferencesService(profileRepository, userRepository, new RefreshTokenRepository(dbContext), Mock.Of<IAuditService>(), dbContext);
+        var sut = new PreferencesService(
+            profileRepository,
+            new UserPrivacyCenterService(userRepository, new RefreshTokenRepository(dbContext), Mock.Of<IAuditService>(), dbContext));
         var request = new DeleteOwnAccountRequest("SenhaErrada", "EXCLUIR");
 
         var act = async () => await sut.DeleteOwnAccountAsync(userId, request);
@@ -149,7 +147,9 @@ public class PreferencesServiceTests
             new AuditLog(userId, "export", "DataPortability", null, null, null, null));
         await dbContext.SaveChangesAsync();
 
-        var sut = new PreferencesService(profileRepository, userRepository, new RefreshTokenRepository(dbContext), Mock.Of<IAuditService>(), dbContext);
+        var sut = new PreferencesService(
+            profileRepository,
+            new UserPrivacyCenterService(userRepository, new RefreshTokenRepository(dbContext), Mock.Of<IAuditService>(), dbContext));
 
         var result = await sut.GetPrivacySummaryAsync(userId);
 
@@ -177,7 +177,9 @@ public class PreferencesServiceTests
             new RefreshToken(userId, "refresh-3", DateTime.UtcNow.AddHours(-2)));
         await dbContext.SaveChangesAsync();
 
-        var sut = new PreferencesService(profileRepository, userRepository, refreshTokenRepository, Mock.Of<IAuditService>(), dbContext);
+        var sut = new PreferencesService(
+            profileRepository,
+            new UserPrivacyCenterService(userRepository, refreshTokenRepository, Mock.Of<IAuditService>(), dbContext));
 
         var result = await sut.RevokeOwnSessionsAsync(userId);
 
@@ -201,7 +203,9 @@ public class PreferencesServiceTests
         await dbContext.RefreshTokens.AddAsync(new RefreshToken(userId, "refresh-1", DateTime.UtcNow.AddHours(2)));
         await dbContext.SaveChangesAsync();
 
-        var sut = new PreferencesService(profileRepository, userRepository, refreshTokenRepository, Mock.Of<IAuditService>(), dbContext);
+        var sut = new PreferencesService(
+            profileRepository,
+            new UserPrivacyCenterService(userRepository, refreshTokenRepository, Mock.Of<IAuditService>(), dbContext));
 
         var result = await sut.GetSecuritySummaryAsync(userId);
 

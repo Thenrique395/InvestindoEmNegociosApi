@@ -239,6 +239,7 @@ public class ImportFlowsIntegrationTests
             builder.Services.AddScoped<ILoanInstallmentRepository, LoanInstallmentRepository>();
 
             builder.Services.AddScoped<IAccountsService, AccountsService>();
+            builder.Services.AddScoped<IAccountAnalyticsService, AccountAnalyticsService>();
             builder.Services.AddScoped<ICardsService, CardsService>();
             builder.Services.AddScoped<IPlansService, PlansService>();
             builder.Services.AddScoped<IBankStatementImportEngine, BankStatementImportEngine>();

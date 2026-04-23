@@ -96,7 +96,8 @@ public class DataPortabilityFacadeServiceTests
             Enabled = enabled,
             MaxImportSizeMb = maxImportMb
         });
+        var guard = new DataPortabilityGuardService(options, NullLogger<DataPortabilityGuardService>.Instance);
 
-        return new DataPortabilityFacadeService(portability.Object, options, NullLogger<DataPortabilityFacadeService>.Instance);
+        return new DataPortabilityFacadeService(portability.Object, guard, NullLogger<DataPortabilityFacadeService>.Instance);
     }
 }

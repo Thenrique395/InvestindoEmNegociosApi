@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Infrastructure.Auth;
@@ -8,10 +7,10 @@ using Microsoft.AspNetCore.Mvc;
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-[Route("api/v1/[controller]")]
-[Authorize(Policy = AppAuthorizationPolicies.AtLeastBasic)]
-public class OnboardingController(IOnboardingService onboardingService) : ControllerBase
+[Route("api/onboarding")]
+[Route("api/v1/onboarding")]
+[Authorize(Policy = AppAuthorizationPolicies.FeatureOnboardingManage)]
+public class OnboardingController(IOnboardingService onboardingService) : AuthenticatedControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<OnboardingStatusDto>> Get(CancellationToken cancellationToken)
@@ -29,9 +28,4 @@ public class OnboardingController(IOnboardingService onboardingService) : Contro
         return Ok(status);
     }
 
-    private Guid GetUserId()
-    {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
-        return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Usuário não autenticado.");
-    }
 }

@@ -1,8 +1,6 @@
-using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
-using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,15 +8,12 @@ using Microsoft.AspNetCore.Mvc;
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-[Route("api/v1/[controller]")]
-[Authorize(Policy = AppAuthorizationPolicies.FeatureAccountsAccess)]
-public class AccountsController(
-    IAccountsService accountsService,
-    IOfxImportService ofxImportService,
-    ICsvImportService csvImportService) : ControllerBase
+[Route("api/accounts")]
+[Route("api/v1/accounts")]
+public class AccountsController(IAccountsService accountsService) : AuthenticatedControllerBase
 {
     [HttpGet]
+    [Authorize(Policy = AppAuthorizationPolicies.FeatureAccountsRead)]
     public async Task<IActionResult> List(CancellationToken cancellationToken)
     {
         var userId = GetUserId();
@@ -27,9 +22,9 @@ public class AccountsController(
     }
 
     [HttpPost]
+    [Authorize(Policy = AppAuthorizationPolicies.FeatureAccountsManage)]
     public async Task<IActionResult> Create([FromBody] AccountRequest request, CancellationToken cancellationToken)
     {
-        EnsureAccountManagementAllowed();
         try
         {
             var userId = GetUserId();
@@ -43,9 +38,9 @@ public class AccountsController(
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = AppAuthorizationPolicies.FeatureAccountsManage)]
     public async Task<IActionResult> Update(Guid id, [FromBody] AccountRequest request, CancellationToken cancellationToken)
     {
-        EnsureAccountManagementAllowed();
         try
         {
             var userId = GetUserId();
@@ -60,9 +55,9 @@ public class AccountsController(
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Policy = AppAuthorizationPolicies.FeatureAccountsManage)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        EnsureAccountManagementAllowed();
         var userId = GetUserId();
         var removed = await accountsService.DeleteAsync(userId, id, cancellationToken);
         if (!removed) return NotFound();
@@ -70,6 +65,7 @@ public class AccountsController(
     }
 
     [HttpGet("{id:guid}/balance")]
+    [Authorize(Policy = AppAuthorizationPolicies.FeatureAccountsRead)]
     public async Task<IActionResult> Balance(Guid id, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
@@ -78,299 +74,4 @@ public class AccountsController(
         return Ok(balance);
     }
 
-    [HttpGet("summary/real-balance")]
-    public async Task<ActionResult<RealAvailableBalanceResponse>> RealBalance(
-        [FromQuery] string? period,
-        [FromQuery] DateOnly? referenceDate,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var userId = GetUserId();
-            var summary = await accountsService.GetRealAvailableBalanceAsync(userId, period ?? "month", referenceDate, cancellationToken);
-            return Ok(summary);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Período inválido", ex.Message, StatusCodes.Status400BadRequest);
-        }
-    }
-
-    [HttpGet("summary/debts")]
-    public async Task<ActionResult<DebtSummaryResponse>> Debts(
-        [FromQuery] DateOnly? referenceDate,
-        CancellationToken cancellationToken)
-    {
-        var userId = GetUserId();
-        var summary = await accountsService.GetDebtSummaryAsync(userId, referenceDate, cancellationToken);
-        return Ok(summary);
-    }
-
-    [HttpGet("summary/net-worth")]
-    public async Task<ActionResult<NetWorthSummaryResponse>> NetWorth(
-        [FromQuery] DateOnly? referenceDate,
-        CancellationToken cancellationToken)
-    {
-        var userId = GetUserId();
-        var summary = await accountsService.GetNetWorthSummaryAsync(userId, referenceDate, cancellationToken);
-        return Ok(summary);
-    }
-
-    [HttpGet("summary/net-worth/history")]
-    public async Task<ActionResult<NetWorthHistoryResponse>> NetWorthHistory(
-        [FromQuery] int? months,
-        [FromQuery] DateOnly? referenceDate,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var userId = GetUserId();
-            var summary = await accountsService.GetNetWorthHistoryAsync(userId, months ?? 12, referenceDate, cancellationToken);
-            return Ok(summary);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Parâmetro inválido", ex.Message, StatusCodes.Status400BadRequest);
-        }
-    }
-
-    [HttpGet("summary/projection")]
-    public async Task<ActionResult<CashflowProjectionResponse>> Projection(
-        [FromQuery] string? period,
-        [FromQuery] DateOnly? referenceDate,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var userId = GetUserId();
-            var summary = await accountsService.GetProjectionAsync(userId, period ?? "month", referenceDate, cancellationToken);
-            return Ok(summary);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Período inválido", ex.Message, StatusCodes.Status400BadRequest);
-        }
-    }
-
-    [HttpGet("summary/risk")]
-    public async Task<ActionResult<RiskBotAssessmentResponse>> Risk(
-        [FromQuery] string? period,
-        [FromQuery] DateOnly? referenceDate,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var userId = GetUserId();
-            var summary = await accountsService.GetRiskAssessmentAsync(userId, period ?? "month", referenceDate, cancellationToken);
-            return Ok(summary);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Período inválido", ex.Message, StatusCodes.Status400BadRequest);
-        }
-    }
-
-    [HttpGet("summary/insights")]
-    public async Task<ActionResult<InsightEngineResponse>> Insights(
-        [FromQuery] string? period,
-        [FromQuery] DateOnly? referenceDate,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var userId = GetUserId();
-            var summary = await accountsService.GetInsightsAsync(userId, period ?? "month", referenceDate, cancellationToken);
-            return Ok(summary);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Período inválido", ex.Message, StatusCodes.Status400BadRequest);
-        }
-    }
-
-    [HttpGet("summary/recommendations")]
-    public async Task<ActionResult<RecommendationEngineResponse>> Recommendations(
-        [FromQuery] string? period,
-        [FromQuery] DateOnly? referenceDate,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var userId = GetUserId();
-            var summary = await accountsService.GetRecommendationsAsync(userId, period ?? "month", referenceDate, cancellationToken);
-            return Ok(summary);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Período inválido", ex.Message, StatusCodes.Status400BadRequest);
-        }
-    }
-
-    [HttpGet("{id:guid}/transactions")]
-    public async Task<IActionResult> Transactions(
-        Guid id,
-        [FromQuery] DateTime? fromUtc,
-        [FromQuery] DateTime? toUtc,
-        CancellationToken cancellationToken)
-    {
-        var userId = GetUserId();
-        var data = await accountsService.ListTransactionsAsync(userId, id, fromUtc, toUtc, cancellationToken);
-        if (data is null) return NotFound();
-        return Ok(data);
-    }
-
-    [HttpPost("transfers")]
-    public async Task<IActionResult> Transfer([FromBody] AccountTransferRequest request, CancellationToken cancellationToken)
-    {
-        EnsureAccountManagementAllowed();
-        try
-        {
-            var userId = GetUserId();
-            var transfer = await accountsService.TransferAsync(userId, request, cancellationToken);
-            if (transfer is null) return NotFound();
-            return Ok(transfer);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Transferência inválida", ex.Message, StatusCodes.Status400BadRequest);
-        }
-    }
-
-    [HttpPost("ofx/extract")]
-    [Consumes("multipart/form-data")]
-    [RequestSizeLimit(10 * 1024 * 1024)]
-    public async Task<ActionResult<OfxExtractResponse>> ExtractOfx([FromForm] UploadOfxRequest request, CancellationToken cancellationToken)
-    {
-        var file = request.File;
-        if (file is null || file.Length == 0)
-            throw new AppProblemException(
-                "Arquivo inválido",
-                "Envie um arquivo OFX válido.",
-                StatusCodes.Status400BadRequest);
-
-        var fileName = file.FileName ?? string.Empty;
-        var contentType = file.ContentType ?? string.Empty;
-        var isSupported = fileName.EndsWith(".ofx", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(contentType, "application/x-ofx", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(contentType, "application/octet-stream", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(contentType, "text/plain", StringComparison.OrdinalIgnoreCase);
-        if (!isSupported)
-            throw new AppProblemException(
-                "Arquivo inválido",
-                "Formato não suportado. Use OFX.",
-                StatusCodes.Status400BadRequest);
-
-        try
-        {
-            var userId = GetUserId();
-            await using var stream = file.OpenReadStream();
-            var result = await ofxImportService.ExtractAsync(userId, request.AccountId, stream, cancellationToken);
-            return Ok(result);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Arquivo OFX inválido", ex.Message, StatusCodes.Status400BadRequest);
-        }
-        catch (InvalidOperationException ex)
-        {
-            throw new AppProblemException("Importação OFX rejeitada", ex.Message, StatusCodes.Status422UnprocessableEntity);
-        }
-    }
-
-    [HttpPost("ofx/import")]
-    public async Task<ActionResult<BankStatementImportResultResponse>> ImportOfx([FromBody] BankStatementImportRequest request, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var userId = GetUserId();
-            var result = await ofxImportService.ImportAsync(userId, request, cancellationToken);
-            return Ok(result);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Importação OFX inválida", ex.Message, StatusCodes.Status400BadRequest);
-        }
-        catch (InvalidOperationException ex)
-        {
-            throw new AppProblemException("Importação OFX rejeitada", ex.Message, StatusCodes.Status422UnprocessableEntity);
-        }
-    }
-
-    [HttpPost("csv/extract")]
-    [Consumes("multipart/form-data")]
-    [RequestSizeLimit(10 * 1024 * 1024)]
-    public async Task<ActionResult<CsvExtractResponse>> ExtractCsv([FromForm] UploadCsvStatementRequest request, CancellationToken cancellationToken)
-    {
-        var file = request.File;
-        if (file is null || file.Length == 0)
-            throw new AppProblemException(
-                "Arquivo inválido",
-                "Envie um arquivo CSV válido.",
-                StatusCodes.Status400BadRequest);
-
-        var fileName = file.FileName ?? string.Empty;
-        var isSupported = fileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(file.ContentType, "text/csv", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(file.ContentType, "application/vnd.ms-excel", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(file.ContentType, "text/plain", StringComparison.OrdinalIgnoreCase);
-        if (!isSupported)
-            throw new AppProblemException(
-                "Arquivo inválido",
-                "Formato não suportado. Use CSV.",
-                StatusCodes.Status400BadRequest);
-
-        try
-        {
-            var userId = GetUserId();
-            await using var stream = file.OpenReadStream();
-            var result = await csvImportService.ExtractAsync(userId, request.AccountId, stream, cancellationToken);
-            return Ok(result);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Arquivo CSV inválido", ex.Message, StatusCodes.Status400BadRequest);
-        }
-        catch (InvalidOperationException ex)
-        {
-            throw new AppProblemException("Importação CSV rejeitada", ex.Message, StatusCodes.Status422UnprocessableEntity);
-        }
-    }
-
-    [HttpPost("csv/import")]
-    public async Task<ActionResult<BankStatementImportResultResponse>> ImportCsv([FromBody] BankStatementImportRequest request, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var userId = GetUserId();
-            var result = await csvImportService.ImportAsync(userId, request, cancellationToken);
-            return Ok(result);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Importação CSV inválida", ex.Message, StatusCodes.Status400BadRequest);
-        }
-        catch (InvalidOperationException ex)
-        {
-            throw new AppProblemException("Importação CSV rejeitada", ex.Message, StatusCodes.Status422UnprocessableEntity);
-        }
-    }
-
-    private Guid GetUserId()
-    {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
-        return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Usuário não autenticado.");
-    }
-
-    private void EnsureAccountManagementAllowed()
-    {
-        var roleRaw = User.FindFirstValue(ClaimTypes.Role);
-        if (!Enum.TryParse<UserRole>(roleRaw, true, out var role))
-            throw new UnauthorizedAccessException("Perfil não identificado.");
-
-        if (role == UserRole.Basic)
-            throw new AppProblemException(
-                "Plano Basic",
-                "No plano Basic a conta principal é gerenciada automaticamente. Faça upgrade para criar ou editar contas.",
-                StatusCodes.Status403Forbidden);
-    }
 }

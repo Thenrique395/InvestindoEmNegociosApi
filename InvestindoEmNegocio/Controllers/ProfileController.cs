@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
@@ -9,10 +8,10 @@ using Microsoft.AspNetCore.Mvc;
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-[Route("api/v1/[controller]")]
-[Authorize(Policy = AppAuthorizationPolicies.AtLeastBasic)]
-public class ProfileController(IProfileService profileService, IAvatarStorageService avatarStorageService) : ControllerBase
+[Route("api/profile")]
+[Route("api/v1/profile")]
+[Authorize(Policy = AppAuthorizationPolicies.FeatureProfileManage)]
+public class ProfileController(IProfileService profileService, IAvatarStorageService avatarStorageService) : AuthenticatedControllerBase
 {
     [HttpGet]
     // Retorna o perfil do usuário autenticado (204 se ainda não existir).
@@ -45,7 +44,7 @@ public class ProfileController(IProfileService profileService, IAvatarStorageSer
                 "Arquivo inválido",
                 "Envie uma imagem válida.",
                 StatusCodes.Status400BadRequest);
-        
+
 
         var userId = GetUserId();
         await using var stream = avatar.OpenReadStream();
@@ -62,11 +61,4 @@ public class ProfileController(IProfileService profileService, IAvatarStorageSer
         return Ok(profile);
     }
 
-    private Guid GetUserId()
-    {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
-        if (Guid.TryParse(claim, out var id))
-            return id;
-        throw new UnauthorizedAccessException("Usuário não autenticado.");
-    }
 }

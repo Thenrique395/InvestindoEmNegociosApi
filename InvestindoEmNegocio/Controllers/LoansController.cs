@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
@@ -9,10 +8,10 @@ using Microsoft.AspNetCore.Mvc;
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-[Route("api/v1/[controller]")]
-[Authorize(Policy = AppAuthorizationPolicies.AtLeastIntermediate)]
-public class LoansController(ILoansService loansService) : ControllerBase
+[Route("api/loans")]
+[Route("api/v1/loans")]
+[Authorize(Policy = AppAuthorizationPolicies.FeatureLoansAccess)]
+public class LoansController(ILoansService loansService) : AuthenticatedControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List(CancellationToken cancellationToken)
@@ -49,9 +48,4 @@ public class LoansController(ILoansService loansService) : ControllerBase
         }
     }
 
-    private Guid GetUserId()
-    {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
-        return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Usuário não autenticado.");
-    }
 }

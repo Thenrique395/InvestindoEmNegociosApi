@@ -155,15 +155,15 @@ public class AdminUsersServiceTests
         overridesRepository
             .Setup(x => x.ListByUserAsync(user.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync([
-                new UserFeatureOverride(user.Id, "accounts.access", false)
+                new UserFeatureOverride(user.Id, "accounts.manage", false)
             ]);
 
         var sut = new AdminUsersService(userRepository.Object, overridesRepository.Object, Mock.Of<IAuditService>());
 
         var result = await sut.ListFeaturesAsync(user.Id, CancellationToken.None);
 
-        result.Should().Contain(x => x.FeatureKey == "accounts.access" && x.EffectiveEnabled == false && x.OverrideEnabled == false);
-        result.Should().Contain(x => x.FeatureKey == "cards.access" && x.EffectiveEnabled);
+        result.Should().Contain(x => x.FeatureKey == "accounts.manage" && x.EffectiveEnabled == false && x.OverrideEnabled == false);
+        result.Should().Contain(x => x.FeatureKey == "cards.read" && x.EffectiveEnabled);
     }
 
     [Fact]

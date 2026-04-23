@@ -5,7 +5,6 @@ using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Infrastructure.Data;
 using InvestindoEmNegocio.Infrastructure.Repositories;
-using InvestindoEmNegocio.Infrastructure.Services;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -26,13 +25,20 @@ public class SubscriptionsServiceTests
         var jwt = new Mock<IJwtTokenGenerator>();
         jwt.Setup(x => x.Generate(It.IsAny<User>()))
             .Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
+        var userSessionService = new UserSessionService(
+            new RefreshTokenRepository(dbContext),
+            jwt.Object);
 
         var sut = new SubscriptionsService(
-            new UserRepository(dbContext),
-            new UserSubscriptionRepository(dbContext),
-            new RefreshTokenRepository(dbContext),
-            jwt.Object,
-            Options.Create(new StripeOptions()));
+            new SubscriptionCatalogService(
+                new UserRepository(dbContext),
+                new UserSubscriptionRepository(dbContext)),
+            new SubscriptionManagementService(
+                new UserRepository(dbContext),
+                new UserSubscriptionRepository(dbContext),
+                userSessionService,
+                Mock.Of<IStripeBillingGateway>(),
+                Options.Create(new StripeOptions())));
 
         var result = await sut.ChangeAsync(user.Id, new("basic", "Monthly"));
 
@@ -62,12 +68,19 @@ public class SubscriptionsServiceTests
         await dbContext.SaveChangesAsync();
 
         var jwt = new Mock<IJwtTokenGenerator>();
-        var sut = new SubscriptionsService(
-            new UserRepository(dbContext),
-            new UserSubscriptionRepository(dbContext),
+        var userSessionService = new UserSessionService(
             new RefreshTokenRepository(dbContext),
-            jwt.Object,
-            Options.Create(new StripeOptions()));
+            jwt.Object);
+        var sut = new SubscriptionsService(
+            new SubscriptionCatalogService(
+                new UserRepository(dbContext),
+                new UserSubscriptionRepository(dbContext)),
+            new SubscriptionManagementService(
+                new UserRepository(dbContext),
+                new UserSubscriptionRepository(dbContext),
+                userSessionService,
+                Mock.Of<IStripeBillingGateway>(),
+                Options.Create(new StripeOptions())));
 
         jwt.Setup(x => x.Generate(It.IsAny<User>()))
             .Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));

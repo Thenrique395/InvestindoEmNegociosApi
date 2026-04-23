@@ -83,12 +83,14 @@ public class PlansAndGoalsControllerTests
 
         var audit = new Mock<IAuditService>();
         var controller = new GoalsController(goalsService.Object, audit.Object);
+        var incomeController = new IncomeGoalsController(goalsService.Object);
         SetAuth(controller, userId);
+        SetAuth(incomeController, userId);
 
         var request = new CreateGoalRequest("Meta", 1000m, 2026, null, GoalStatus.InProgress, 100m, 50m, null);
 
-        (await controller.GetIncomeGoal(2026, CancellationToken.None)).Should().BeOfType<OkObjectResult>();
-        (await controller.UpsertIncomeGoal(new UpsertIncomeGoalRequest(2026, 100m), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await incomeController.Get(2026, CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await incomeController.Upsert(new UpsertIncomeGoalRequest(2026, 100m), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await controller.List(2026, null, new ListQuery(1, 10, "title", "asc"), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await controller.GetById(goalId, CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await controller.Create(request, CancellationToken.None)).Should().BeOfType<OkObjectResult>();
@@ -111,15 +113,18 @@ public class PlansAndGoalsControllerTests
         goalsService.Setup(x => x.UpsertIncomeGoalAsync(It.IsAny<Guid>(), It.IsAny<UpsertIncomeGoalRequest>(), It.IsAny<CancellationToken>())).ThrowsAsync(new ArgumentException("invalido"));
 
         var controller = new GoalsController(goalsService.Object, Mock.Of<IAuditService>());
-        SetAuth(controller, Guid.NewGuid());
+        var incomeController = new IncomeGoalsController(goalsService.Object);
+        var userId = Guid.NewGuid();
+        SetAuth(controller, userId);
+        SetAuth(incomeController, userId);
 
-        (await controller.GetIncomeGoal(2026, CancellationToken.None)).Should().BeOfType<NoContentResult>();
+        (await incomeController.Get(2026, CancellationToken.None)).Should().BeOfType<NoContentResult>();
         (await controller.GetById(Guid.NewGuid(), CancellationToken.None)).Should().BeOfType<NotFoundResult>();
         (await controller.Update(Guid.NewGuid(), new CreateGoalRequest("Meta", 1, 2026, null, GoalStatus.Planned, 0, 0, null), CancellationToken.None)).Should().BeOfType<NotFoundResult>();
         (await controller.Delete(Guid.NewGuid(), CancellationToken.None)).Should().BeOfType<NotFoundResult>();
 
         Func<Task> create = async () => await controller.Create(new CreateGoalRequest("Meta", 1, 2026, null, GoalStatus.Planned, 0, 0, null), CancellationToken.None);
-        Func<Task> upsert = async () => await controller.UpsertIncomeGoal(new UpsertIncomeGoalRequest(2026, 100m), CancellationToken.None);
+        Func<Task> upsert = async () => await incomeController.Upsert(new UpsertIncomeGoalRequest(2026, 100m), CancellationToken.None);
         await create.Should().ThrowAsync<AppProblemException>();
         await upsert.Should().ThrowAsync<AppProblemException>();
     }

@@ -1,4 +1,4 @@
-# Matriz de Autorização por Endpoint
+# Matriz de Autorizacao por Endpoint
 
 Fonte de verdade para controle de acesso no backend.
 
@@ -6,22 +6,22 @@ Fonte de verdade para controle de acesso no backend.
 
 Este documento existe para:
 
-- registrar a proteção real aplicada pela API
-- reduzir divergência entre código, documentação e UX
+- registrar a protecao real aplicada pela API
+- reduzir divergencia entre codigo, documentacao e UX
 - deixar claro qual policy protege cada grupo de endpoint
-- sinalizar desalinhamentos conhecidos entre regra atual e direção de produto
+- sinalizar desalinhamentos conhecidos entre regra atual e direcao de produto
 
 ## Como ler este arquivo
 
 - este documento descreve o que o backend protege hoje
-- ele não substitui a direção de produto em `../../docs/PRODUCT.md`
-- quando houver diferença entre produto desejado e código atual, o desalinhamento deve ser marcado explicitamente aqui
+- ele nao substitui a direcao de produto em `../../docs/PRODUCT.md`
+- quando houver diferenca entre produto desejado e codigo atual, o desalinhamento deve ser marcado explicitamente aqui
 
-Regra prática:
+Regra pratica:
 
-- frontend pode esconder módulos por UX
-- backend continua sendo a fonte final de autorização
-- mudança de `[Authorize(Policy = ...)]`, role mínima ou feature gate exige atualização deste arquivo
+- frontend pode esconder modulos por UX
+- backend continua sendo a fonte final de autorizacao
+- mudanca de `[Authorize(Policy = ...)]`, role minima ou feature gate exige atualizacao deste arquivo
 
 ## Hierarquia de perfis
 
@@ -29,62 +29,116 @@ Regra prática:
 
 ## Policies atuais
 
-### Policies por role mínima
+### Policies por role minima
 
 - `admin.only`
 - `role.atLeast.basic`
 - `role.atLeast.intermediate`
 - `role.atLeast.advanced`
 
-Observação:
+Observacao:
 
 - nem toda policy existente precisa estar em uso neste momento
-- esta seção lista as policies disponíveis no backend, não apenas as já aplicadas em controllers
+- os controllers de aplicacao estao protegidos por feature gate; role minima fica disponivel como primitiva de seguranca
 
 ### Policies por feature
 
+- `feature.auth.security.manage`
+- `feature.billing.manage`
+- `feature.subscriptions.manage`
+- `feature.profile.manage`
+- `feature.preferences.manage`
+- `feature.onboarding.manage`
+- `feature.notifications.access`
+- `feature.lookups.read`
+- `feature.data-portability.export`
+- `feature.data-portability.import`
+- `feature.plans.manage`
+- `feature.incomes.summary.read`
+- `feature.goals.manage`
+- `feature.goal-contributions.manage`
+- `feature.installments.read`
+- `feature.installments.pay`
+- `feature.installments.manage`
+- `feature.installments.anticipate`
 - `feature.investments.access`
-- `feature.cards.access`
-- `feature.accounts.access`
-- `feature.categories.access`
+- `feature.accounts.read`
+- `feature.accounts.manage`
+- `feature.accounts.analytics`
+- `feature.accounts.import`
+- `feature.cards.read`
+- `feature.cards.manage`
+- `feature.cards.statements`
+- `feature.categories.read`
+- `feature.categories.manage`
 - `feature.invoice-import.access`
+- `feature.financial-assistant.access`
+- `feature.monthly-snapshots.access`
+- `feature.loans.access`
 - `feature.admin.users.manage`
 - `feature.admin.parameters.manage`
 - `feature.admin.robots.manage`
 - `feature.admin.categories.manage`
 
-## Catálogo de features
+## Catalogo de features
 
+- `auth.security.manage`
+- `billing.manage`
+- `subscriptions.manage`
+- `profile.manage`
+- `preferences.manage`
+- `onboarding.manage`
+- `notifications.access`
+- `lookups.read`
+- `data-portability.export`
+- `data-portability.import`
+- `plans.manage`
+- `incomes.summary.read`
+- `goals.manage`
+- `goal-contributions.manage`
+- `installments.read`
+- `installments.pay`
+- `installments.manage`
+- `installments.anticipate`
 - `investments.access`
-- `cards.access`
-- `accounts.access`
-- `categories.access`
+- `accounts.read`
+- `accounts.manage`
+- `accounts.analytics`
+- `accounts.import`
+- `cards.read`
+- `cards.manage`
+- `cards.statements`
+- `categories.read`
+- `categories.manage`
 - `invoice-import.access`
+- `financial-assistant.access`
+- `monthly-snapshots.access`
+- `loans.access`
 - `admin.users.manage`
 - `admin.parameters.manage`
 - `admin.robots.manage`
 - `admin.categories.manage`
 
-## Regra de resolução de acesso
+## Regra de resolucao de acesso
 
 - `Admin` tem bypass global de feature
-- para perfis não-admin, a decisão usa role efetiva e matriz de features por perfil
-- claims explícitas `feature` e `feature_deny` podem complementar ou negar acesso
-- overrides por usuário são aplicados no backend via `IClaimsTransformation`
+- para perfis nao-admin, a decisao usa role efetiva e matriz de features por perfil
+- claims explicitas `feature` e `feature_deny` podem complementar ou negar acesso
+- overrides por usuario sao aplicados no backend via `IClaimsTransformation`
 
-## Leitura rápida por faixa de acesso
+## Leitura rapida por faixa de acesso
 
-- `Público`: autenticação, recuperação de acesso e webhook do provedor
-- `Todos os perfis autenticados (role.atLeast.basic)`: perfil, preferências, onboarding, metas, planos, parcelas, notificações, billing self-service e consultas gerais
-- `Intermediate+ via feature`: cartões, contas, categorias editáveis, importação e antecipação
+- `Publico`: autenticacao publica, recuperacao de acesso e webhook do provedor
+- `Basic via feature`: seguranca da conta, perfil, preferencias, onboarding, notificacoes, consultas gerais, portabilidade, billing self-service, assinaturas, planos, receitas, metas, parcelas basicas, leitura de contas e leitura de categorias
+- `Intermediate+ via feature`: gestao e analytics de contas, cartoes, gestao de categorias, importacoes, antecipacao de parcelas, assistente financeiro, snapshots mensais e emprestimos
 - `Advanced+ via feature`: investimentos e market data
-- `Administrativo via feature`: usuários, parâmetros, robôs e categorias padrão
+- `Administrativo via feature`: usuarios, parametros, robos e categorias padrao
 
 ## Mapeamento atual por grupo
 
-### Público
+### Publico
 
-Sem autenticação:
+Sem autenticacao:
 
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
@@ -94,78 +148,115 @@ Sem autenticação:
 - `POST /api/v1/auth/logout`
 - `POST /api/v1/billing/stripe/webhook`
 
-### Todos os perfis autenticados
+### Basic via feature gate
 
-Protegidos por `role.atLeast.basic`:
+Protegidos por feature, nao por role minima direta no controller:
 
-- `POST /api/v1/auth/change-password`
-- `GET /api/v1/profile`
-- `PUT /api/v1/profile`
-- `POST /api/v1/profile/avatar`
-- `GET /api/v1/preferences`
-- `PUT /api/v1/preferences`
-- `GET /api/v1/preferences/privacy-summary`
-- `GET /api/v1/preferences/security-summary`
-- `POST /api/v1/preferences/sessions/revoke`
-- `POST /api/v1/preferences/account/delete`
-- `GET /api/v1/onboarding`
-- `PUT /api/v1/onboarding`
-- `GET /api/v1/receitas/summary`
-- `GET /api/v1/plans`
-- `POST /api/v1/plans`
-- `GET /api/v1/plans/{id}`
-- `PUT /api/v1/plans/{id}`
-- `DELETE /api/v1/plans/{id}`
-- `GET /api/v1/goals/income`
-- `PUT /api/v1/goals/income`
-- `GET /api/v1/goals`
-- `POST /api/v1/goals`
-- `GET /api/v1/goals/{id}`
-- `PUT /api/v1/goals/{id}`
-- `DELETE /api/v1/goals/{id}`
-- `GET /api/v1/goals/{goalId}/contributions`
-- `POST /api/v1/goals/{goalId}/contributions`
-- `GET /api/v1/installments`
-- `GET /api/v1/installments/{id}/payments`
-- `POST /api/v1/installments/{id}/payments`
-- `POST /api/v1/installments/{id}/payments/{paymentId}/reversals`
-- `DELETE /api/v1/installments/{id}`
-- `GET /api/v1/notifications`
-- `POST /api/v1/notifications/generate`
-- `POST /api/v1/notifications/{id}/read`
-- `GET /api/v1/lookups/payment-methods`
-- `GET /api/v1/lookups/card-brands`
-- `GET /api/v1/lookups/institutions`
-- `GET /api/v1/data-portability/export`
-- `POST /api/v1/data-portability/import`
-- `GET /api/v1/subscriptions/catalog`
-- `POST /api/v1/subscriptions/change`
-- `POST /api/v1/subscriptions/cancel`
-- `POST /api/v1/billing/checkout`
-- `GET /api/v1/billing/checkout-status/{checkoutId}`
-- `GET /api/v1/billing/checkout-status/by-session/{sessionId}`
-- `POST /api/v1/billing/portal`
+- `feature.auth.security.manage`
+  - `POST /api/v1/auth/change-password`
+
+- `feature.profile.manage`
+  - `GET /api/v1/profile`
+  - `PUT /api/v1/profile`
+  - `POST /api/v1/profile/avatar`
+
+- `feature.preferences.manage`
+  - `GET /api/v1/preferences`
+  - `PUT /api/v1/preferences`
+  - `GET /api/v1/preferences/privacy-summary`
+  - `GET /api/v1/preferences/security-summary`
+  - `POST /api/v1/preferences/sessions/revoke`
+  - `POST /api/v1/preferences/account/delete`
+
+- `feature.onboarding.manage`
+  - `GET /api/v1/onboarding`
+  - `PUT /api/v1/onboarding`
+
+- `feature.notifications.access`
+  - `GET /api/v1/notifications`
+  - `POST /api/v1/notifications/generate`
+  - `POST /api/v1/notifications/{id}/read`
+
+- `feature.lookups.read`
+  - `GET /api/v1/lookups/payment-methods`
+  - `GET /api/v1/lookups/card-brands`
+  - `GET /api/v1/lookups/institutions`
+
+- `feature.data-portability.export`
+  - `GET /api/v1/data-portability/export`
+
+- `feature.data-portability.import`
+  - `POST /api/v1/data-portability/import`
+
+- `feature.subscriptions.manage`
+  - `GET /api/v1/subscriptions/catalog`
+  - `POST /api/v1/subscriptions/change`
+  - `POST /api/v1/subscriptions/cancel`
+
+- `feature.billing.manage`
+  - `POST /api/v1/billing/checkout`
+  - `GET /api/v1/billing/checkout-status/{checkoutId}`
+  - `GET /api/v1/billing/checkout-status/by-session/{sessionId}`
+  - `POST /api/v1/billing/portal`
+
+- `feature.plans.manage`
+  - `GET /api/v1/plans`
+  - `POST /api/v1/plans`
+  - `GET /api/v1/plans/{id}`
+  - `PUT /api/v1/plans/{id}`
+  - `DELETE /api/v1/plans/{id}`
+
+- `feature.incomes.summary.read`
+  - `GET /api/v1/receitas/summary`
+
+- `feature.goals.manage`
+  - `GET /api/v1/goals/income`
+  - `PUT /api/v1/goals/income`
+  - `GET /api/v1/goals`
+  - `POST /api/v1/goals`
+  - `GET /api/v1/goals/{id}`
+  - `PUT /api/v1/goals/{id}`
+  - `DELETE /api/v1/goals/{id}`
+
+- `feature.goal-contributions.manage`
+  - `GET /api/v1/goals/{goalId}/contributions`
+  - `POST /api/v1/goals/{goalId}/contributions`
+
+- `feature.installments.read`
+  - `GET /api/v1/installments`
+  - `GET /api/v1/installments/{id}/payments`
+
+- `feature.installments.pay`
+  - `POST /api/v1/installments/{id}/payments`
+  - `POST /api/v1/installments/{id}/payments/{paymentId}/reversals`
+
+- `feature.installments.manage`
+  - `DELETE /api/v1/installments/{id}`
+
+- `feature.accounts.read`
+  - `GET /api/v1/accounts`
+  - `GET /api/v1/accounts/{id}/balance`
+  - `GET /api/v1/accounts/{id}/transactions`
+
+- `feature.categories.read`
+  - `GET /api/v1/categories`
+
+Regra atual:
+
+- `Basic` recebe os recursos comuns acima, `accounts.read` e `categories.read`
+- `Basic` nao recebe cartoes, gestao de contas, analytics, importacoes, antecipacao, assistente financeiro, snapshots, emprestimos nem investimentos
 
 ### Intermediate+ via feature gate
 
-Protegidos por feature, não só por role nominal:
+Protegidos por feature, nao por role minima direta no controller:
 
-- `feature.cards.access`
-  - `GET /api/v1/cards`
-  - `POST /api/v1/cards`
-  - `PUT /api/v1/cards/{id}`
-  - `DELETE /api/v1/cards/{id}`
-  - `GET /api/v1/cards/debt/total`
-  - `GET /api/v1/cards/{id}/statements`
-
-- `feature.accounts.access`
-  - `GET /api/v1/accounts`
+- `feature.accounts.manage`
   - `POST /api/v1/accounts`
   - `PUT /api/v1/accounts/{id}`
   - `DELETE /api/v1/accounts/{id}`
-  - `GET /api/v1/accounts/{id}/balance`
-  - `GET /api/v1/accounts/{id}/transactions`
   - `POST /api/v1/accounts/transfers`
+
+- `feature.accounts.analytics`
   - `GET /api/v1/accounts/summary/real-balance`
   - `GET /api/v1/accounts/summary/debts`
   - `GET /api/v1/accounts/summary/net-worth`
@@ -174,19 +265,26 @@ Protegidos por feature, não só por role nominal:
   - `GET /api/v1/accounts/summary/risk`
   - `GET /api/v1/accounts/summary/insights`
   - `GET /api/v1/accounts/summary/recommendations`
+
+- `feature.accounts.import`
   - `POST /api/v1/accounts/ofx/extract`
   - `POST /api/v1/accounts/ofx/import`
   - `POST /api/v1/accounts/csv/extract`
   - `POST /api/v1/accounts/csv/import`
 
-  Observação importante:
+- `feature.cards.read`
+  - `GET /api/v1/cards`
+  - `GET /api/v1/cards/debt/total`
 
-  - além da feature `feature.accounts.access`, o controller aplica bloqueio adicional para `Basic` em mutações de conta
-  - hoje `POST|PUT|DELETE /api/v1/accounts` e `POST /api/v1/accounts/transfers` rejeitam `Basic` em runtime, mesmo com feature habilitada
-  - endpoints de leitura e sumário permanecem protegidos só pela feature
+- `feature.cards.manage`
+  - `POST /api/v1/cards`
+  - `PUT /api/v1/cards/{id}`
+  - `DELETE /api/v1/cards/{id}`
 
-- `feature.categories.access`
-  - `GET /api/v1/categories`
+- `feature.cards.statements`
+  - `GET /api/v1/cards/{id}/statements`
+
+- `feature.categories.manage`
   - `POST /api/v1/categories`
   - `PUT /api/v1/categories/{id}`
   - `DELETE /api/v1/categories/{id}`
@@ -196,21 +294,27 @@ Protegidos por feature, não só por role nominal:
   - `POST /api/v1/invoice-import/import`
   - `POST /api/v1/invoice-import/reconcile`
 
-- `role.atLeast.intermediate`
+- `feature.installments.anticipate`
   - `POST /api/v1/installments/{id}/anticipations`
+
+- `feature.financial-assistant.access`
   - `GET /api/v1/financialassistant/context`
   - `POST /api/v1/financialassistant/chat`
+
+- `feature.monthly-snapshots.access`
   - `GET /api/v1/monthlysnapshots`
   - `POST /api/v1/monthlysnapshots/generate`
+
+- `feature.loans.access`
   - `GET /api/v1/loans`
   - `POST /api/v1/loans/simulate`
   - `POST /api/v1/loans`
 
-Regra prática:
+Regra pratica:
 
-- na prática esses módulos representam a fronteira funcional do `intermediate`
-- role sozinha não basta; a feature efetiva no backend é a proteção real
-- quando houver regra adicional dentro do controller ou service, ela também deve aparecer documentada aqui
+- na pratica esses modulos representam a fronteira funcional do `Intermediate`
+- role sozinha nao basta; a feature efetiva no backend e a protecao real
+- quando houver regra adicional dentro do controller ou service, ela tambem deve aparecer documentada aqui
 
 ### Advanced+ via feature gate
 
@@ -236,9 +340,9 @@ Protegidos por `feature.investments.access`:
 - `POST /api/v1/investments/b3/consent/mock-grant`
 - `POST /api/v1/investments/b3/sync`
 
-Regra prática:
+Regra pratica:
 
-- esse módulo representa hoje a camada mais claramente posicionada no `advanced`
+- esse modulo representa hoje a camada mais claramente posicionada no `Advanced`
 
 ### Administrativo via feature gate
 
@@ -283,33 +387,33 @@ Protegidos por feature administrativa:
 
 ## Desalinhamentos e cuidados atuais
 
-### Documentar feature gate, não só rótulo de plano
+### Documentar feature gate, nao so rotulo de plano
 
-- para `cards`, `accounts`, `categories`, `invoice-import` e `investments`, o documento deve continuar refletindo a feature real
-- chamar tudo apenas de `Intermediate+` ou `Advanced+` sem citar a feature pode esconder a proteção efetiva
+- o documento deve continuar refletindo a feature real aplicada em cada controller
+- chamar um modulo apenas de `Basic`, `Intermediate+` ou `Advanced+` sem citar a feature pode esconder a protecao efetiva
 
-### Preferir endpoint explícito a wildcard
+### Preferir endpoint explicito a wildcard
 
-- sempre que possível, liste a rota exata em vez de usar `*`
-- wildcard só deve permanecer quando o agrupamento não esconder diferença relevante de policy ou comportamento
+- sempre que possivel, liste a rota exata em vez de usar `*`
+- wildcard so deve permanecer quando o agrupamento nao esconder diferenca relevante de policy ou comportamento
 
-### Não confundir feature administrativa com role `Admin`
+### Nao confundir feature administrativa com role `Admin`
 
-- os módulos administrativos atuais usam feature gate, não `admin.only`
+- os modulos administrativos atuais usam feature gate, nao `admin.only`
 - `Admin` possui bypass global de feature, mas o documento deve continuar refletindo a policy realmente aplicada no controller
 - se algum endpoint passar a exigir role `Admin` de forma estrita, isso precisa ser registrado explicitamente aqui
 
 ## Regra operacional
 
-- frontend pode esconder botões e menus por UX
-- backend sempre aplica policy e é a fonte final de autorização
-- qualquer alteração de acesso deve atualizar este arquivo e os atributos `[Authorize(Policy = ...)]`
-- quando a direção de produto mudar antes do código, o desalinhamento deve ser registrado aqui até a proteção real ser ajustada
+- frontend pode esconder botoes e menus por UX
+- backend sempre aplica policy e e a fonte final de autorizacao
+- qualquer alteracao de acesso deve atualizar este arquivo e os atributos `[Authorize(Policy = ...)]`
+- quando a direcao de produto mudar antes do codigo, o desalinhamento deve ser registrado aqui ate a protecao real ser ajustada
 
 ## Quando atualizar este documento
 
-- mudança de `[Authorize(Policy = ...)]` em controller
-- criação de nova policy ou nova feature
-- alteração de role mínima efetiva
-- mudança de endpoint administrativo
-- alinhamento entre produto e backend que altere a proteção real de um módulo
+- mudanca de `[Authorize(Policy = ...)]` em controller
+- criacao de nova policy ou nova feature
+- alteracao de role minima efetiva
+- mudanca de endpoint administrativo
+- alinhamento entre produto e backend que altere a protecao real de um modulo

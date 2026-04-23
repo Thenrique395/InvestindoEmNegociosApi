@@ -269,18 +269,29 @@ public class AuthServiceTests
         Mock<IJwtTokenGenerator>? jwtTokenGenerator = null,
         Mock<IEmailSender>? emailSender = null)
     {
-        return new AuthService(
-            userRepository?.Object ?? Mock.Of<IUserRepository>(),
-            accountRepository?.Object ?? Mock.Of<IAccountRepository>(),
+        var sessionService = new UserSessionService(
             refreshTokenRepository?.Object ?? Mock.Of<IRefreshTokenRepository>(),
+            jwtTokenGenerator?.Object ?? CreateDefaultTokenGenerator().Object);
+        var bootstrapService = new UserAccountBootstrapService(
+            accountRepository?.Object ?? Mock.Of<IAccountRepository>(),
+            NullLogger<UserAccountBootstrapService>.Instance);
+        var passwordResetService = new PasswordResetService(
+            userRepository?.Object ?? Mock.Of<IUserRepository>(),
             passwordResetTokenRepository?.Object ?? Mock.Of<IPasswordResetTokenRepository>(),
-            jwtTokenGenerator?.Object ?? CreateDefaultTokenGenerator().Object,
+            sessionService,
             emailSender?.Object ?? Mock.Of<IEmailSender>(),
             Options.Create(new PasswordResetOptions
             {
                 FrontendResetUrl = "http://localhost:4200/reset-password",
                 TokenExpiryMinutes = 30
             }),
+            NullLogger<PasswordResetService>.Instance);
+
+        return new AuthService(
+            userRepository?.Object ?? Mock.Of<IUserRepository>(),
+            bootstrapService,
+            sessionService,
+            passwordResetService,
             NullLogger<AuthService>.Instance);
     }
 

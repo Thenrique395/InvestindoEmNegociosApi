@@ -9,14 +9,6 @@ public interface IAccountsService
     Task<AccountResponse?> UpdateAsync(Guid userId, Guid accountId, AccountRequest request, CancellationToken cancellationToken = default);
     Task<bool> DeleteAsync(Guid userId, Guid accountId, CancellationToken cancellationToken = default);
     Task<AccountBalanceResponse?> GetBalanceAsync(Guid userId, Guid accountId, CancellationToken cancellationToken = default);
-    Task<RealAvailableBalanceResponse> GetRealAvailableBalanceAsync(Guid userId, string period = "month", DateOnly? referenceDate = null, CancellationToken cancellationToken = default);
-    Task<DebtSummaryResponse> GetDebtSummaryAsync(Guid userId, DateOnly? referenceDate = null, CancellationToken cancellationToken = default);
-    Task<NetWorthSummaryResponse> GetNetWorthSummaryAsync(Guid userId, DateOnly? referenceDate = null, CancellationToken cancellationToken = default);
-    Task<NetWorthHistoryResponse> GetNetWorthHistoryAsync(Guid userId, int months = 12, DateOnly? referenceDate = null, CancellationToken cancellationToken = default);
-    Task<CashflowProjectionResponse> GetProjectionAsync(Guid userId, string period = "month", DateOnly? referenceDate = null, CancellationToken cancellationToken = default);
-    Task<RiskBotAssessmentResponse> GetRiskAssessmentAsync(Guid userId, string period = "month", DateOnly? referenceDate = null, CancellationToken cancellationToken = default);
-    Task<InsightEngineResponse> GetInsightsAsync(Guid userId, string period = "month", DateOnly? referenceDate = null, CancellationToken cancellationToken = default);
-    Task<RecommendationEngineResponse> GetRecommendationsAsync(Guid userId, string period = "month", DateOnly? referenceDate = null, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AccountTransactionResponse>?> ListTransactionsAsync(Guid userId, Guid accountId, DateTime? fromUtc = null, DateTime? toUtc = null, CancellationToken cancellationToken = default);
     Task<AccountTransferResponse?> TransferAsync(Guid userId, AccountTransferRequest request, CancellationToken cancellationToken = default);
 }

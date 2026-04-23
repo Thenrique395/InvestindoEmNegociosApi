@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
@@ -11,12 +10,12 @@ using System.Linq;
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-[Route("api/v1/[controller]")]
-[Authorize(Policy = AppAuthorizationPolicies.FeatureCardsAccess)]
-public class CardsController(ICardsService cardsService, IAuditService auditService) : ControllerBase
+[Route("api/cards")]
+[Route("api/v1/cards")]
+public class CardsController(ICardsService cardsService, IAuditService auditService) : AuthenticatedControllerBase
 {
     [HttpGet]
+    [Authorize(Policy = AppAuthorizationPolicies.FeatureCardsRead)]
     // Lista cartões do usuário autenticado.
     public async Task<IActionResult> List([FromQuery] ListQuery query, CancellationToken cancellationToken)
     {
@@ -43,6 +42,7 @@ public class CardsController(ICardsService cardsService, IAuditService auditServ
     }
 
     [HttpPost]
+    [Authorize(Policy = AppAuthorizationPolicies.FeatureCardsManage)]
     // Cria um novo cartão (armazenamos apenas last4 + marca + nome do titular).
     public async Task<IActionResult> Create([FromBody] CardRequest request, CancellationToken cancellationToken)
     {
@@ -59,6 +59,7 @@ public class CardsController(ICardsService cardsService, IAuditService auditServ
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = AppAuthorizationPolicies.FeatureCardsManage)]
     // Atualiza dados do cartão do usuário.
     public async Task<IActionResult> Update(Guid id, [FromBody] CardRequest request, CancellationToken cancellationToken)
     {
@@ -76,6 +77,7 @@ public class CardsController(ICardsService cardsService, IAuditService auditServ
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Policy = AppAuthorizationPolicies.FeatureCardsManage)]
     // Remove cartão do usuário.
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
@@ -86,53 +88,4 @@ public class CardsController(ICardsService cardsService, IAuditService auditServ
         return NoContent();
     }
 
-    [HttpGet("debt/total")]
-    // Retorna o total da dívida em cartões do usuário.
-    public async Task<IActionResult> GetTotalDebt(CancellationToken cancellationToken)
-    {
-        var userId = GetUserId();
-        var total = await cardsService.GetTotalDebtAsync(userId, cancellationToken);
-        return Ok(new { total });
-    }
-
-    [HttpGet("{id:guid}/statements")]
-    // Consolida faturas por competência (ano/mês de fechamento) separadas do saldo de conta.
-    public async Task<IActionResult> ListStatements(
-        Guid id,
-        [FromQuery] int? year,
-        [FromQuery] int? month,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var userId = GetUserId();
-            var cycles = await cardsService.ListStatementCyclesAsync(userId, id, year, month, cancellationToken);
-            if (cycles is null) return NotFound();
-            return Ok(cycles);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Filtro de fatura inválido", ex.Message, StatusCodes.Status400BadRequest);
-        }
-    }
-
-    private Guid GetUserId()
-    {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
-        return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Usuário não autenticado.");
-    }
-
-    private string? GetIpAddress()
-    {
-        var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(forwarded))
-            return forwarded.Split(',')[0].Trim();
-
-        return HttpContext.Connection.RemoteIpAddress?.ToString();
-    }
-
-    private string? GetUserAgent()
-    {
-        return Request.Headers["User-Agent"].ToString();
-    }
 }

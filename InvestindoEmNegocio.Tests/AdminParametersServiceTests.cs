@@ -226,12 +226,25 @@ public class AdminParametersServiceTests
         Mock<IRobotSettingsRepository>? robotSettingsRepository = null,
         Mock<IEmailSender>? emailSender = null)
     {
-        return new AdminParametersService(
-            paymentMethodRepository?.Object ?? Mock.Of<IPaymentMethodRepository>(),
-            cardBrandRepository?.Object ?? Mock.Of<ICardBrandRepository>(),
-            institutionRepository?.Object ?? Mock.Of<IInstitutionRepository>(),
-            notificationSettingsRepository?.Object ?? Mock.Of<INotificationSettingsRepository>(),
-            robotSettingsRepository?.Object ?? Mock.Of<IRobotSettingsRepository>(),
+        var adminPaymentMethodsService = new AdminPaymentMethodsService(
+            paymentMethodRepository?.Object ?? Mock.Of<IPaymentMethodRepository>());
+        var adminCardBrandsService = new AdminCardBrandsService(
+            cardBrandRepository?.Object ?? Mock.Of<ICardBrandRepository>());
+        var adminInstitutionsService = new AdminInstitutionsService(
+            institutionRepository?.Object ?? Mock.Of<IInstitutionRepository>());
+        var adminNotificationSettingsService = new AdminNotificationSettingsService(
+            notificationSettingsRepository?.Object ?? Mock.Of<INotificationSettingsRepository>());
+        var adminRobotSettingsService = new AdminRobotSettingsService(
+            robotSettingsRepository?.Object ?? Mock.Of<IRobotSettingsRepository>());
+        var adminEmailDiagnosticsService = new AdminEmailDiagnosticsService(
             emailSender?.Object ?? Mock.Of<IEmailSender>());
+
+        return new AdminParametersService(
+            adminPaymentMethodsService,
+            adminCardBrandsService,
+            adminInstitutionsService,
+            adminNotificationSettingsService,
+            adminRobotSettingsService,
+            adminEmailDiagnosticsService);
     }
 }

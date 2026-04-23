@@ -4,7 +4,6 @@ using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 using UglyToad.PdfPig.Core;
 
 namespace InvestindoEmNegocio.Controllers;
@@ -15,7 +14,7 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/invoice-import")]
 [Route("api/v1/invoice-import")]
 [Authorize(Policy = AppAuthorizationPolicies.FeatureInvoiceImportAccess)]
-public sealed class InvoiceImportController(IInvoiceImportService invoiceImportService, ILogger<InvoiceImportController> logger) : ControllerBase
+public sealed class InvoiceImportController(IInvoiceImportService invoiceImportService, ILogger<InvoiceImportController> logger) : AuthenticatedControllerBase
 {
     [HttpPost("extract")]
     [Consumes("multipart/form-data")]
@@ -110,9 +109,4 @@ public sealed class InvoiceImportController(IInvoiceImportService invoiceImportS
         }
     }
 
-    private Guid GetUserId()
-    {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
-        return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Usuário não autenticado.");
-    }
 }

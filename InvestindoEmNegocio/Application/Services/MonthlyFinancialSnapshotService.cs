@@ -8,7 +8,7 @@ namespace InvestindoEmNegocio.Application.Services;
 
 public class MonthlyFinancialSnapshotService(
     IMonthlyFinancialSnapshotRepository snapshotRepository,
-    IAccountsService accountsService) : IMonthlyFinancialSnapshotService
+    IAccountAnalyticsService accountAnalyticsService) : IMonthlyFinancialSnapshotService
 {
     public async Task<IReadOnlyList<MonthlyFinancialSnapshotResponse>> ListAsync(Guid userId, CancellationToken cancellationToken = default)
     {
@@ -26,13 +26,13 @@ public class MonthlyFinancialSnapshotService(
             return Map(existing);
 
         var referenceDate = new DateOnly(year, month, DateTime.DaysInMonth(year, month));
-        var realBalance = await accountsService.GetRealAvailableBalanceAsync(userId, "month", referenceDate, cancellationToken);
-        var projection = await accountsService.GetProjectionAsync(userId, "month", referenceDate, cancellationToken);
-        var debts = await accountsService.GetDebtSummaryAsync(userId, referenceDate, cancellationToken);
-        var netWorth = await accountsService.GetNetWorthSummaryAsync(userId, referenceDate, cancellationToken);
-        var risk = await accountsService.GetRiskAssessmentAsync(userId, "month", referenceDate, cancellationToken);
-        var insights = await accountsService.GetInsightsAsync(userId, "month", referenceDate, cancellationToken);
-        var recommendations = await accountsService.GetRecommendationsAsync(userId, "month", referenceDate, cancellationToken);
+        var realBalance = await accountAnalyticsService.GetRealAvailableBalanceAsync(userId, "month", referenceDate, cancellationToken);
+        var projection = await accountAnalyticsService.GetProjectionAsync(userId, "month", referenceDate, cancellationToken);
+        var debts = await accountAnalyticsService.GetDebtSummaryAsync(userId, referenceDate, cancellationToken);
+        var netWorth = await accountAnalyticsService.GetNetWorthSummaryAsync(userId, referenceDate, cancellationToken);
+        var risk = await accountAnalyticsService.GetRiskAssessmentAsync(userId, "month", referenceDate, cancellationToken);
+        var insights = await accountAnalyticsService.GetInsightsAsync(userId, "month", referenceDate, cancellationToken);
+        var recommendations = await accountAnalyticsService.GetRecommendationsAsync(userId, "month", referenceDate, cancellationToken);
 
         var snapshot = new MonthlyFinancialSnapshot(
             userId,

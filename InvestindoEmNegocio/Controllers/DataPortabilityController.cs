@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
@@ -9,13 +8,13 @@ using Microsoft.AspNetCore.Mvc;
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-[Route("api/v1/[controller]")]
-[Authorize(Policy = AppAuthorizationPolicies.AtLeastBasic)]
+[Route("api/dataportability")]
+[Route("api/v1/dataportability")]
 public sealed class DataPortabilityController(
-    IDataPortabilityFacadeService dataPortabilityFacadeService) : ControllerBase
+    IDataPortabilityFacadeService dataPortabilityFacadeService) : AuthenticatedControllerBase
 {
     [HttpGet("export")]
+    [Authorize(Policy = AppAuthorizationPolicies.FeatureDataPortabilityExport)]
     public async Task<IActionResult> Export(CancellationToken cancellationToken)
     {
         var (fileName, content) = await dataPortabilityFacadeService.ExportAsync(GetUserId(), cancellationToken);
@@ -23,6 +22,7 @@ public sealed class DataPortabilityController(
     }
 
     [HttpPost("import")]
+    [Authorize(Policy = AppAuthorizationPolicies.FeatureDataPortabilityImport)]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(50 * 1024 * 1024)]
     public async Task<ActionResult<ImportUserDataResult>> Import([FromForm] ImportUserDataRequest request, CancellationToken cancellationToken)
@@ -45,12 +45,4 @@ public sealed class DataPortabilityController(
         return Ok(result);
     }
 
-    private Guid GetUserId()
-    {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
-        if (Guid.TryParse(claim, out var id))
-            return id;
-
-        throw new UnauthorizedAccessException("Usuário não autenticado.");
-    }
 }

@@ -10,12 +10,12 @@ namespace InvestindoEmNegocio.Application.Services;
 
 public sealed class DataPortabilityFacadeService(
     IDataPortabilityService dataPortabilityService,
-    IOptions<DataPortabilityOptions> options,
+    IDataPortabilityGuardService dataPortabilityGuardService,
     ILogger<DataPortabilityFacadeService> logger) : IDataPortabilityFacadeService
 {
     public async Task<(string FileName, byte[] Content)> ExportAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        EnsureEnabled();
+        dataPortabilityGuardService.EnsureEnabled();
         return await dataPortabilityService.ExportAsync(userId, cancellationToken);
     }
 
@@ -26,27 +26,8 @@ public sealed class DataPortabilityFacadeService(
         bool replaceExisting,
         CancellationToken cancellationToken = default)
     {
-        EnsureEnabled();
-
-        if (fileLength <= 0)
-        {
-            logger.LogWarning("Importação inválida: arquivo vazio para {UserId}", userId);
-            throw new AppProblemException("Arquivo inválido", "Envie um arquivo JSON para importação.", StatusCodes.Status400BadRequest);
-        }
-
-        var maxBytes = Math.Max(1, options.Value.MaxImportSizeMb) * 1024L * 1024L;
-        if (fileLength > maxBytes)
-        {
-            logger.LogWarning(
-                "Importação rejeitada por tamanho para {UserId}. Recebido: {FileLengthBytes}, Limite: {MaxBytes}",
-                userId,
-                fileLength,
-                maxBytes);
-            throw new AppProblemException(
-                "Arquivo muito grande",
-                $"Tamanho máximo permitido: {options.Value.MaxImportSizeMb} MB.",
-                StatusCodes.Status400BadRequest);
-        }
+        dataPortabilityGuardService.EnsureEnabled();
+        dataPortabilityGuardService.ValidateImportFile(userId, fileLength);
 
         try
         {
@@ -67,19 +48,5 @@ public sealed class DataPortabilityFacadeService(
             logger.LogWarning(ex, "Falha de persistência na importação para {UserId}", userId);
             throw new AppProblemException("Falha ao importar dados", ex.InnerException?.Message ?? ex.Message, StatusCodes.Status400BadRequest);
         }
-    }
-
-    private void EnsureEnabled()
-    {
-        if (options.Value.Enabled)
-        {
-            return;
-        }
-
-        logger.LogInformation("Data portability desabilitado por configuração.");
-        throw new AppProblemException(
-            "Funcionalidade desabilitada",
-            "A exportação/importação de dados está desativada.",
-            StatusCodes.Status404NotFound);
     }
 }

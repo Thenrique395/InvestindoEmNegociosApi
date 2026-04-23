@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
@@ -12,8 +11,8 @@ namespace InvestindoEmNegocio.Controllers;
 [ApiController]
 [Route("api/goals/{goalId:guid}/contributions")]
 [Route("api/v1/goals/{goalId:guid}/contributions")]
-[Authorize(Policy = AppAuthorizationPolicies.AtLeastBasic)]
-public class GoalContributionsController(IGoalContributionsService contributionsService) : ControllerBase
+[Authorize(Policy = AppAuthorizationPolicies.FeatureGoalContributionsManage)]
+public class GoalContributionsController(IGoalContributionsService contributionsService) : AuthenticatedControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List(Guid goalId, [FromQuery] ListQuery query, CancellationToken cancellationToken)
@@ -57,9 +56,4 @@ public class GoalContributionsController(IGoalContributionsService contributions
         }
     }
 
-    private Guid GetUserId()
-    {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
-        return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Usuário não autenticado.");
-    }
 }

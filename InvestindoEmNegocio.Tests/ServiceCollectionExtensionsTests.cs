@@ -203,6 +203,14 @@ public class ServiceCollectionExtensionsTests
         services.Any(x => x.ServiceType == typeof(IInvestmentsService)).Should().BeTrue();
         services.Any(x => x.ServiceType == typeof(IDataPortabilityService)).Should().BeTrue();
         services.Any(x => x.ServiceType == typeof(IB3SyncService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(IBillingCheckoutCommandService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(IBillingCheckoutQueryService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(IBillingPortalService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(IBillingSubscriptionSyncService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(IStripeBillingWebhookProcessor)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(IStripeBillingWebhookService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(ISubscriptionCatalogService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(ISubscriptionManagementService)).Should().BeTrue();
     }
 
     [Fact]

@@ -221,6 +221,7 @@ public class AccountsControllerSqliteIntegrationTests
             builder.Services.AddScoped<ILoanContractRepository, LoanContractRepository>();
             builder.Services.AddScoped<ILoanInstallmentRepository, LoanInstallmentRepository>();
             builder.Services.AddScoped<IAccountsService, AccountsService>();
+            builder.Services.AddScoped<IAccountAnalyticsService, AccountAnalyticsService>();
             builder.Services.AddSingleton<IOfxImportService, NoOpOfxImportService>();
             builder.Services.AddSingleton<ICsvImportService, NoOpCsvImportService>();
             builder.Services.AddSingleton<IInvestmentsService>(new StubInvestmentsService(positions ?? []));

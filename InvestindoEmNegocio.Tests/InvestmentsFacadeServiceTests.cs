@@ -111,12 +111,17 @@ public class InvestmentsFacadeServiceTests
         Mock<IB3ImportService>? b3ImportService = null,
         Mock<IB3SyncService>? b3SyncService = null)
     {
-        return new InvestmentsFacadeService(
+        var portfolioCommandService = new InvestmentPortfolioCommandService(
             investmentsService?.Object ?? Mock.Of<IInvestmentsService>(),
+            auditService?.Object ?? Mock.Of<IAuditService>());
+        var marketIntegrationService = new InvestmentMarketIntegrationService(
             marketDataService?.Object ?? Mock.Of<IMarketDataService>(),
-            auditService?.Object ?? Mock.Of<IAuditService>(),
             b3ImportService?.Object ?? Mock.Of<IB3ImportService>(),
             b3SyncService?.Object ?? Mock.Of<IB3SyncService>(),
-            NullLogger<InvestmentsFacadeService>.Instance);
+            NullLogger<InvestmentMarketIntegrationService>.Instance);
+
+        return new InvestmentsFacadeService(
+            portfolioCommandService,
+            marketIntegrationService);
     }
 }

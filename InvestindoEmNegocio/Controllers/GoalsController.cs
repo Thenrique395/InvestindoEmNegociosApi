@@ -1,5 +1,3 @@
-using System;
-using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
@@ -13,36 +11,11 @@ using System.Linq;
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-[Route("api/v1/[controller]")]
-[Authorize(Policy = AppAuthorizationPolicies.AtLeastBasic)]
-public class GoalsController(IGoalsService goalsService, IAuditService auditService) : ControllerBase
+[Route("api/goals")]
+[Route("api/v1/goals")]
+[Authorize(Policy = AppAuthorizationPolicies.FeatureGoalsManage)]
+public class GoalsController(IGoalsService goalsService, IAuditService auditService) : AuthenticatedControllerBase
 {
-    [HttpGet("income")]
-    public async Task<IActionResult> GetIncomeGoal([FromQuery] int? year, CancellationToken cancellationToken = default)
-    {
-        var userId = GetUserId();
-        var targetYear = year ?? DateTime.UtcNow.Year;
-        var goal = await goalsService.GetIncomeGoalAsync(userId, targetYear, cancellationToken);
-        if (goal is null) return NoContent();
-        return Ok(goal);
-    }
-
-    [HttpPut("income")]
-    public async Task<IActionResult> UpsertIncomeGoal([FromBody] UpsertIncomeGoalRequest request, CancellationToken cancellationToken = default)
-    {
-        var userId = GetUserId();
-        try
-        {
-            var goal = await goalsService.UpsertIncomeGoalAsync(userId, request, cancellationToken);
-            return Ok(goal);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Meta inválida", ex.Message, StatusCodes.Status400BadRequest);
-        }
-    }
-
     [HttpGet]
     // Lista metas do usuário, opcionalmente filtrando por ano ou status.
     public async Task<IActionResult> List([FromQuery] int? year, [FromQuery] GoalStatus? status, [FromQuery] ListQuery query, CancellationToken cancellationToken = default)
@@ -124,23 +97,4 @@ public class GoalsController(IGoalsService goalsService, IAuditService auditServ
         return NoContent();
     }
 
-    private Guid GetUserId()
-    {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
-        return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Usuário não autenticado.");
-    }
-
-    private string? GetIpAddress()
-    {
-        var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(forwarded))
-            return forwarded.Split(',')[0].Trim();
-
-        return HttpContext.Connection.RemoteIpAddress?.ToString();
-    }
-
-    private string? GetUserAgent()
-    {
-        return Request.Headers["User-Agent"].ToString();
-    }
 }

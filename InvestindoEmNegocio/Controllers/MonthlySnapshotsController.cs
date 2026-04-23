@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
@@ -9,10 +8,10 @@ using Microsoft.AspNetCore.Mvc;
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-[Route("api/v1/[controller]")]
-[Authorize(Policy = AppAuthorizationPolicies.AtLeastIntermediate)]
-public class MonthlySnapshotsController(IMonthlyFinancialSnapshotService snapshotService) : ControllerBase
+[Route("api/monthlysnapshots")]
+[Route("api/v1/monthlysnapshots")]
+[Authorize(Policy = AppAuthorizationPolicies.FeatureMonthlySnapshotsAccess)]
+public class MonthlySnapshotsController(IMonthlyFinancialSnapshotService snapshotService) : AuthenticatedControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List(CancellationToken cancellationToken)
@@ -35,9 +34,4 @@ public class MonthlySnapshotsController(IMonthlyFinancialSnapshotService snapsho
         }
     }
 
-    private Guid GetUserId()
-    {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
-        return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Usuário não autenticado.");
-    }
 }

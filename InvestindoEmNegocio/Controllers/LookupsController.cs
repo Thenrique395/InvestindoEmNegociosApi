@@ -8,9 +8,9 @@ using Microsoft.AspNetCore.Mvc;
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-[Route("api/v1/[controller]")]
-[Authorize(Policy = AppAuthorizationPolicies.AtLeastBasic)]
+[Route("api/lookups")]
+[Route("api/v1/lookups")]
+[Authorize(Policy = AppAuthorizationPolicies.FeatureLookupsRead)]
 public class LookupsController : ControllerBase
 {
     private readonly ILookupsService _lookupsService;

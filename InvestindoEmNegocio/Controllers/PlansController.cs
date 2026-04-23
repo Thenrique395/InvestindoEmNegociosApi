@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
@@ -12,10 +11,10 @@ using System.Linq;
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-[Route("api/v1/[controller]")]
-[Authorize(Policy = AppAuthorizationPolicies.AtLeastBasic)]
-public class PlansController(IPlansService plansService, IAuditService auditService) : ControllerBase
+[Route("api/plans")]
+[Route("api/v1/plans")]
+[Authorize(Policy = AppAuthorizationPolicies.FeaturePlansManage)]
+public class PlansController(IPlansService plansService, IAuditService auditService) : AuthenticatedControllerBase
 {
     [HttpPost]
     // Cria um plano de receita/despesa e gera parcelas conforme o tipo (à vista, parcelado ou recorrente).
@@ -98,23 +97,4 @@ public class PlansController(IPlansService plansService, IAuditService auditServ
         return NoContent();
     }
 
-    private Guid GetUserId()
-    {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
-        return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Usuário não autenticado.");
-    }
-
-    private string? GetIpAddress()
-    {
-        var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(forwarded))
-            return forwarded.Split(',')[0].Trim();
-
-        return HttpContext.Connection.RemoteIpAddress?.ToString();
-    }
-
-    private string? GetUserAgent()
-    {
-        return Request.Headers["User-Agent"].ToString();
-    }
 }
