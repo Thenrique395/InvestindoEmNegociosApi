@@ -304,9 +304,8 @@ public class PlansServiceTests
     public async Task GetByIdAsync_Should_Return_Details_With_Installments()
     {
         var userId = Guid.NewGuid();
-        var planId = Guid.NewGuid();
         var plan = new MoneyPlan(userId, MoneyType.Expense, "Plano", 100, ScheduleType.OneTime, new DateOnly(2026, 1, 1), null, 1, null, null, null);
-        plan.GetType().GetProperty("Id")!.SetValue(plan, planId);
+        var planId = plan.Id;
 
         var installments = new List<MoneyInstallment>
         {
@@ -330,9 +329,8 @@ public class PlansServiceTests
     public async Task UpdateAsync_Should_Regenerate_Installments_And_Remove_Old_Payments()
     {
         var userId = Guid.NewGuid();
-        var planId = Guid.NewGuid();
         var plan = new MoneyPlan(userId, MoneyType.Expense, "Plano", 100, ScheduleType.OneTime, new DateOnly(2026, 1, 1), null, 1, null, null, null);
-        plan.GetType().GetProperty("Id")!.SetValue(plan, planId);
+        var planId = plan.Id;
 
         var oldInstallments = new List<MoneyInstallment>
         {

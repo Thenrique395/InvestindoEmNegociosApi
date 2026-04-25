@@ -9,8 +9,6 @@ using UglyToad.PdfPig.Core;
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-[Route("api/v1/[controller]")]
 [Route("api/invoice-import")]
 [Route("api/v1/invoice-import")]
 [Authorize(Policy = AppAuthorizationPolicies.FeatureInvoiceImportAccess)]
@@ -43,7 +41,7 @@ public sealed class InvoiceImportController(IInvoiceImportService invoiceImportS
         }
         catch (PdfDocumentFormatException ex)
         {
-            logger.LogWarning(ex, "Falha ao ler PDF (formato inválido).");
+            logger.LogWarning(ex, "Failed to read PDF (formato inválido).");
             throw new AppProblemException(
                 "Falha ao ler PDF",
                 "O PDF parece inválido ou protegido.",
@@ -62,51 +60,23 @@ public sealed class InvoiceImportController(IInvoiceImportService invoiceImportS
     [HttpPost("import")]
     public async Task<ActionResult<InvoiceImportResultResponse>> Import([FromBody] InvoiceImportRequest request, CancellationToken cancellationToken)
     {
-        try
+        return await ExecuteWithProblemMappingAsync<InvoiceImportResultResponse>(async () =>
         {
             var userId = GetUserId();
             var result = await invoiceImportService.ImportAsync(userId, request, cancellationToken);
             return Ok(result);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException(
-                "Importação inválida",
-                ex.Message,
-                StatusCodes.Status400BadRequest);
-        }
-        catch (InvalidOperationException ex)
-        {
-            throw new AppProblemException(
-                "Importação rejeitada",
-                ex.Message,
-                StatusCodes.Status422UnprocessableEntity);
-        }
+        }, "Importação inválida", invalidOperationTitle: "Importação rejeitada", invalidOperationStatusCode: StatusCodes.Status422UnprocessableEntity);
     }
 
     [HttpPost("reconcile")]
     public async Task<ActionResult<InvoiceReconciliationResponse>> Reconcile([FromBody] InvoiceImportRequest request, CancellationToken cancellationToken)
     {
-        try
+        return await ExecuteWithProblemMappingAsync<InvoiceReconciliationResponse>(async () =>
         {
             var userId = GetUserId();
             var result = await invoiceImportService.ReconcileAsync(userId, request, cancellationToken);
             return Ok(result);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException(
-                "Conciliação inválida",
-                ex.Message,
-                StatusCodes.Status400BadRequest);
-        }
-        catch (InvalidOperationException ex)
-        {
-            throw new AppProblemException(
-                "Conciliação rejeitada",
-                ex.Message,
-                StatusCodes.Status422UnprocessableEntity);
-        }
+        }, "Conciliação inválida", invalidOperationTitle: "Conciliação rejeitada", invalidOperationStatusCode: StatusCodes.Status422UnprocessableEntity);
     }
 
 }

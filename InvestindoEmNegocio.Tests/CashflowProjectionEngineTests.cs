@@ -16,8 +16,7 @@ public class CashflowProjectionEngineTests
         var userId = Guid.NewGuid();
         var today = new DateOnly(2026, 3, 9);
         var account = new Account(userId, "Conta", AccountType.Checking, 1000m);
-        var accountId = Guid.NewGuid();
-        typeof(Account).GetProperty(nameof(Account.Id))?.SetValue(account, accountId);
+        var accountId = account.Id;
 
         var accountRepository = new Mock<IAccountRepository>();
         accountRepository.Setup(x => x.ListByUserAsync(userId, It.IsAny<CancellationToken>()))

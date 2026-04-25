@@ -7,8 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
-[Route("api/financialassistant")]
-[Route("api/v1/financialassistant")]
+[Route("api/financial-assistant")]
+[Route("api/v1/financial-assistant")]
 [Authorize(Policy = AppAuthorizationPolicies.FeatureFinancialAssistantAccess)]
 public class FinancialAssistantController(IFinancialAssistantService financialAssistantService) : AuthenticatedControllerBase
 {

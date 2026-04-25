@@ -29,7 +29,7 @@ public class InsightEngineServiceTests
             ["overdue_expenses", "projected_deficit"],
             ["Base: 100", "- 35 despesas atrasadas"],
             [
-                new RiskBotRecommendationResponse("overdue-expenses", "danger", "Você tem despesas vencidas.", "Quitar despesas", "/despesas", new Dictionary<string, string> { ["focus"] = "overdue" }, 200m, new DateOnly(2026, 3, 8))
+                new RiskBotRecommendationResponse("overdue-expenses", "danger", "Você tem despesas vencidas.", "Quitar despesas", "/expenses", new Dictionary<string, string> { ["focus"] = "overdue" }, 200m, new DateOnly(2026, 3, 8))
             ]);
         var projection = new CashflowProjectionResponse(
             "month",

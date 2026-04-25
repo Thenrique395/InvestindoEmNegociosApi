@@ -15,20 +15,20 @@ public class GoalsService(IGoalRepository goalRepository, ILogger<GoalsService> 
     public async Task<IReadOnlyList<GoalResponse>> ListAsync(Guid userId, int? year, GoalStatus? status, CancellationToken cancellationToken = default)
     {
         var data = await goalRepository.ListByUserAsync(userId, year, status, cancellationToken);
-        return data.Select(ToResponse).ToList();
+        return data.Select(CreateGoalResponse).ToList();
     }
 
     public async Task<GoalResponse?> GetByIdAsync(Guid userId, Guid id, CancellationToken cancellationToken = default)
     {
         var goal = await goalRepository.GetByIdAsync(id, userId, cancellationToken);
-        return goal is null ? null : ToResponse(goal);
+        return goal is null ? null : CreateGoalResponse(goal);
     }
 
     public async Task<GoalResponse?> GetIncomeGoalAsync(Guid userId, int year, CancellationToken cancellationToken = default)
     {
         var data = await goalRepository.ListByUserAsync(userId, year, null, cancellationToken);
         var goal = data.FirstOrDefault(g => string.Equals(g.Title, IncomeGoalTitle, StringComparison.OrdinalIgnoreCase));
-        return goal is null ? null : ToResponse(goal);
+        return goal is null ? null : CreateGoalResponse(goal);
     }
 
     public async Task<GoalResponse> UpsertIncomeGoalAsync(Guid userId, UpsertIncomeGoalRequest request, CancellationToken cancellationToken = default)
@@ -55,7 +55,7 @@ public class GoalsService(IGoalRepository goalRepository, ILogger<GoalsService> 
             await goalRepository.AddAsync(goal, cancellationToken);
             await goalRepository.SaveChangesAsync(cancellationToken);
             _logger.LogInformation("Income goal created {UserId} {GoalId}", userId, goal.Id);
-            return ToResponse(goal);
+            return CreateGoalResponse(goal);
         }
 
         existing.Update(
@@ -69,7 +69,7 @@ public class GoalsService(IGoalRepository goalRepository, ILogger<GoalsService> 
             existing.TargetDate);
         await goalRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Income goal updated {UserId} {GoalId}", userId, existing.Id);
-        return ToResponse(existing);
+        return CreateGoalResponse(existing);
     }
 
     public async Task<GoalResponse> CreateAsync(Guid userId, CreateGoalRequest request, CancellationToken cancellationToken = default)
@@ -79,7 +79,7 @@ public class GoalsService(IGoalRepository goalRepository, ILogger<GoalsService> 
         await goalRepository.AddAsync(goal, cancellationToken);
         await goalRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Goal created {UserId} {GoalId}", userId, goal.Id);
-        return ToResponse(goal);
+        return CreateGoalResponse(goal);
     }
 
     public async Task<GoalResponse?> UpdateAsync(Guid userId, Guid id, CreateGoalRequest request, CancellationToken cancellationToken = default)
@@ -91,7 +91,7 @@ public class GoalsService(IGoalRepository goalRepository, ILogger<GoalsService> 
         goal.Update(request.Title.Trim(), request.TargetAmount, request.Year, request.Description, request.Status, request.CurrentAmount, request.ExpectedMonthly, request.TargetDate);
         await goalRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Goal updated {UserId} {GoalId}", userId, goal.Id);
-        return ToResponse(goal);
+        return CreateGoalResponse(goal);
     }
 
     public async Task<bool> DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken = default)
@@ -112,6 +112,6 @@ public class GoalsService(IGoalRepository goalRepository, ILogger<GoalsService> 
         if (request.Year < 2000 || request.Year > 2100) throw new ArgumentException("Ano inválido.");
     }
 
-    private static GoalResponse ToResponse(Goal g) =>
+    private static GoalResponse CreateGoalResponse(Goal g) =>
         new(g.Id, g.Title, g.TargetAmount, g.CurrentAmount, g.Year, g.Description, g.Status, g.CreatedAt, g.UpdatedAt, g.ExpectedMonthly, g.TargetDate);
 }

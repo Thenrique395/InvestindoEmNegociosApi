@@ -49,4 +49,9 @@ public class UserNotification
         if (ReadAt.HasValue) return;
         ReadAt = DateTime.UtcNow;
     }
+
+    public void RestoreReadState(DateTime? readAt)
+    {
+        ReadAt = readAt?.ToUniversalTime();
+    }
 }

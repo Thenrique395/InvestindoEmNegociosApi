@@ -9,13 +9,16 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/notifications")]
 [Route("api/v1/notifications")]
 [Authorize(Policy = AppAuthorizationPolicies.FeatureNotificationsAccess)]
-public class NotificationsController(INotificationsService notificationsService) : AuthenticatedControllerBase
+public class NotificationsController(
+    INotificationQueryService notificationQueryService,
+    INotificationGenerationService notificationGenerationService,
+    INotificationCommandService notificationCommandService) : AuthenticatedControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] bool unreadOnly = false, [FromQuery] int? limit = 50, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var items = await notificationsService.ListAsync(userId, unreadOnly, limit, cancellationToken);
+        var items = await notificationQueryService.ListAsync(userId, unreadOnly, limit, cancellationToken);
         return Ok(items);
     }
 
@@ -23,7 +26,7 @@ public class NotificationsController(INotificationsService notificationsService)
     public async Task<IActionResult> Generate(CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var count = await notificationsService.GenerateAsync(userId, cancellationToken);
+        var count = await notificationGenerationService.GenerateAsync(userId, cancellationToken);
         return Ok(new { created = count });
     }
 
@@ -31,7 +34,7 @@ public class NotificationsController(INotificationsService notificationsService)
     public async Task<IActionResult> MarkRead(Guid id, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        await notificationsService.MarkAsReadAsync(userId, id, cancellationToken);
+        await notificationCommandService.MarkAsReadAsync(userId, id, cancellationToken);
         return NoContent();
     }
 

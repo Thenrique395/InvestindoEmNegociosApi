@@ -8,16 +8,16 @@ using Microsoft.AspNetCore.Mvc;
 namespace InvestindoEmNegocio.Controllers;
 
 [ApiController]
-[Route("api/dataportability")]
-[Route("api/v1/dataportability")]
+[Route("api/data-portability")]
+[Route("api/v1/data-portability")]
 public sealed class DataPortabilityController(
-    IDataPortabilityFacadeService dataPortabilityFacadeService) : AuthenticatedControllerBase
+    IDataPortabilityApplicationService dataPortabilityApplicationService) : AuthenticatedControllerBase
 {
     [HttpGet("export")]
     [Authorize(Policy = AppAuthorizationPolicies.FeatureDataPortabilityExport)]
     public async Task<IActionResult> Export(CancellationToken cancellationToken)
     {
-        var (fileName, content) = await dataPortabilityFacadeService.ExportAsync(GetUserId(), cancellationToken);
+        var (fileName, content) = await dataPortabilityApplicationService.ExportAsync(GetUserId(), cancellationToken);
         return File(content, "application/json", fileName);
     }
 
@@ -31,12 +31,12 @@ public sealed class DataPortabilityController(
         {
             throw new AppProblemException(
                 "Arquivo inválido",
-                "Envie um arquivo JSON para importação.",
+                "Upload a JSON file for import.",
                 StatusCodes.Status400BadRequest);
         }
 
         await using var stream = request.File.OpenReadStream();
-        var result = await dataPortabilityFacadeService.ImportAsync(
+        var result = await dataPortabilityApplicationService.ImportAsync(
             GetUserId(),
             stream,
             request.File.Length,

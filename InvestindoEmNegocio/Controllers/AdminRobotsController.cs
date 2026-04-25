@@ -13,7 +13,8 @@ namespace InvestindoEmNegocio.Controllers;
 [Authorize(Policy = AppAuthorizationPolicies.FeatureAdminRobotsManage)]
 [EnableRateLimiting("admin-robots")]
 public class AdminRobotsController(
-    IAdminRobotsService adminRobotsService) : AuthenticatedControllerBase
+    IAdminRobotMonitorService adminRobotMonitorService,
+    IAdminRobotExecutionService adminRobotExecutionService) : AuthenticatedControllerBase
 {
     [HttpGet("monitor")]
     public async Task<IActionResult> Monitor(
@@ -25,7 +26,7 @@ public class AdminRobotsController(
         [FromQuery] string? search = null,
         CancellationToken cancellationToken = default)
     {
-        var response = await adminRobotsService.MonitorAsync(
+        var response = await adminRobotMonitorService.MonitorAsync(
             new RobotMonitorQueryDto(take, robotName, success, from, to, search),
             cancellationToken);
         return Ok(response);
@@ -38,7 +39,7 @@ public class AdminRobotsController(
         [FromQuery] int cooldownMinutes = 10,
         CancellationToken cancellationToken = default)
     {
-        var result = await adminRobotsService.RunAsync(robotName, force, cooldownMinutes, GetUserIdOrNull(), cancellationToken);
+        var result = await adminRobotExecutionService.RunAsync(robotName, force, cooldownMinutes, GetUserIdOrNull(), cancellationToken);
         if (result is null)
             return NotFound(new { detail = $"Robô '{robotName}' não encontrado." });
 
@@ -48,7 +49,7 @@ public class AdminRobotsController(
     [HttpPost("run-all")]
     public async Task<IActionResult> RunAll(CancellationToken cancellationToken = default)
     {
-        var results = await adminRobotsService.RunAllAsync(GetUserIdOrNull(), cancellationToken);
+        var results = await adminRobotExecutionService.RunAllAsync(GetUserIdOrNull(), cancellationToken);
         return Ok(results);
     }
 

@@ -62,21 +62,21 @@ public class MoreControllersSmokeTests
             ]));
         accountAnalytics.Setup(x => x.GetRiskAssessmentAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<DateOnly?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new RiskBotAssessmentResponse("month", new DateOnly(2026, 3, 9), 62, "warning", "warning", null, 80m, 110m, 850m, ["pending_income"], ["Base: 100"], [
-                new RiskBotRecommendationResponse("pending-income", "info", "Próxima receita pendente.", "Abrir receitas", "/receitas", new Dictionary<string, string> { ["focus"] = "pending" }, 100m, new DateOnly(2026, 3, 10))
+                new RiskBotRecommendationResponse("pending-income", "info", "Próxima receita pendente.", "Abrir receitas", "/incomes", new Dictionary<string, string> { ["focus"] = "pending" }, 100m, new DateOnly(2026, 3, 10))
             ]));
         accountAnalytics.Setup(x => x.GetInsightsAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<DateOnly?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new InsightEngineResponse("month", new DateOnly(2026, 3, 9),
                 new InsightEngineItemResponse("preventive", "preventive-upcoming-window", "warning", "Janela preventiva", "Há pressão de vencimentos próxima.", "Acompanhar vencimentos.", 62, null, 80m, 110m, 850m, ["Score: 62/100"], ["Reserve caixa"], ["pending_income"], ["Base: 100"], [
-                    new RiskBotRecommendationResponse("pending-income", "info", "Próxima receita pendente.", "Abrir receitas", "/receitas", new Dictionary<string, string> { ["focus"] = "pending" }, 100m, new DateOnly(2026, 3, 10))
+                    new RiskBotRecommendationResponse("pending-income", "info", "Próxima receita pendente.", "Abrir receitas", "/incomes", new Dictionary<string, string> { ["focus"] = "pending" }, 100m, new DateOnly(2026, 3, 10))
                 ]),
                 [
                     new InsightEngineItemResponse("preventive", "preventive-upcoming-window", "warning", "Janela preventiva", "Há pressão de vencimentos próxima.", "Acompanhar vencimentos.", 62, null, 80m, 110m, 850m, ["Score: 62/100"], ["Reserve caixa"], ["pending_income"], ["Base: 100"], [
-                    new RiskBotRecommendationResponse("pending-income", "info", "Próxima receita pendente.", "Abrir receitas", "/receitas", new Dictionary<string, string> { ["focus"] = "pending" }, 100m, new DateOnly(2026, 3, 10))
+                    new RiskBotRecommendationResponse("pending-income", "info", "Próxima receita pendente.", "Abrir receitas", "/incomes", new Dictionary<string, string> { ["focus"] = "pending" }, 100m, new DateOnly(2026, 3, 10))
                     ])
                 ]));
         accountAnalytics.Setup(x => x.GetRecommendationsAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<DateOnly?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new RecommendationEngineResponse("month", new DateOnly(2026, 3, 9), 50, [
-                new RecommendationItemResponse("due-soon-expenses", 83, "warn", "risk-bot", "Ação recomendada", "Há despesas vencendo.", "Ver próximas despesas", "/despesas", new Dictionary<string, string> { ["focus"] = "upcoming" }, ["due_soon_expenses"], 100m, new DateOnly(2026, 3, 10))
+                new RecommendationItemResponse("due-soon-expenses", 83, "warn", "risk-bot", "Ação recomendada", "Há despesas vencendo.", "Ver próximas despesas", "/expenses", new Dictionary<string, string> { ["focus"] = "upcoming" }, ["due_soon_expenses"], 100m, new DateOnly(2026, 3, 10))
             ]));
         accounts.Setup(x => x.ListTransactionsAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([new AccountTransactionResponse(
@@ -168,25 +168,29 @@ public class MoreControllersSmokeTests
     [Fact]
     public async Task Lightweight_Controllers_Should_Return_Ok_Or_NoContent()
     {
-        var notifications = new Mock<INotificationsService>();
-        notifications.Setup(x => x.ListAsync(It.IsAny<Guid>(), It.IsAny<bool>(), It.IsAny<int?>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<NotificationDto>());
-        notifications.Setup(x => x.GenerateAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(1);
-        var notificationsController = new NotificationsController(notifications.Object);
+        var notificationQuery = new Mock<INotificationQueryService>();
+        var notificationGeneration = new Mock<INotificationGenerationService>();
+        var notificationCommand = new Mock<INotificationCommandService>();
+        notificationQuery.Setup(x => x.ListAsync(It.IsAny<Guid>(), It.IsAny<bool>(), It.IsAny<int?>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<NotificationDto>());
+        notificationGeneration.Setup(x => x.GenerateAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(1);
+        var notificationsController = new NotificationsController(notificationQuery.Object, notificationGeneration.Object, notificationCommand.Object);
         SetAuth(notificationsController);
         (await notificationsController.List(false, 10, CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await notificationsController.Generate(CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await notificationsController.MarkRead(Guid.NewGuid(), CancellationToken.None)).Should().BeOfType<NoContentResult>();
 
-        var lookups = new Mock<ILookupsService>();
-        lookups.Setup(x => x.GetPaymentMethodsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<PaymentMethod>());
-        lookups.Setup(x => x.GetCardBrandsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<CardBrand>());
-        lookups.Setup(x => x.GetInstitutionsAsync(It.IsAny<InstitutionType?>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Institution>());
-        var lookupsController = new LookupsController(lookups.Object);
+        var lookupPaymentMethods = new Mock<ILookupPaymentMethodService>();
+        var lookupCardBrands = new Mock<ILookupCardBrandService>();
+        var lookupInstitutions = new Mock<ILookupInstitutionService>();
+        lookupPaymentMethods.Setup(x => x.GetPaymentMethodsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<PaymentMethod>());
+        lookupCardBrands.Setup(x => x.GetCardBrandsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<CardBrand>());
+        lookupInstitutions.Setup(x => x.GetInstitutionsAsync(It.IsAny<InstitutionType?>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<Institution>());
+        var lookupsController = new LookupsController(lookupPaymentMethods.Object, lookupCardBrands.Object, lookupInstitutions.Object);
         (await lookupsController.GetPaymentMethods(CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await lookupsController.GetCardBrands(CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await lookupsController.GetInstitutions("Bank", CancellationToken.None)).Should().BeOfType<OkObjectResult>();
 
-        var prefs = new Mock<IPreferencesService>();
+        var prefs = new Mock<IPreferenceSettingsService>();
         prefs.Setup(x => x.GetAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(default(PreferencesDto)!);
         prefs.Setup(x => x.UpdateAsync(It.IsAny<Guid>(), It.IsAny<UpdatePreferencesRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(default(PreferencesDto)!);
         var prefsController = new PreferencesController(prefs.Object);
@@ -194,10 +198,11 @@ public class MoreControllersSmokeTests
         (await prefsController.Get(CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await prefsController.Update(new UpdatePreferencesRequest("BRL", [], null), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
 
-        var onboarding = new Mock<IOnboardingService>();
-        onboarding.Setup(x => x.GetStatusAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(default(OnboardingStatusDto)!);
-        onboarding.Setup(x => x.UpdateStatusAsync(It.IsAny<Guid>(), It.IsAny<UpdateOnboardingRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(default(OnboardingStatusDto)!);
-        var onboardingController = new OnboardingController(onboarding.Object);
+        var onboardingQuery = new Mock<IOnboardingQueryService>();
+        var onboardingCommand = new Mock<IOnboardingCommandService>();
+        onboardingQuery.Setup(x => x.GetStatusAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(default(OnboardingStatusDto)!);
+        onboardingCommand.Setup(x => x.UpdateStatusAsync(It.IsAny<Guid>(), It.IsAny<UpdateOnboardingRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(default(OnboardingStatusDto)!);
+        var onboardingController = new OnboardingController(onboardingQuery.Object, onboardingCommand.Object);
         SetAuth(onboardingController);
         (await onboardingController.Get(CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
         (await onboardingController.Update(new UpdateOnboardingRequest(1, true), CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
@@ -272,9 +277,55 @@ public class MoreControllersSmokeTests
     }
 
     [Fact]
+    public async Task Auth_And_Privacy_Controllers_Should_Cover_Main_Flows()
+    {
+        var authAccess = new Mock<IAuthAccessApplicationService>();
+        var authRegistration = new Mock<IAuthRegistrationApplicationService>();
+        var authPassword = new Mock<IAuthPasswordApplicationService>();
+        var privacy = new Mock<IUserPrivacyCenterService>();
+
+        authAccess.Setup(x => x.LoginAsync(It.IsAny<LoginRequest>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AuthResponse(Guid.NewGuid(), "U", "u@test.com", "Basic", "token", "refresh", DateTime.UtcNow.AddHours(1)));
+        authAccess.Setup(x => x.RefreshAsync(It.IsAny<RefreshTokenRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AuthResponse(Guid.NewGuid(), "U", "u@test.com", "Basic", "token", "refresh", DateTime.UtcNow.AddHours(1)));
+        authRegistration.Setup(x => x.RegisterAsync(It.IsAny<RegisterUserRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AuthResponse(Guid.NewGuid(), "U", "u@test.com", "Basic", "token", "refresh", DateTime.UtcNow.AddHours(1)));
+        privacy.Setup(x => x.GetPrivacySummaryAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PrivacySummaryDto(1, 0, 2, true, true, [], [], "phase-1-runtime-hardened", "policy"));
+        privacy.Setup(x => x.GetSecuritySummaryAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SecuritySummaryDto(1, 0, false, null, null, [], []));
+        privacy.Setup(x => x.RevokeOwnSessionsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new RevokeSessionsResponse(2, DateTime.UtcNow));
+
+        var authController = new AuthController(authAccess.Object);
+        var authRegistrationController = new AuthRegistrationController(authRegistration.Object);
+        var authPasswordsController = new AuthPasswordsController(authPassword.Object);
+        var summariesController = new PreferenceSummariesController(privacy.Object);
+        var sessionsController = new PreferenceSessionsController(privacy.Object);
+        var accountController = new PreferenceAccountController(privacy.Object);
+        SetAuth(authController);
+        SetAuth(authPasswordsController);
+        SetAuth(summariesController);
+        SetAuth(sessionsController);
+        SetAuth(accountController);
+
+        (await authController.Login(new LoginRequest("u@test.com", "123"), CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
+        (await authController.Refresh(new RefreshTokenRequest("refresh"), CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
+        (await authController.Logout(new RefreshTokenRequest("refresh"), CancellationToken.None)).Should().BeOfType<NoContentResult>();
+        (await authRegistrationController.Register(new RegisterUserRequest("U", "u@test.com", "123456"), CancellationToken.None)).Result.Should().BeOfType<CreatedAtActionResult>();
+        (await authPasswordsController.ChangePassword(new ChangePasswordRequest("old", "new"), CancellationToken.None)).Should().BeOfType<NoContentResult>();
+        (await authPasswordsController.ForgotPassword(new ForgotPasswordRequest("u@test.com"), CancellationToken.None)).Should().BeOfType<AcceptedResult>();
+        (await authPasswordsController.ResetPassword(new ResetPasswordRequest("token", "new"), CancellationToken.None)).Should().BeOfType<NoContentResult>();
+        (await summariesController.GetPrivacy(CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await summariesController.GetSecurity(CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await sessionsController.RevokeOwn(CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await accountController.DeleteOwn(new DeleteOwnAccountRequest("123", "EXCLUIR"), CancellationToken.None)).Should().BeOfType<NoContentResult>();
+    }
+
+    [Fact]
     public async Task DataPortability_Profile_And_GoalContributions_Should_Cover_Main_Flows()
     {
-        var dp = new Mock<IDataPortabilityFacadeService>();
+        var dp = new Mock<IDataPortabilityApplicationService>();
         dp.Setup(x => x.ExportAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(("export.json", "{}"u8.ToArray()));
         dp.Setup(x => x.ImportAsync(It.IsAny<Guid>(), It.IsAny<Stream>(), It.IsAny<long>(), It.IsAny<bool>(), It.IsAny<CancellationToken>())).ReturnsAsync(new ImportUserDataResult(1));
         var dpController = new DataPortabilityController(dp.Object);
@@ -285,13 +336,14 @@ public class MoreControllersSmokeTests
         Func<Task> missingImport = async () => await dpController.Import(new ImportUserDataRequest(), CancellationToken.None);
         await missingImport.Should().ThrowAsync<AppProblemException>();
 
-        var profileService = new Mock<IProfileService>();
-        profileService.Setup(x => x.GetAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync((UserProfileDto?)null);
-        profileService.Setup(x => x.UpsertAsync(It.IsAny<Guid>(), It.IsAny<UpsertUserProfileRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(default(UserProfileDto)!);
-        profileService.Setup(x => x.UpdateAvatarAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(default(UserProfileDto)!);
+        var profileQueryService = new Mock<IProfileQueryService>();
+        var profileCommandService = new Mock<IProfileCommandService>();
+        profileQueryService.Setup(x => x.GetAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync((UserProfileDto?)null);
+        profileCommandService.Setup(x => x.UpsertAsync(It.IsAny<Guid>(), It.IsAny<UpsertUserProfileRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(default(UserProfileDto)!);
+        profileCommandService.Setup(x => x.UpdateAvatarAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(default(UserProfileDto)!);
         var avatar = new Mock<IAvatarStorageService>();
         avatar.Setup(x => x.SaveAsync(It.IsAny<Guid>(), It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync("https://x");
-        var profileController = new ProfileController(profileService.Object, avatar.Object);
+        var profileController = new ProfileController(profileQueryService.Object, profileCommandService.Object, avatar.Object);
         SetAuth(profileController);
         profileController.ControllerContext.HttpContext.Request.Scheme = "https";
         profileController.ControllerContext.HttpContext.Request.Host = new HostString("example.com");
@@ -350,10 +402,23 @@ public class MoreControllersSmokeTests
         adminParameters.Setup(x => x.UpdateInstitutionStatusAsync(It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>())).ReturnsAsync(default(InstitutionAdminResponse)!);
         adminParameters.Setup(x => x.GetNotificationSettingsAsync(It.IsAny<CancellationToken>())).ReturnsAsync(default(NotificationSettingsDto)!);
         adminParameters.Setup(x => x.UpdateNotificationSettingsAsync(It.IsAny<UpdateNotificationSettingsRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(default(NotificationSettingsDto)!);
+        var adminRobotMonitor = new Mock<IAdminRobotMonitorService>();
+        var adminRobotExecution = new Mock<IAdminRobotExecutionService>();
+        var adminRuntime = new Mock<IAdminRuntimeInfoService>();
+        adminRobotMonitor.Setup(x => x.MonitorAsync(It.IsAny<RobotMonitorQueryDto>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new RobotMonitorResponseDto(new RobotMonitorSummaryDto(0, 0, 0, 0, 0, 0, 0, 0), [], []));
+        adminRobotExecution.Setup(x => x.RunAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<int>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new RobotRunResultDto("ReminderRobot", DateTime.UtcNow, DateTime.UtcNow, 0, "corr", "host", null, true, 0, new RobotExecutionMetricsDto(0, 0, 0, 0, null), false, null, null));
+        adminRobotExecution.Setup(x => x.RunAllAsync(It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<RobotRunResultDto>());
+        adminRuntime.Setup(x => x.Get())
+            .Returns(new ScalabilityRuntimeDto("phase-1-runtime-hardened", [], [], []));
         var paymentMethodsController = new AdminPaymentMethodsController(adminParameters.Object);
         var cardBrandsController = new AdminCardBrandsController(adminParameters.Object);
         var institutionsController = new AdminInstitutionsController(adminParameters.Object);
         var notificationSettingsController = new AdminNotificationSettingsController(adminParameters.Object);
+        var adminRobotsController = new AdminRobotsController(adminRobotMonitor.Object, adminRobotExecution.Object);
+        var adminRuntimeController = new AdminRuntimeController(adminRuntime.Object);
         (await paymentMethodsController.List(CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await paymentMethodsController.UpdateStatus(1, new UpdateActiveRequest(true), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await paymentMethodsController.Create(new CreatePaymentMethodRequest("Pix"), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
@@ -365,6 +430,11 @@ public class MoreControllersSmokeTests
         (await institutionsController.UpdateStatus(1, new UpdateActiveRequest(true), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await notificationSettingsController.Get(CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await notificationSettingsController.Update(new UpdateNotificationSettingsRequest(true,1,true,1,true,true,1,true,true,true,true,true,true,1), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        SetAuth(adminRobotsController, UserRole.Admin);
+        (await adminRobotsController.Monitor(50, null, null, null, null, null, CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await adminRobotsController.Run("ReminderRobot", false, 10, CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await adminRobotsController.RunAll(CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        adminRuntimeController.Get().Should().BeOfType<OkObjectResult>();
     }
 
     private static void SetAuth(ControllerBase controller, UserRole role = UserRole.Basic)

@@ -41,12 +41,10 @@ public class AccountsServiceTests
     public async Task TransferAsync_Should_Create_Debit_And_Credit_With_Same_SourceId()
     {
         var userId = Guid.NewGuid();
-        var fromId = Guid.NewGuid();
-        var toId = Guid.NewGuid();
         var from = new Account(userId, "Conta A", AccountType.Checking, 0);
         var to = new Account(userId, "Conta B", AccountType.Savings, 0);
-        typeof(Account).GetProperty(nameof(Account.Id))?.SetValue(from, fromId);
-        typeof(Account).GetProperty(nameof(Account.Id))?.SetValue(to, toId);
+        var fromId = from.Id;
+        var toId = to.Id;
 
         var accountRepository = new Mock<IAccountRepository>();
         accountRepository.Setup(x => x.GetByIdAsync(fromId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(from);
@@ -76,9 +74,8 @@ public class AccountsServiceTests
     public async Task ListTransactionsAsync_Should_Map_Transfer_Type()
     {
         var userId = Guid.NewGuid();
-        var accountId = Guid.NewGuid();
         var account = new Account(userId, "Conta", AccountType.Checking, 0);
-        typeof(Account).GetProperty(nameof(Account.Id))?.SetValue(account, accountId);
+        var accountId = account.Id;
 
         var accountRepository = new Mock<IAccountRepository>();
         accountRepository.Setup(x => x.GetByIdAsync(accountId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(account);

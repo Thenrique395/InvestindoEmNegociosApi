@@ -23,29 +23,21 @@ public class LoansController(ILoansService loansService) : AuthenticatedControll
     [HttpPost("simulate")]
     public async Task<IActionResult> Simulate([FromBody] LoanContractRequest request, CancellationToken cancellationToken)
     {
-        try
+        return await ExecuteWithProblemMappingAsync(async () =>
         {
             var userId = GetUserId();
             return Ok(await loansService.SimulateAsync(userId, request, cancellationToken));
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Empréstimo inválido", ex.Message, StatusCodes.Status400BadRequest);
-        }
+        }, "Invalid loan");
     }
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] LoanContractRequest request, CancellationToken cancellationToken)
     {
-        try
+        return await ExecuteWithProblemMappingAsync(async () =>
         {
             var userId = GetUserId();
             return Ok(await loansService.CreateAsync(userId, request, cancellationToken));
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Empréstimo inválido", ex.Message, StatusCodes.Status400BadRequest);
-        }
+        }, "Invalid loan");
     }
 
 }

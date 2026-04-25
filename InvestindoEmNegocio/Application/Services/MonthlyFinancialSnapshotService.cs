@@ -13,7 +13,7 @@ public class MonthlyFinancialSnapshotService(
     public async Task<IReadOnlyList<MonthlyFinancialSnapshotResponse>> ListAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var items = await snapshotRepository.ListByUserAsync(userId, cancellationToken);
-        return items.Select(Map).ToList();
+        return items.Select(MapSnapshotResponse).ToList();
     }
 
     public async Task<MonthlyFinancialSnapshotResponse> GenerateAsync(Guid userId, int year, int month, CancellationToken cancellationToken = default)
@@ -23,7 +23,7 @@ public class MonthlyFinancialSnapshotService(
 
         var existing = await snapshotRepository.GetByMonthAsync(userId, year, month, cancellationToken);
         if (existing is not null)
-            return Map(existing);
+            return MapSnapshotResponse(existing);
 
         var referenceDate = new DateOnly(year, month, DateTime.DaysInMonth(year, month));
         var realBalance = await accountAnalyticsService.GetRealAvailableBalanceAsync(userId, "month", referenceDate, cancellationToken);
@@ -51,10 +51,10 @@ public class MonthlyFinancialSnapshotService(
 
         await snapshotRepository.AddAsync(snapshot, cancellationToken);
         await snapshotRepository.SaveChangesAsync(cancellationToken);
-        return Map(snapshot);
+        return MapSnapshotResponse(snapshot);
     }
 
-    private static MonthlyFinancialSnapshotResponse Map(MonthlyFinancialSnapshot item)
+    private static MonthlyFinancialSnapshotResponse MapSnapshotResponse(MonthlyFinancialSnapshot item)
     {
         IReadOnlyList<string> recommendations;
         try

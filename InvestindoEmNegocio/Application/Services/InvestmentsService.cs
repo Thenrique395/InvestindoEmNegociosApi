@@ -99,7 +99,7 @@ public class InvestmentsService : IInvestmentsService
         }
 
         var positions = await _positionRepository.ListByUserAsync(userId, cancellationToken);
-        var mapped = positions.Select(Map).ToList();
+        var mapped = positions.Select(CreateInvestmentPositionDto).ToList();
         _cache.Set(cacheKey, mapped, TimeSpan.FromSeconds(20));
         return mapped;
     }
@@ -108,7 +108,7 @@ public class InvestmentsService : IInvestmentsService
         CancellationToken cancellationToken = default)
     {
         var position = await _positionRepository.GetByIdAsync(id, userId, cancellationToken);
-        return position is null ? null : Map(position);
+        return position is null ? null : CreateInvestmentPositionDto(position);
     }
 
     public async Task<InvestmentPositionDto> CreatePositionAsync(Guid userId, CreateInvestmentPositionRequest request,
@@ -130,7 +130,7 @@ public class InvestmentsService : IInvestmentsService
         await _positionRepository.SaveChangesAsync(cancellationToken);
         InvalidatePositionsCache(userId);
         _logger.LogInformation("Investment position created {UserId} {PositionId}", userId, position.Id);
-        return Map(position);
+        return CreateInvestmentPositionDto(position);
     }
 
     public async Task<InvestmentPositionDto?> UpdatePositionAsync(Guid userId, Guid id,
@@ -153,7 +153,7 @@ public class InvestmentsService : IInvestmentsService
         await _positionRepository.SaveChangesAsync(cancellationToken);
         InvalidatePositionsCache(userId);
         _logger.LogInformation("Investment position updated {UserId} {PositionId}", userId, position.Id);
-        return Map(position);
+        return CreateInvestmentPositionDto(position);
     }
 
     public async Task<bool> DeletePositionAsync(Guid userId, Guid id, CancellationToken cancellationToken = default)
@@ -171,7 +171,7 @@ public class InvestmentsService : IInvestmentsService
         CreateInvestmentMovementRequest request, CancellationToken cancellationToken = default)
     {
         var position = await _positionRepository.GetByIdAsync(positionId, userId, cancellationToken)
-                       ?? throw new ArgumentException("Posição não encontrada.");
+                       ?? throw new ArgumentException("Position not found.");
 
         if (request.Quantity <= 0 || request.Price <= 0)
             throw new ArgumentException("Quantidade e preço devem ser maiores que zero.");
@@ -203,7 +203,7 @@ public class InvestmentsService : IInvestmentsService
         await _positionRepository.SaveChangesAsync(cancellationToken);
         InvalidatePositionsCache(userId);
         _logger.LogInformation("Investment movement added {UserId} {PositionId} {MovementId} {Type}", userId, position.Id, movement.Id, movement.Type);
-        return Map(movement);
+        return CreateInvestmentMovementDto(movement);
     }
 
     public async Task<List<InvestmentPositionDto>> EnrichWithMarketAsync(List<InvestmentPositionDto> items, CancellationToken cancellationToken = default)
@@ -258,11 +258,11 @@ public class InvestmentsService : IInvestmentsService
         _cache.Remove(PositionsCacheKey(userId));
     }
 
-    private static InvestmentPositionDto Map(InvestmentPosition position)
+    private static InvestmentPositionDto CreateInvestmentPositionDto(InvestmentPosition position)
     {
         var movements = position.Movements
             .OrderByDescending(m => m.Date)
-            .Select(Map)
+            .Select(CreateInvestmentMovementDto)
             .ToList();
 
         return new InvestmentPositionDto(
@@ -278,7 +278,7 @@ public class InvestmentsService : IInvestmentsService
             movements);
     }
 
-    private static InvestmentMovementDto Map(InvestmentMovement movement)
+    private static InvestmentMovementDto CreateInvestmentMovementDto(InvestmentMovement movement)
     {
         return new InvestmentMovementDto(
             movement.Id,

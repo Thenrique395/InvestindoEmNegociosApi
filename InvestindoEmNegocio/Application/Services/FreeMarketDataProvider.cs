@@ -138,7 +138,7 @@ public sealed class FreeMarketDataProvider(
     public async Task<MarketHistoryResponse> GetHistoryAsync(string symbol, string period = "6mo", CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeSymbol(symbol);
-        var normalizedPeriod = NormalizePeriod(period);
+        var normalizedPeriod = NormalizeProviderHistoryPeriod(period);
         var result = await TryGetBrapiQuoteAsync(normalized, includeHistory: true, cancellationToken, normalizedPeriod);
 
         if (result is null)
@@ -233,7 +233,7 @@ public sealed class FreeMarketDataProvider(
         return symbol.Trim().ToUpperInvariant();
     }
 
-    private static string NormalizePeriod(string period)
+    private static string NormalizeProviderHistoryPeriod(string period)
         => period?.Trim().ToLowerInvariant() switch
         {
             "1mo" or "3mo" or "6mo" or "1y" or "2y" or "5y" => period.Trim().ToLowerInvariant(),

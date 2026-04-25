@@ -200,11 +200,8 @@ public class CardsServiceTests
     public async Task ListStatementCyclesAsync_Should_Consolidate_Cycle()
     {
         var userId = Guid.NewGuid();
-        var cardId = Guid.NewGuid();
-        var planId = Guid.NewGuid();
-        var installmentId = Guid.NewGuid();
         var card = new Card(userId, 1, "Nome", "Principal", "1234", "Banco", 5000m, 10, 20);
-        typeof(Card).GetProperty(nameof(Card.Id))?.SetValue(card, cardId);
+        var cardId = card.Id;
 
         var cardRepository = new Mock<ICardRepository>();
         cardRepository
@@ -212,14 +209,14 @@ public class CardsServiceTests
             .ReturnsAsync(card);
 
         var plan = new MoneyPlan(userId, MoneyType.Expense, "Internet", 120m, ScheduleType.OneTime, new DateOnly(2026, 2, 5), null, 1, null, null, cardId);
-        typeof(MoneyPlan).GetProperty(nameof(MoneyPlan.Id))?.SetValue(plan, planId);
+        var planId = plan.Id;
         var planRepository = new Mock<IMoneyPlanRepository>();
         planRepository
             .Setup(x => x.ListByUserAsync(userId, MoneyType.Expense, It.IsAny<CancellationToken>()))
             .ReturnsAsync([plan]);
 
         var installment = new MoneyInstallment(planId, userId, 1, new DateOnly(2026, 3, 20), 120m, null, 2026, 3, new DateOnly(2026, 3, 10), new DateOnly(2026, 3, 20));
-        typeof(MoneyInstallment).GetProperty(nameof(MoneyInstallment.Id))?.SetValue(installment, installmentId);
+        var installmentId = installment.Id;
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository
             .Setup(x => x.ListByUserAsync(userId, null, null, null, MoneyType.Expense, It.IsAny<CancellationToken>()))

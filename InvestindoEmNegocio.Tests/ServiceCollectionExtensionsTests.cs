@@ -200,9 +200,26 @@ public class ServiceCollectionExtensionsTests
         services.AddApplicationDependencies();
 
         services.Any(x => x.ServiceType == typeof(IAuthService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(IAuthRegistrationApplicationService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(IAuthAccessApplicationService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(IAuthPasswordApplicationService)).Should().BeTrue();
         services.Any(x => x.ServiceType == typeof(IInvestmentsService)).Should().BeTrue();
         services.Any(x => x.ServiceType == typeof(IDataPortabilityService)).Should().BeTrue();
         services.Any(x => x.ServiceType == typeof(IB3SyncService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(IProfileQueryService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(IProfileCommandService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(IPreferenceSettingsService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(IOnboardingQueryService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(IOnboardingCommandService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(ILookupPaymentMethodService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(ILookupCardBrandService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(ILookupInstitutionService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(INotificationQueryService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(INotificationGenerationService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(INotificationCommandService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(IAdminRobotMonitorService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(IAdminRobotExecutionService)).Should().BeTrue();
+        services.Any(x => x.ServiceType == typeof(IAdminRuntimeInfoService)).Should().BeTrue();
         services.Any(x => x.ServiceType == typeof(IBillingCheckoutCommandService)).Should().BeTrue();
         services.Any(x => x.ServiceType == typeof(IBillingCheckoutQueryService)).Should().BeTrue();
         services.Any(x => x.ServiceType == typeof(IBillingPortalService)).Should().BeTrue();
@@ -258,10 +275,52 @@ public class ServiceCollectionExtensionsTests
         services.AddValidation();
         var provider = services.BuildServiceProvider();
 
-        var validator = provider.GetService<IValidator<RegisterUserRequest>>();
-
-        validator.Should().NotBeNull();
-        validator.Should().BeOfType<RegisterUserRequestValidator>();
+        provider.GetService<IValidator<RegisterUserRequest>>().Should().BeOfType<RegisterUserRequestValidator>();
+        provider.GetService<IValidator<AccountRequest>>().Should().BeOfType<AccountRequestValidator>();
+        provider.GetService<IValidator<AccountTransferRequest>>().Should().BeOfType<AccountTransferRequestValidator>();
+        provider.GetService<IValidator<CardRequest>>().Should().BeOfType<CardRequestValidator>();
+        provider.GetService<IValidator<UpsertCategoryRequest>>().Should().BeOfType<UpsertCategoryRequestValidator>();
+        provider.GetService<IValidator<CreateGoalRequest>>().Should().BeOfType<CreateGoalRequestValidator>();
+        provider.GetService<IValidator<GoalContributionRequest>>().Should().BeOfType<GoalContributionRequestValidator>();
+        provider.GetService<IValidator<CreatePlanRequest>>().Should().BeOfType<CreatePlanRequestValidator>();
+        provider.GetService<IValidator<PaymentRequest>>().Should().BeOfType<PaymentRequestValidator>();
+        provider.GetService<IValidator<PaymentReversalRequest>>().Should().BeOfType<PaymentReversalRequestValidator>();
+        provider.GetService<IValidator<ChangePasswordRequest>>().Should().BeOfType<ChangePasswordRequestValidator>();
+        provider.GetService<IValidator<RefreshTokenRequest>>().Should().BeOfType<RefreshTokenRequestValidator>();
+        provider.GetService<IValidator<StartBillingCheckoutRequest>>().Should().BeOfType<StartBillingCheckoutRequestValidator>();
+        provider.GetService<IValidator<ChangeSubscriptionRequest>>().Should().BeOfType<ChangeSubscriptionRequestValidator>();
+        provider.GetService<IValidator<CreatePaymentMethodRequest>>().Should().BeOfType<CreatePaymentMethodRequestValidator>();
+        provider.GetService<IValidator<CreateCardBrandRequest>>().Should().BeOfType<CreateCardBrandRequestValidator>();
+        provider.GetService<IValidator<CreateInstitutionRequest>>().Should().BeOfType<CreateInstitutionRequestValidator>();
+        provider.GetService<IValidator<UpdateRobotSettingsRequest>>().Should().BeOfType<UpdateRobotSettingsRequestValidator>();
+        provider.GetService<IValidator<SendTestEmailRequest>>().Should().BeOfType<SendTestEmailRequestValidator>();
+        provider.GetService<IValidator<AdminCategoryRequest>>().Should().BeOfType<AdminCategoryRequestValidator>();
+        provider.GetService<IValidator<UpdateUserRoleRequest>>().Should().BeOfType<UpdateUserRoleRequestValidator>();
+        provider.GetService<IValidator<UpdateOnboardingRequest>>().Should().BeOfType<UpdateOnboardingRequestValidator>();
+        provider.GetService<IValidator<ConfirmB3ImportRequest>>().Should().BeOfType<ConfirmB3ImportRequestValidator>();
+        provider.GetService<IValidator<B3SyncRequest>>().Should().BeOfType<B3SyncRequestValidator>();
+        provider.GetService<IValidator<UploadB3ReportRequest>>().Should().BeOfType<UploadB3ReportRequestValidator>();
+        provider.GetService<IValidator<UploadCsvStatementRequest>>().Should().BeOfType<UploadCsvStatementRequestValidator>();
+        provider.GetService<IValidator<UploadOfxRequest>>().Should().BeOfType<UploadOfxRequestValidator>();
+        provider.GetService<IValidator<UploadInvoiceRequest>>().Should().BeOfType<UploadInvoiceRequestValidator>();
+        provider.GetService<IValidator<ImportUserDataRequest>>().Should().BeOfType<ImportUserDataRequestValidator>();
+        provider.GetService<IValidator<BankStatementImportRequest>>().Should().BeOfType<BankStatementImportRequestValidator>();
+        provider.GetService<IValidator<InvoiceImportRequest>>().Should().BeOfType<InvoiceImportRequestValidator>();
+        provider.GetService<IValidator<CreateInvestmentPositionRequest>>().Should().BeOfType<CreateInvestmentPositionRequestValidator>();
+        provider.GetService<IValidator<CreateInvestmentMovementRequest>>().Should().BeOfType<CreateInvestmentMovementRequestValidator>();
+        provider.GetService<IValidator<UpsertInvestmentAllocationTargetRequest>>().Should().BeOfType<UpsertInvestmentAllocationTargetRequestValidator>();
+        provider.GetService<IValidator<UpsertInvestmentGoalRequest>>().Should().BeOfType<UpsertInvestmentGoalRequestValidator>();
+        provider.GetService<IValidator<LoanContractRequest>>().Should().BeOfType<LoanContractRequestValidator>();
+        provider.GetService<IValidator<FinancialAssistantChatRequest>>().Should().BeOfType<FinancialAssistantChatRequestValidator>();
+        provider.GetService<IValidator<GenerateMonthlyFinancialSnapshotRequest>>().Should().BeOfType<GenerateMonthlyFinancialSnapshotRequestValidator>();
+        provider.GetService<IValidator<UpsertIncomeGoalRequest>>().Should().BeOfType<UpsertIncomeGoalRequestValidator>();
+        provider.GetService<IValidator<AnticipationRequest>>().Should().BeOfType<AnticipationRequestValidator>();
+        provider.GetService<IValidator<UpdateNotificationSettingsRequest>>().Should().BeOfType<UpdateNotificationSettingsRequestValidator>();
+        provider.GetService<IValidator<UploadAvatarRequest>>().Should().BeOfType<UploadAvatarRequestValidator>();
+        provider.GetService<IValidator<UpdateActiveRequest>>().Should().BeOfType<UpdateActiveRequestValidator>();
+        provider.GetService<IValidator<UpdateUserStatusRequest>>().Should().BeOfType<UpdateUserStatusRequestValidator>();
+        provider.GetService<IValidator<SetUserFeatureOverrideRequest>>().Should().BeOfType<SetUserFeatureOverrideRequestValidator>();
+        provider.GetService<IValidator<InvoiceImportItemRequest>>().Should().BeOfType<InvoiceImportItemRequestValidator>();
     }
 
     [Fact]

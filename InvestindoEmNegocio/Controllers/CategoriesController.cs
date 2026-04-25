@@ -17,7 +17,7 @@ public class CategoriesController(ICategoriesService categoriesService, IAuditSe
 {
     [HttpGet]
     [Authorize(Policy = AppAuthorizationPolicies.FeatureCategoriesRead)]
-    // Lista categorias padrão (UserId nulo) + do usuário. Pode filtrar por tipo (receita/despesa).
+    // Lists default categories plus user categories, with an optional money type filter.
     public async Task<IActionResult> List([FromQuery] MoneyType? appliesTo, [FromQuery] ListQuery query, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
@@ -40,50 +40,34 @@ public class CategoriesController(ICategoriesService categoriesService, IAuditSe
 
     [HttpPost]
     [Authorize(Policy = AppAuthorizationPolicies.FeatureCategoriesManage)]
-    // Cria categoria exclusiva do usuário.
+    // Creates a category owned by the current user.
     public async Task<IActionResult> Create([FromBody] UpsertCategoryRequest request, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        try
+        return await ExecuteWithProblemMappingAsync(async () =>
         {
             var created = await categoriesService.CreateAsync(userId, request, cancellationToken);
             return Ok(created);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Categoria inválida", ex.Message, StatusCodes.Status400BadRequest);
-        }
-        catch (InvalidOperationException ex)
-        {
-            throw new AppProblemException("Conflito de categoria", ex.Message, StatusCodes.Status409Conflict);
-        }
+        }, "Categoria inválida", invalidOperationTitle: "Conflito de categoria");
     }
 
     [HttpPut("{id:guid}")]
     [Authorize(Policy = AppAuthorizationPolicies.FeatureCategoriesManage)]
-    // Atualiza categoria do usuário (não altera categorias padrão).
+    // Updates a user-owned category without touching default categories.
     public async Task<IActionResult> Update(Guid id, [FromBody] UpsertCategoryRequest request, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        try
+        return await ExecuteWithProblemMappingAsync(async () =>
         {
             var updated = await categoriesService.UpdateAsync(userId, id, request, cancellationToken);
             if (updated is null) return NotFound();
             return Ok(updated);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Categoria inválida", ex.Message, StatusCodes.Status400BadRequest);
-        }
-        catch (InvalidOperationException ex)
-        {
-            throw new AppProblemException("Conflito de categoria", ex.Message, StatusCodes.Status409Conflict);
-        }
+        }, "Categoria inválida", invalidOperationTitle: "Conflito de categoria");
     }
 
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = AppAuthorizationPolicies.FeatureCategoriesManage)]
-    // Remove apenas categorias do próprio usuário (não remove categorias padrão).
+    // Deletes only user-owned categories and keeps default categories intact.
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();

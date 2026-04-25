@@ -16,7 +16,7 @@ public class LoansService(
         var installments = await loanInstallmentRepository.ListByUserAsync(userId, cancellationToken);
 
         return contracts
-            .Select(contract => Map(contract, installments.Where(x => x.ContractId == contract.Id).ToList()))
+            .Select(contract => CreateLoanContractResponse(contract, installments.Where(x => x.ContractId == contract.Id).ToList()))
             .ToList();
     }
 
@@ -53,7 +53,7 @@ public class LoansService(
         await loanInstallmentRepository.AddRangeAsync(installments, cancellationToken);
         await loanContractRepository.SaveChangesAsync(cancellationToken);
 
-        return Map(contract, installments);
+        return CreateLoanContractResponse(contract, installments);
     }
 
     public Task<LoanSimulationResponse> SimulateAsync(Guid userId, LoanContractRequest request, CancellationToken cancellationToken = default)
@@ -152,7 +152,7 @@ public class LoansService(
         return new DateOnly(monthBase.Year, monthBase.Month, day);
     }
 
-    private static LoanContractResponse Map(LoanContract contract, List<LoanInstallment> installments)
+    private static LoanContractResponse CreateLoanContractResponse(LoanContract contract, List<LoanInstallment> installments)
     {
         var openInstallments = installments.Where(x => x.Status == LoanInstallmentStatus.Open).ToList();
         return new LoanContractResponse(

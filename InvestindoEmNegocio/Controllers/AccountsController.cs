@@ -25,33 +25,25 @@ public class AccountsController(IAccountsService accountsService) : Authenticate
     [Authorize(Policy = AppAuthorizationPolicies.FeatureAccountsManage)]
     public async Task<IActionResult> Create([FromBody] AccountRequest request, CancellationToken cancellationToken)
     {
-        try
+        return await ExecuteWithProblemMappingAsync(async () =>
         {
             var userId = GetUserId();
             var account = await accountsService.CreateAsync(userId, request, cancellationToken);
             return CreatedAtAction(nameof(List), account);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Conta inválida", ex.Message, StatusCodes.Status400BadRequest);
-        }
+        }, "Conta inválida");
     }
 
     [HttpPut("{id:guid}")]
     [Authorize(Policy = AppAuthorizationPolicies.FeatureAccountsManage)]
     public async Task<IActionResult> Update(Guid id, [FromBody] AccountRequest request, CancellationToken cancellationToken)
     {
-        try
+        return await ExecuteWithProblemMappingAsync(async () =>
         {
             var userId = GetUserId();
             var updated = await accountsService.UpdateAsync(userId, id, request, cancellationToken);
             if (updated is null) return NotFound();
             return Ok(updated);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Conta inválida", ex.Message, StatusCodes.Status400BadRequest);
-        }
+        }, "Conta inválida");
     }
 
     [HttpDelete("{id:guid}")]

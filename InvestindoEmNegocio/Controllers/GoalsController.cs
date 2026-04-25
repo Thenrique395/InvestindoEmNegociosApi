@@ -17,7 +17,7 @@ namespace InvestindoEmNegocio.Controllers;
 public class GoalsController(IGoalsService goalsService, IAuditService auditService) : AuthenticatedControllerBase
 {
     [HttpGet]
-    // Lista metas do usuário, opcionalmente filtrando por ano ou status.
+    // Lists user goals with optional year and status filters.
     public async Task<IActionResult> List([FromQuery] int? year, [FromQuery] GoalStatus? status, [FromQuery] ListQuery query, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
@@ -44,7 +44,7 @@ public class GoalsController(IGoalsService goalsService, IAuditService auditServ
     }
 
     [HttpGet("{id:guid}")]
-    // Retorna uma meta específica do usuário.
+    // Returns a single goal owned by the current user.
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
@@ -54,40 +54,32 @@ public class GoalsController(IGoalsService goalsService, IAuditService auditServ
     }
 
     [HttpPost]
-    // Cria uma meta anual para o usuário.
+    // Creates a yearly goal for the current user.
     public async Task<IActionResult> Create([FromBody] CreateGoalRequest request, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        try
+        return await ExecuteWithProblemMappingAsync(async () =>
         {
             var goal = await goalsService.CreateAsync(userId, request, cancellationToken);
             return Ok(goal);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Meta inválida", ex.Message, StatusCodes.Status400BadRequest);
-        }
+        }, "Invalid goal");
     }
 
     [HttpPut("{id:guid}")]
-    // Atualiza uma meta do usuário.
+    // Updates a goal owned by the current user.
     public async Task<IActionResult> Update(Guid id, [FromBody] CreateGoalRequest request, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        try
+        return await ExecuteWithProblemMappingAsync(async () =>
         {
             var goal = await goalsService.UpdateAsync(userId, id, request, cancellationToken);
             if (goal is null) return NotFound();
             return Ok(goal);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Meta inválida", ex.Message, StatusCodes.Status400BadRequest);
-        }
+        }, "Invalid goal");
     }
 
     [HttpDelete("{id:guid}")]
-    // Remove uma meta do usuário.
+    // Deletes a goal owned by the current user.
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var userId = GetUserId();

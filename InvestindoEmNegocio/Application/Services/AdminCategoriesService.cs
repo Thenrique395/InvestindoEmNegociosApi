@@ -19,8 +19,7 @@ public sealed class AdminCategoriesService(ICategoryRepository categoryRepositor
 
     public async Task<AdminCategoryResponse> CreateAsync(AdminCategoryRequest request, CancellationToken cancellationToken)
     {
-        ValidateRequest(request);
-        var name = request.Name.Trim();
+        var name = RequireCategoryName(request);
 
         if (await categoryRepository.DefaultNameExistsAsync(name, null, cancellationToken))
         {
@@ -33,11 +32,16 @@ public sealed class AdminCategoriesService(ICategoryRepository categoryRepositor
             throw new AppProblemException("Categoria inválida", parseError, StatusCodes.Status400BadRequest);
         }
 
-        var category = new Category(null, name, appliesTo);
-        await categoryRepository.AddAsync(category, cancellationToken);
         try
         {
+            var category = new Category(null, name, appliesTo);
+            await categoryRepository.AddAsync(category, cancellationToken);
             await categoryRepository.SaveChangesAsync(cancellationToken);
+            return ToAdminResponse(category);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new AppProblemException("Categoria inválida", ex.Message, StatusCodes.Status400BadRequest);
         }
         catch (DbUpdateException)
         {
@@ -46,17 +50,14 @@ public sealed class AdminCategoriesService(ICategoryRepository categoryRepositor
                 "Não foi possível salvar a categoria no momento.",
                 StatusCodes.Status409Conflict);
         }
-
-        return ToAdminResponse(category);
     }
 
     public async Task<AdminCategoryResponse> UpdateAsync(Guid id, AdminCategoryRequest request, CancellationToken cancellationToken)
     {
-        ValidateRequest(request);
+        var name = RequireCategoryName(request);
         var category = await categoryRepository.GetDefaultByIdAsync(id, cancellationToken)
-            ?? throw new AppProblemException("Não encontrado", "Categoria não encontrada.", StatusCodes.Status404NotFound);
+            ?? throw new AppProblemException("Categoria não encontrada", "Categoria não encontrada.", StatusCodes.Status404NotFound);
 
-        var name = request.Name.Trim();
         if (await categoryRepository.DefaultNameExistsAsync(name, id, cancellationToken))
         {
             throw new AppProblemException("Categoria já existe", "Já existe uma categoria padrão com esse nome.", StatusCodes.Status409Conflict);
@@ -68,10 +69,14 @@ public sealed class AdminCategoriesService(ICategoryRepository categoryRepositor
             throw new AppProblemException("Categoria inválida", parseError, StatusCodes.Status400BadRequest);
         }
 
-        category.Update(name, appliesTo);
         try
         {
+            category.Update(name, appliesTo);
             await categoryRepository.SaveChangesAsync(cancellationToken);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new AppProblemException("Categoria inválida", ex.Message, StatusCodes.Status400BadRequest);
         }
         catch (DbUpdateException)
         {
@@ -87,7 +92,7 @@ public sealed class AdminCategoriesService(ICategoryRepository categoryRepositor
     public async Task<AdminCategoryResponse> UpdateStatusAsync(Guid id, bool isActive, CancellationToken cancellationToken)
     {
         var category = await categoryRepository.GetDefaultByIdAsync(id, cancellationToken)
-            ?? throw new AppProblemException("Não encontrado", "Categoria não encontrada.", StatusCodes.Status404NotFound);
+            ?? throw new AppProblemException("Categoria não encontrada", "Categoria não encontrada.", StatusCodes.Status404NotFound);
 
         if (isActive) category.Activate();
         else category.Deactivate();
@@ -110,17 +115,14 @@ public sealed class AdminCategoriesService(ICategoryRepository categoryRepositor
     private static AdminCategoryResponse ToAdminResponse(Category category) =>
         new(category.Id, category.Name, category.AppliesTo?.ToString(), category.IsActive, category.CreatedAt);
 
-    private static void ValidateRequest(AdminCategoryRequest request)
+    private static string RequireCategoryName(AdminCategoryRequest request)
     {
         if (request is null || string.IsNullOrWhiteSpace(request.Name))
         {
             throw new AppProblemException("Categoria inválida", "Informe um nome válido.", StatusCodes.Status400BadRequest);
         }
 
-        if (request.Name.Trim().Length > 60)
-        {
-            throw new AppProblemException("Categoria inválida", "Nome da categoria deve ter até 60 caracteres.", StatusCodes.Status400BadRequest);
-        }
+        return request.Name.Trim();
     }
 
     private static bool TryParseAppliesTo(string? value, out MoneyType? appliesTo, out string? error)

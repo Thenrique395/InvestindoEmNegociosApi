@@ -44,4 +44,42 @@ public class MoneyInstallment
         StatementDueDate = statementDueDate;
         Amount = amount;
     }
+
+    public void Anticipate(DateOnly dueDate, DateOnly today)
+    {
+        if (DueDate.Year == today.Year && DueDate.Month == today.Month)
+            throw new InvalidOperationException("Não é possível antecipar parcelas do mês atual.");
+
+        if (OriginalDueDate is null)
+            OriginalDueDate = DueDate;
+
+        DueDate = dueDate;
+        Status = InstallmentStatus.Anticipated;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void RefreshPaymentStatus(decimal totalPaid)
+    {
+        if (totalPaid <= 0)
+            Status = InstallmentStatus.Open;
+        else if (totalPaid < Amount)
+            Status = InstallmentStatus.PartiallyPaid;
+        else
+            Status = InstallmentStatus.Paid;
+
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void RestoreStatus(InstallmentStatus status)
+    {
+        Status = status;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    internal void RestoreCreatedAt(DateTime createdAt)
+    {
+        CreatedAt = createdAt.Kind == DateTimeKind.Utc
+            ? createdAt
+            : DateTime.SpecifyKind(createdAt, DateTimeKind.Utc);
+    }
 }

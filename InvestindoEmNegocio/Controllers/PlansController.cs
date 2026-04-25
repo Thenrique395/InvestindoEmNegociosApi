@@ -1,12 +1,10 @@
 using InvestindoEmNegocio.Application.DTOs;
-using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Infrastructure.Api;
 using InvestindoEmNegocio.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Linq;
 
 namespace InvestindoEmNegocio.Controllers;
 
@@ -17,24 +15,20 @@ namespace InvestindoEmNegocio.Controllers;
 public class PlansController(IPlansService plansService, IAuditService auditService) : AuthenticatedControllerBase
 {
     [HttpPost]
-    // Cria um plano de receita/despesa e gera parcelas conforme o tipo (à vista, parcelado ou recorrente).
+    // Creates an income or expense plan and generates installments based on the schedule type.
     public async Task<ActionResult<PlanResponse>> Create([FromBody] CreatePlanRequest request,
         CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        try
+        return await ExecuteWithProblemMappingAsync<PlanResponse>(async () =>
         {
             var plan = await plansService.CreateAsync(userId, request, cancellationToken);
             return Ok(plan);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Plano inválido", ex.Message, StatusCodes.Status400BadRequest);
-        }
+        }, "Plano inválido");
     }
 
     [HttpGet]
-    // Lista planos do usuário, com filtro opcional por tipo (receita ou despesa).
+    // Lists user plans with an optional income or expense type filter.
     public async Task<IActionResult> List([FromQuery] MoneyType? type, [FromQuery] ListQuery query, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
@@ -59,7 +53,7 @@ public class PlansController(IPlansService plansService, IAuditService auditServ
     }
 
     [HttpGet("{id:guid}")]
-    // Retorna um plano específico com suas parcelas geradas.
+    // Returns a single plan with its generated installments.
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
@@ -69,25 +63,21 @@ public class PlansController(IPlansService plansService, IAuditService auditServ
     }
 
     [HttpPut("{id:guid}")]
-    // Atualiza um plano (receita/despesa) e regenera parcelas conforme o tipo.
+    // Updates a plan and regenerates installments based on the schedule type.
     public async Task<ActionResult<PlanResponse>> Update(Guid id, [FromBody] CreatePlanRequest request,
         CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        try
+        return await ExecuteWithProblemMappingAsync<PlanResponse>(async () =>
         {
             var plan = await plansService.UpdateAsync(userId, id, request, cancellationToken);
             if (plan is null) return NotFound();
             return Ok(plan);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Plano inválido", ex.Message, StatusCodes.Status400BadRequest);
-        }
+        }, "Plano inválido");
     }
 
     [HttpDelete("{id:guid}")]
-    // Remove um plano (e cascata remove parcelas e pagamentos).
+    // Deletes a plan and cascades installment and payment removal.
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
@@ -96,5 +86,4 @@ public class PlansController(IPlansService plansService, IAuditService auditServ
         await auditService.LogAsync(userId, "DELETE", "Plan", id.ToString(), GetIpAddress(), GetUserAgent(), null, cancellationToken);
         return NoContent();
     }
-
 }

@@ -93,7 +93,7 @@ public class InstallmentsService(
             var plan = await planRepository.GetByIdAsync(installment.PlanId, userId, cancellationToken);
             if (plan is null)
             {
-                throw new AppProblemException("Plano inválido", "Plano da parcela não encontrado.", StatusCodes.Status400BadRequest);
+                throw new AppProblemException("Plano inválido", "Plano parcelado não encontrado.", StatusCodes.Status400BadRequest);
             }
 
             var transactionKind = plan.Type == MoneyType.Income
@@ -143,7 +143,7 @@ public class InstallmentsService(
             [paymentId],
             cancellationToken) ?? [];
         if (existingReversalTransactions.Count > 0)
-            throw new AppProblemException("Pagamento já estornado", "Já existe estorno para esse pagamento.", StatusCodes.Status400BadRequest);
+            throw new AppProblemException("Pagamento já estornado", "Já existe um estorno para este pagamento.", StatusCodes.Status400BadRequest);
 
         var reversedAt = (request.ReversedAt ?? DateTime.UtcNow).ToUniversalTime();
         var reversalNote = string.IsNullOrWhiteSpace(request.Note)
@@ -167,7 +167,7 @@ public class InstallmentsService(
             {
                 var plan = await planRepository.GetByIdAsync(installment.PlanId, userId, cancellationToken);
                 if (plan is null)
-                    throw new AppProblemException("Plano inválido", "Plano da parcela não encontrado.", StatusCodes.Status400BadRequest);
+                    throw new AppProblemException("Plano inválido", "Plano parcelado não encontrado.", StatusCodes.Status400BadRequest);
 
                 var reversalKind = plan.Type == MoneyType.Income
                     ? AccountTransactionKind.Debit
@@ -206,7 +206,7 @@ public class InstallmentsService(
             .ToList();
 
         if (activeAccounts.Count == 0)
-            throw new AppProblemException("Conta obrigatória", "Nenhuma conta ativa encontrada para registrar a movimentação.", StatusCodes.Status400BadRequest);
+            throw new AppProblemException("Conta obrigatória", "Nenhuma conta ativa foi encontrada para registrar a transação.", StatusCodes.Status400BadRequest);
 
         if (user.Role == UserRole.Basic)
             return SelectDefaultAccount(activeAccounts);
@@ -224,10 +224,10 @@ public class InstallmentsService(
 
         var account = await accountRepository.GetByIdAsync(requestedAccountId.Value, userId, cancellationToken);
         if (account is null)
-            throw new AppProblemException("Conta inválida", "Conta informada não encontrada.", StatusCodes.Status400BadRequest);
+            throw new AppProblemException("Conta inválida", "A conta informada não foi encontrada.", StatusCodes.Status400BadRequest);
 
         if (!account.IsActive)
-            throw new AppProblemException("Conta inativa", "Ative a conta para registrar movimentações.", StatusCodes.Status400BadRequest);
+            throw new AppProblemException("Conta inativa", "Ative a conta para registrar transações.", StatusCodes.Status400BadRequest);
 
         return account;
     }
@@ -254,15 +254,7 @@ public class InstallmentsService(
         if (installment is null || installment.UserId != userId) return false;
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
-        if (installment.DueDate.Year == today.Year && installment.DueDate.Month == today.Month)
-            throw new InvalidOperationException("Não é possível antecipar parcelas do mês atual.");
-
-        if (installment.OriginalDueDate is null)
-            installment.GetType().GetProperty("OriginalDueDate")?.SetValue(installment, installment.DueDate);
-
-        installment.GetType().GetProperty("DueDate")?.SetValue(installment, request.DueDate);
-        installment.GetType().GetProperty("Status")?.SetValue(installment, InstallmentStatus.Anticipated);
-        installment.GetType().GetProperty("UpdatedAt")?.SetValue(installment, DateTime.UtcNow);
+        installment.Anticipate(request.DueDate, today);
 
         await installmentRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Installment anticipated {UserId} {InstallmentId} {DueDate}", userId, installmentId, request.DueDate);
@@ -304,12 +296,6 @@ public class InstallmentsService(
     private async Task UpdateInstallmentStatusAsync(MoneyInstallment installment, CancellationToken cancellationToken)
     {
         var totalPaid = await paymentRepository.SumPaidAmountAsync(installment.Id, cancellationToken);
-
-        if (totalPaid <= 0)
-            installment.GetType().GetProperty("Status")?.SetValue(installment, InstallmentStatus.Open);
-        else if (totalPaid < installment.Amount)
-            installment.GetType().GetProperty("Status")?.SetValue(installment, InstallmentStatus.PartiallyPaid);
-        else
-            installment.GetType().GetProperty("Status")?.SetValue(installment, InstallmentStatus.Paid);
+        installment.RefreshPaymentStatus(totalPaid);
     }
 }

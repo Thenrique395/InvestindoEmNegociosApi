@@ -11,31 +11,34 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/profile")]
 [Route("api/v1/profile")]
 [Authorize(Policy = AppAuthorizationPolicies.FeatureProfileManage)]
-public class ProfileController(IProfileService profileService, IAvatarStorageService avatarStorageService) : AuthenticatedControllerBase
+public class ProfileController(
+    IProfileQueryService profileQueryService,
+    IProfileCommandService profileCommandService,
+    IAvatarStorageService avatarStorageService) : AuthenticatedControllerBase
 {
     [HttpGet]
-    // Retorna o perfil do usuário autenticado (204 se ainda não existir).
+    // Returns the authenticated user's profile, or 204 when it does not exist yet.
     public async Task<ActionResult<UserProfileDto>> Get(CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var profile = await profileService.GetAsync(userId, cancellationToken);
+        var profile = await profileQueryService.GetAsync(userId, cancellationToken);
         if (profile is null) return NoContent();
         return Ok(profile);
     }
 
     [HttpPut]
-    // Cria ou atualiza o perfil do usuário autenticado com dados pessoais.
+    // Creates or updates the authenticated user's profile.
     public async Task<ActionResult<UserProfileDto>> Upsert([FromBody] UpsertUserProfileRequest request, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var profile = await profileService.UpsertAsync(userId, request, cancellationToken);
+        var profile = await profileCommandService.UpsertAsync(userId, request, cancellationToken);
         return Ok(profile);
     }
 
     [HttpPost("avatar")]
     [RequestSizeLimit(2 * 1024 * 1024)]
     [Consumes("multipart/form-data")]
-    // Faz upload da foto de perfil e atualiza o AvatarUrl.
+    // Uploads the profile photo and updates AvatarUrl.
     public async Task<ActionResult<UserProfileDto>> UploadAvatar([FromForm] UploadAvatarRequest request, CancellationToken cancellationToken)
     {
         var avatar = request.Avatar;
@@ -57,7 +60,7 @@ public class ProfileController(IProfileService profileService, IAvatarStorageSer
             baseUrl,
             cancellationToken);
 
-        var profile = await profileService.UpdateAvatarAsync(userId, avatarUrl, cancellationToken);
+        var profile = await profileCommandService.UpdateAvatarAsync(userId, avatarUrl, cancellationToken);
         return Ok(profile);
     }
 

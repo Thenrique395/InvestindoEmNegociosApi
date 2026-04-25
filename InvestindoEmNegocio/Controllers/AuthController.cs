@@ -10,13 +10,13 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/auth")]
 [Route("api/v1/auth")]
 [EnableRateLimiting("auth")]
-public class AuthController(IAuthFacadeService authFacadeService) : AuthenticatedControllerBase
+public class AuthController(IAuthAccessApplicationService authAccessApplicationService) : AuthenticatedControllerBase
 {
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
-        var response = await authFacadeService.LoginAsync(request, GetIpAddress(), GetUserAgent(), cancellationToken);
+        var response = await authAccessApplicationService.LoginAsync(request, GetIpAddress(), GetUserAgent(), cancellationToken);
         return Ok(response);
     }
 
@@ -24,7 +24,7 @@ public class AuthController(IAuthFacadeService authFacadeService) : Authenticate
     [AllowAnonymous]
     public async Task<ActionResult<AuthResponse>> Refresh([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
     {
-        var response = await authFacadeService.RefreshAsync(request, cancellationToken);
+        var response = await authAccessApplicationService.RefreshAsync(request, cancellationToken);
         return Ok(response);
     }
 
@@ -32,7 +32,7 @@ public class AuthController(IAuthFacadeService authFacadeService) : Authenticate
     [AllowAnonymous]
     public async Task<IActionResult> Logout([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
     {
-        await authFacadeService.LogoutAsync(request, cancellationToken);
+        await authAccessApplicationService.LogoutAsync(request, cancellationToken);
         return NoContent();
     }
 }

@@ -72,11 +72,11 @@ public class InvestmentControllersTests
     public async Task Create_And_Update_And_Delete_Position_Should_Return_Expected_Status()
     {
         var position = new InvestmentPositionDto(Guid.NewGuid(), InvestmentType.ACOES, "PETR4", 10, 20, DateOnly.FromDateTime(DateTime.UtcNow), "B3", "Acoes", null, []);
-        var facade = new Mock<IInvestmentsFacadeService>();
-        facade.Setup(x => x.CreatePositionAsync(It.IsAny<Guid>(), It.IsAny<CreateInvestmentPositionRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(position);
-        facade.Setup(x => x.UpdatePositionAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CreateInvestmentPositionRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(position);
-        facade.Setup(x => x.DeletePositionAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        var controller = CreatePositionsController(facade: facade);
+        var applicationService = new Mock<IInvestmentsApplicationService>();
+        applicationService.Setup(x => x.CreatePositionAsync(It.IsAny<Guid>(), It.IsAny<CreateInvestmentPositionRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(position);
+        applicationService.Setup(x => x.UpdatePositionAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CreateInvestmentPositionRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(position);
+        applicationService.Setup(x => x.DeletePositionAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var controller = CreatePositionsController(applicationService: applicationService);
 
         var create = await controller.Create(new CreateInvestmentPositionRequest(InvestmentType.ACOES, "PETR4", 10, 20, DateOnly.FromDateTime(DateTime.UtcNow), "B3", "Acoes", null), CancellationToken.None);
         var update = await controller.Update(position.Id, new CreateInvestmentPositionRequest(InvestmentType.ACOES, "PETR4", 15, 21, DateOnly.FromDateTime(DateTime.UtcNow), "B3", "Acoes", null), CancellationToken.None);
@@ -91,22 +91,22 @@ public class InvestmentControllersTests
     public async Task AddMovement_And_Benchmarks_And_Market_Endpoints_Should_Return_Ok()
     {
         var movement = new InvestmentMovementDto(Guid.NewGuid(), InvestmentMovementType.COMPRA, 1, 10, DateOnly.FromDateTime(DateTime.UtcNow), null);
-        var facade = new Mock<IInvestmentsFacadeService>();
-        facade.Setup(x => x.AddMovementAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CreateInvestmentMovementRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(movement);
-        facade.Setup(x => x.GetMarketQuoteAsync("PETR4", It.IsAny<CancellationToken>()))
+        var applicationService = new Mock<IInvestmentsApplicationService>();
+        applicationService.Setup(x => x.AddMovementAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CreateInvestmentMovementRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(movement);
+        applicationService.Setup(x => x.GetMarketQuoteAsync("PETR4", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MarketQuoteResponse("PETR4", 30m, 1m, "BRL", "Petrobras", DateTimeOffset.UtcNow, "source", false, "provider"));
-        facade.Setup(x => x.GetMarketProfileAsync("PETR4", It.IsAny<CancellationToken>()))
+        applicationService.Setup(x => x.GetMarketProfileAsync("PETR4", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MarketProfileResponse("PETR4", "Petrobras", null, null, null, null, "source", false, "provider"));
-        facade.Setup(x => x.GetMarketHistoryAsync("PETR4", "6mo", It.IsAny<CancellationToken>()))
+        applicationService.Setup(x => x.GetMarketHistoryAsync("PETR4", "6mo", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MarketHistoryResponse("PETR4", "6mo", "source", false, "provider", []));
 
         var benchmarks = new Mock<IInvestmentBenchmarksService>();
         benchmarks.Setup(x => x.GetBenchmarksAsync(6, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new InvestmentBenchmarksResponse(6, [new InvestmentBenchmarkItemDto("CDI", 10m, "src", false)]));
 
-        var positionsController = CreatePositionsController(facade: facade);
+        var positionsController = CreatePositionsController(applicationService: applicationService);
         var benchmarksController = new InvestmentBenchmarksController(benchmarks.Object);
-        var marketController = new InvestmentMarketController(facade.Object);
+        var marketController = new InvestmentMarketController(applicationService.Object);
 
         (await positionsController.AddMovement(Guid.NewGuid(), new CreateInvestmentMovementRequest(InvestmentMovementType.COMPRA, 1, 10, DateOnly.FromDateTime(DateTime.UtcNow), null), CancellationToken.None))
             .Should().BeOfType<OkObjectResult>();
@@ -117,14 +117,14 @@ public class InvestmentControllersTests
     }
 
     [Fact]
-    public async Task B3_Endpoints_Should_Return_Ok_When_Facade_And_Sync_Succeed()
+    public async Task B3_Endpoints_Should_Return_Ok_When_Application_Service_And_Sync_Succeed()
     {
-        var facade = new Mock<IInvestmentsFacadeService>();
-        facade.Setup(x => x.ConfirmB3Async(It.IsAny<Guid>(), It.IsAny<ConfirmB3ImportRequest>(), It.IsAny<CancellationToken>()))
+        var applicationService = new Mock<IInvestmentsApplicationService>();
+        applicationService.Setup(x => x.ConfirmB3Async(It.IsAny<Guid>(), It.IsAny<ConfirmB3ImportRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new B3ConfirmImportResponse(10));
-        facade.Setup(x => x.SyncB3Async(It.IsAny<Guid>(), It.IsAny<B3SyncRequest>(), It.IsAny<CancellationToken>()))
+        applicationService.Setup(x => x.SyncB3Async(It.IsAny<Guid>(), It.IsAny<B3SyncRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new B3SyncResponse("B3", false, 10, "ok"));
-        facade.Setup(x => x.ExtractB3Async(It.IsAny<Guid>(), It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+        applicationService.Setup(x => x.ExtractB3Async(It.IsAny<Guid>(), It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new B3ExtractResponse("token", "02/2026", "holder", "doc", new B3ExtractTotals(0, 0, 0), [], [], [], "raw"));
 
         var sync = new Mock<IB3SyncService>();
@@ -133,7 +133,7 @@ public class InvestmentControllersTests
         sync.Setup(x => x.GrantMockConsentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new B3ConsentStatusResponse(true, "B3", DateTime.UtcNow, "ok"));
 
-        var controller = CreateB3Controller(facade: facade, b3Sync: sync);
+        var controller = CreateB3Controller(applicationService: applicationService, b3Sync: sync);
         var file = BuildPdfFormFile();
 
         (await controller.Extract(new UploadB3ReportRequest { File = file }, CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
@@ -161,7 +161,7 @@ public class InvestmentControllersTests
     {
         var controller = new InvestmentGoalsController(
             Mock.Of<IInvestmentsService>(),
-            Mock.Of<IInvestmentsFacadeService>())
+            Mock.Of<IInvestmentsApplicationService>())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
@@ -173,11 +173,11 @@ public class InvestmentControllersTests
 
     private static InvestmentGoalsController CreateGoalsController(
         Mock<IInvestmentsService>? service = null,
-        Mock<IInvestmentsFacadeService>? facade = null)
+        Mock<IInvestmentsApplicationService>? applicationService = null)
     {
         var controller = new InvestmentGoalsController(
             service?.Object ?? Mock.Of<IInvestmentsService>(),
-            facade?.Object ?? Mock.Of<IInvestmentsFacadeService>());
+            applicationService?.Object ?? Mock.Of<IInvestmentsApplicationService>());
 
         SetAuth(controller);
         return controller;
@@ -185,22 +185,22 @@ public class InvestmentControllersTests
 
     private static InvestmentPositionsController CreatePositionsController(
         Mock<IInvestmentsService>? service = null,
-        Mock<IInvestmentsFacadeService>? facade = null)
+        Mock<IInvestmentsApplicationService>? applicationService = null)
     {
         var controller = new InvestmentPositionsController(
             service?.Object ?? Mock.Of<IInvestmentsService>(),
-            facade?.Object ?? Mock.Of<IInvestmentsFacadeService>());
+            applicationService?.Object ?? Mock.Of<IInvestmentsApplicationService>());
 
         SetAuth(controller);
         return controller;
     }
 
     private static InvestmentB3Controller CreateB3Controller(
-        Mock<IInvestmentsFacadeService>? facade = null,
+        Mock<IInvestmentsApplicationService>? applicationService = null,
         Mock<IB3SyncService>? b3Sync = null)
     {
         var controller = new InvestmentB3Controller(
-            facade?.Object ?? Mock.Of<IInvestmentsFacadeService>(),
+            applicationService?.Object ?? Mock.Of<IInvestmentsApplicationService>(),
             b3Sync?.Object ?? Mock.Of<IB3SyncService>());
 
         SetAuth(controller);

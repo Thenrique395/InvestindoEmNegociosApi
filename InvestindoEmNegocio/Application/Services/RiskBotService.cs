@@ -161,7 +161,7 @@ public sealed class RiskBotService(
                 "danger",
                 $"Você tem {overdueExpenses.Count} despesa(s) vencida(s).",
                 "Quitar despesas",
-                "/despesas",
+                "/expenses",
                 new Dictionary<string, string> { ["focus"] = "overdue" },
                 overdueExpenses.Sum(i => i.Amount),
                 overdueExpenses.Min(i => i.DueDate)));
@@ -174,7 +174,7 @@ public sealed class RiskBotService(
                 "warn",
                 $"Você tem {overdueIncomes.Count} receita(s) em atraso.",
                 "Confirmar recebimentos",
-                "/receitas",
+                "/incomes",
                 new Dictionary<string, string> { ["focus"] = "pending" },
                 overdueIncomes.Sum(i => i.Amount),
                 overdueIncomes.Min(i => i.DueDate)));
@@ -187,7 +187,7 @@ public sealed class RiskBotService(
                 "warn",
                 $"Há {dueSoonExpenses.Count} despesa(s) vencendo nos próximos 5 dias.",
                 "Ver próximas despesas",
-                "/despesas",
+                "/expenses",
                 new Dictionary<string, string> { ["focus"] = "upcoming" },
                 dueSoonExpenses.Sum(i => i.Amount),
                 dueSoonExpenses.Min(i => i.DueDate)));
@@ -201,7 +201,7 @@ public sealed class RiskBotService(
                 "info",
                 $"Próxima receita pendente em {nextIncome.DueDate:dd/MM/yyyy}.",
                 "Abrir receitas",
-                "/receitas",
+                "/incomes",
                 new Dictionary<string, string> { ["focus"] = "pending" },
                 nextIncome.Amount,
                 nextIncome.DueDate));

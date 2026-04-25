@@ -28,7 +28,7 @@ public sealed class AdminUsersService(
     {
         if (!Enum.TryParse<UserRole>(role, true, out var parsedRole))
         {
-            throw new AppProblemException("Role inválida", "Role informada não é válida.", StatusCodes.Status400BadRequest);
+            throw new AppProblemException("Função inválida", "A função informada não é válida.", StatusCodes.Status400BadRequest);
         }
 
         var user = await userRepository.GetByIdAsync(id, cancellationToken)
@@ -54,7 +54,7 @@ public sealed class AdminUsersService(
     {
         if (id == currentUserId && !isActive)
         {
-            throw new AppProblemException("Ação inválida", "Você não pode bloquear seu próprio acesso.", StatusCodes.Status400BadRequest);
+            throw new AppProblemException("Ação inválida", "Você não pode bloquear o próprio acesso.", StatusCodes.Status400BadRequest);
         }
 
         var user = await userRepository.GetByIdAsync(id, cancellationToken)
@@ -164,7 +164,7 @@ public sealed class AdminUsersService(
     {
         if (id == currentUserId)
         {
-            throw new AppProblemException("Ação inválida", "Você não pode excluir seu próprio usuário.", StatusCodes.Status400BadRequest);
+            throw new AppProblemException("Ação inválida", "Você não pode excluir o próprio usuário.", StatusCodes.Status400BadRequest);
         }
 
         var user = await userRepository.GetByIdAsync(id, cancellationToken)
@@ -208,7 +208,7 @@ public sealed class AdminUsersService(
         var normalized = featureKey.Trim();
         if (!AppFeatureKeys.IsKnownFeature(normalized))
         {
-            throw new AppProblemException("Feature inválida", "Feature informada não é reconhecida.", StatusCodes.Status400BadRequest);
+            throw new AppProblemException("Funcionalidade inválida", "A funcionalidade informada não é reconhecida.", StatusCodes.Status400BadRequest);
         }
 
         return normalized;

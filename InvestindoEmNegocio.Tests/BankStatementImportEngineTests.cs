@@ -16,9 +16,8 @@ public class BankStatementImportEngineTests
     public async Task ImportAsync_Should_Skip_Duplicate_Transactions_When_Enabled()
     {
         var userId = Guid.NewGuid();
-        var accountId = Guid.NewGuid();
         var account = new Account(userId, "Conta", AccountType.Checking, 0);
-        typeof(Account).GetProperty(nameof(Account.Id))?.SetValue(account, accountId);
+        var accountId = account.Id;
 
         var accountRepository = new Mock<IAccountRepository>();
         accountRepository.Setup(x => x.GetByIdAsync(accountId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(account);

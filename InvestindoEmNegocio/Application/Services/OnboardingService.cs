@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Application.Services;
 
-public class OnboardingService(IUserOnboardingRepository repository, ILogger<OnboardingService> logger) : IOnboardingService
+public class OnboardingService(IUserOnboardingRepository repository, ILogger<OnboardingService> logger) : IOnboardingQueryService, IOnboardingCommandService
 {
     private readonly ILogger<OnboardingService> _logger = logger;
     public async Task<OnboardingStatusDto> GetStatusAsync(Guid userId, CancellationToken cancellationToken = default)

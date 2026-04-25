@@ -10,13 +10,15 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/onboarding")]
 [Route("api/v1/onboarding")]
 [Authorize(Policy = AppAuthorizationPolicies.FeatureOnboardingManage)]
-public class OnboardingController(IOnboardingService onboardingService) : AuthenticatedControllerBase
+public class OnboardingController(
+    IOnboardingQueryService onboardingQueryService,
+    IOnboardingCommandService onboardingCommandService) : AuthenticatedControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<OnboardingStatusDto>> Get(CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var status = await onboardingService.GetStatusAsync(userId, cancellationToken);
+        var status = await onboardingQueryService.GetStatusAsync(userId, cancellationToken);
         return Ok(status);
     }
 
@@ -24,7 +26,7 @@ public class OnboardingController(IOnboardingService onboardingService) : Authen
     public async Task<ActionResult<OnboardingStatusDto>> Update([FromBody] UpdateOnboardingRequest request, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var status = await onboardingService.UpdateStatusAsync(userId, request, cancellationToken);
+        var status = await onboardingCommandService.UpdateStatusAsync(userId, request, cancellationToken);
         return Ok(status);
     }
 

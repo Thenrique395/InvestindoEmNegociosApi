@@ -79,7 +79,9 @@ public class AdminRobotsControllerIntegrationTests
                 .Build());
         builder.Services.AddAuthorization(AppAuthorizationPolicies.Configure);
 
-        builder.Services.AddSingleton<IAdminRobotsService>(new FakeAdminRobotsService());
+        var fakeAdminRobotsService = new FakeAdminRobotsService();
+        builder.Services.AddSingleton<IAdminRobotMonitorService>(fakeAdminRobotsService);
+        builder.Services.AddSingleton<IAdminRobotExecutionService>(fakeAdminRobotsService);
 
         var app = builder.Build();
         app.UseGlobalProblemDetails(includeExceptionDetails: false);
@@ -116,7 +118,7 @@ public class AdminRobotsControllerIntegrationTests
         }
     }
 
-    private sealed class FakeAdminRobotsService : IAdminRobotsService
+    private sealed class FakeAdminRobotsService : IAdminRobotMonitorService, IAdminRobotExecutionService
     {
         public Task<RobotMonitorResponseDto> MonitorAsync(RobotMonitorQueryDto query, CancellationToken cancellationToken = default)
         {

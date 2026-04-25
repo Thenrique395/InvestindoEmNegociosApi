@@ -56,7 +56,7 @@ public class RepositoryCoverageTests
         var i2 = new MoneyInstallment(expensePlan.Id, userId, 2, new DateOnly(2026, 3, 10), 80);
         var i3 = new MoneyInstallment(incomePlan.Id, userId, 1, new DateOnly(2026, 2, 15), 500);
         var i4 = new MoneyInstallment(foreignPlan.Id, otherUserId, 1, new DateOnly(2026, 2, 10), 70);
-        i2.GetType().GetProperty("Status")!.SetValue(i2, InstallmentStatus.Paid);
+        i2.RestoreStatus(InstallmentStatus.Paid);
 
         await db.MoneyInstallments.AddRangeAsync(i1, i2, i3, i4);
         await db.SaveChangesAsync();

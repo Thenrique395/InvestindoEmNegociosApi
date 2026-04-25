@@ -40,20 +40,12 @@ public class GoalContributionsController(IGoalContributionsService contributions
     public async Task<IActionResult> Create(Guid goalId, [FromBody] GoalContributionRequest request, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        try
+        return await ExecuteWithProblemMappingAsync(async () =>
         {
             var contrib = await contributionsService.CreateAsync(userId, goalId, request, cancellationToken);
             if (contrib is null) return NotFound();
             return Ok(contrib);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Contribuição inválida", ex.Message, StatusCodes.Status400BadRequest);
-        }
-        catch (InvalidOperationException ex)
-        {
-            throw new AppProblemException("Contribuição inválida", ex.Message, StatusCodes.Status400BadRequest);
-        }
+        }, "Invalid contribution", invalidOperationTitle: "Invalid contribution", invalidOperationStatusCode: StatusCodes.Status400BadRequest);
     }
 
 }

@@ -9,7 +9,7 @@ public class LookupsService(
     IPaymentMethodRepository paymentMethodRepository,
     ICardBrandRepository cardBrandRepository,
     IInstitutionRepository institutionRepository)
-    : ILookupsService
+    : ILookupPaymentMethodService, ILookupCardBrandService, ILookupInstitutionService
 {
     public async Task<IReadOnlyList<PaymentMethod>> GetPaymentMethodsAsync(CancellationToken cancellationToken = default)
     {

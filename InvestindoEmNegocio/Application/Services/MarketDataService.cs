@@ -40,7 +40,7 @@ public sealed class MarketDataService(
     public Task<MarketHistoryResponse> GetHistoryAsync(string symbol, string period = "6mo", CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeSymbol(symbol);
-        var normalizedPeriod = NormalizePeriod(period);
+        var normalizedPeriod = NormalizeMarketHistoryPeriod(period);
         var cacheKey = $"market:history:{ProviderName()}:{normalized}:{normalizedPeriod}";
         return cache.GetOrCreateAsync(cacheKey, async entry =>
         {
@@ -90,7 +90,7 @@ public sealed class MarketDataService(
         return symbol.Trim().ToUpperInvariant();
     }
 
-    private static string NormalizePeriod(string period)
+    private static string NormalizeMarketHistoryPeriod(string period)
     {
         return period?.Trim().ToLowerInvariant() switch
         {

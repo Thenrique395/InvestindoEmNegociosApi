@@ -16,16 +16,28 @@ public class Category
     public Category(Guid? userId, string name, MoneyType? appliesTo)
     {
         UserId = userId;
-        Name = name.Trim();
+        Name = NormalizeName(name);
         AppliesTo = appliesTo;
     }
 
     public void Update(string name, MoneyType? appliesTo)
     {
-        Name = name.Trim();
+        Name = NormalizeName(name);
         AppliesTo = appliesTo;
     }
 
     public void Activate() => IsActive = true;
     public void Deactivate() => IsActive = false;
+
+    private static string NormalizeName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Nome da categoria é obrigatório.");
+
+        var normalized = name.Trim();
+        if (normalized.Length > 60)
+            throw new ArgumentException("Nome da categoria deve ter no máximo 60 caracteres.");
+
+        return normalized;
+    }
 }

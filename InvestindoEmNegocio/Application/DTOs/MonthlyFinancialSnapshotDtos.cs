@@ -17,4 +17,4 @@ public sealed record MonthlyFinancialSnapshotResponse(
     IReadOnlyList<string> Recommendations,
     DateTime CreatedAt);
 
-public sealed record GenerateMonthlySnapshotRequest(int Year, int Month);
+public sealed record GenerateMonthlyFinancialSnapshotRequest(int Year, int Month);

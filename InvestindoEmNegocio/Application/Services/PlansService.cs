@@ -19,8 +19,6 @@ public class PlansService(
     private readonly ILogger<PlansService> _logger = logger;
     public async Task<PlanResponse> CreateAsync(Guid userId, CreatePlanRequest request, CancellationToken cancellationToken = default)
     {
-        ValidateSchedule(request);
-
         var plan = new MoneyPlan(
             userId,
             request.Type,
@@ -39,13 +37,13 @@ public class PlansService(
         await planRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Plan created {UserId} {PlanId} {Schedule}", userId, plan.Id, plan.Schedule);
 
-        return ToResponse(plan);
+        return CreatePlanResponse(plan);
     }
 
     public async Task<IReadOnlyList<PlanResponse>> ListAsync(Guid userId, MoneyType? type, CancellationToken cancellationToken = default)
     {
         var data = await planRepository.ListByUserAsync(userId, type, cancellationToken);
-        return data.Select(ToResponse).ToList();
+        return data.Select(CreatePlanResponse).ToList();
     }
 
     public async Task<PlanDetailsResponse?> GetByIdAsync(Guid userId, Guid id, CancellationToken cancellationToken = default)
@@ -66,13 +64,11 @@ public class PlansService(
             i.StatementCloseDate,
             i.StatementDueDate,
             FormatStatementReference(i.StatementYear, i.StatementMonth))).ToList();
-        return new PlanDetailsResponse(ToResponse(plan), responseInstallments);
+        return new PlanDetailsResponse(CreatePlanResponse(plan), responseInstallments);
     }
 
     public async Task<PlanResponse?> UpdateAsync(Guid userId, Guid id, CreatePlanRequest request, CancellationToken cancellationToken = default)
     {
-        ValidateSchedule(request);
-
         var plan = await planRepository.GetByIdAsync(id, userId, cancellationToken);
         if (plan is null) return null;
 
@@ -99,7 +95,7 @@ public class PlansService(
         await planRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Plan updated {UserId} {PlanId} {Schedule}", userId, plan.Id, plan.Schedule);
 
-        return ToResponse(plan);
+        return CreatePlanResponse(plan);
     }
 
     public async Task<bool> DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken = default)
@@ -202,45 +198,6 @@ public class PlansService(
             statementDueDate: cycle.StatementDueDate);
     }
 
-    private static void ValidateSchedule(CreatePlanRequest request)
-    {
-        switch (request.Schedule)
-        {
-            case ScheduleType.OneTime:
-                if (request.InstallmentsCount != 1)
-                {
-                    throw new ArgumentException("ONE_TIME requer installmentsCount = 1.");
-                }
-                if (request.Frequency is not null)
-                {
-                    throw new ArgumentException("ONE_TIME não aceita frequency.");
-                }
-                break;
-            case ScheduleType.Installments:
-                if (request.InstallmentsCount is null || request.InstallmentsCount < 2)
-                {
-                    throw new ArgumentException("INSTALLMENTS requer installmentsCount >= 2.");
-                }
-                if (request.Frequency is not null)
-                {
-                    throw new ArgumentException("INSTALLMENTS não aceita frequency.");
-                }
-                break;
-            case ScheduleType.Recurring:
-                if (request.Frequency is null)
-                {
-                    throw new ArgumentException("RECURRING requer frequency.");
-                }
-                if (request.InstallmentsCount is not null)
-                {
-                    throw new ArgumentException("RECURRING não aceita installmentsCount.");
-                }
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(request.Schedule), request.Schedule, "Schedule inválido.");
-        }
-    }
-
     private static string? FormatStatementReference(int? year, int? month)
     {
         if (!year.HasValue || !month.HasValue)
@@ -248,6 +205,6 @@ public class PlansService(
         return $"{month.Value:D2}/{year.Value}";
     }
 
-    private static PlanResponse ToResponse(MoneyPlan p) =>
+    private static PlanResponse CreatePlanResponse(MoneyPlan p) =>
         new(p.Id, p.Type, p.Title, p.Amount, p.Schedule, p.Frequency, p.InstallmentsCount, p.StartDate, p.Status.ToString(), p.CategoryId, p.CardId);
 }

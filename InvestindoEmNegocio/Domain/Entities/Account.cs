@@ -46,4 +46,11 @@ public class Account
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
     }
+
+    internal void RestoreCreatedAt(DateTime createdAt)
+    {
+        CreatedAt = createdAt.Kind == DateTimeKind.Utc
+            ? createdAt
+            : DateTime.SpecifyKind(createdAt, DateTimeKind.Utc);
+    }
 }

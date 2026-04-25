@@ -46,10 +46,10 @@ public class UserProfile
         string intelligenceMode = "B")
     {
         UserId = userId;
-        SetData(fullName, document, phone, birthDate, avatarUrl, city, state, country, language, currency, carryOverDay, financialGoal, intelligenceMode);
+        UpdateProfileData(fullName, document, phone, birthDate, avatarUrl, city, state, country, language, currency, carryOverDay, financialGoal, intelligenceMode);
     }
 
-    public void SetData(
+    public void UpdateProfileData(
         string fullName,
         string document,
         string phone,
@@ -67,7 +67,7 @@ public class UserProfile
         FullName = fullName.Trim();
         Document = SanitizeDocument(document);
         Phone = SanitizePhone(phone);
-        BirthDate = NormalizeDate(birthDate);
+        BirthDate = NormalizeUtcDate(birthDate);
         AvatarUrl = avatarUrl?.Trim() ?? string.Empty;
         City = city?.Trim() ?? string.Empty;
         State = state?.Trim() ?? string.Empty;
@@ -90,6 +90,13 @@ public class UserProfile
         UpdatedAt = DateTime.UtcNow;
     }
 
+    public void UpdatePreferenceSettings(string language, string currency)
+    {
+        Language = string.IsNullOrWhiteSpace(language) ? "pt-BR" : language.Trim();
+        Currency = string.IsNullOrWhiteSpace(currency) ? "BRL" : currency.Trim().ToUpperInvariant();
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     private static string SanitizeDocument(string document)
     {
         var digits = new string(document.Where(char.IsDigit).ToArray());
@@ -108,7 +115,7 @@ public class UserProfile
         return phone.Trim();
     }
 
-    private static DateTime? NormalizeDate(DateTime? date)
+    private static DateTime? NormalizeUtcDate(DateTime? date)
     {
         if (!date.HasValue) return null;
         var dt = date.Value;

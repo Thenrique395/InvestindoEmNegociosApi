@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.OpenApi;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
@@ -92,6 +93,27 @@ public static class ServiceCollectionExtensions
             {
                 opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false));
             });
+
+        services.Configure<ApiBehaviorOptions>(options =>
+        {
+            options.InvalidModelStateResponseFactory = context =>
+            {
+                var problemDetails = new ValidationProblemDetails(context.ModelState)
+                {
+                    Status = StatusCodes.Status400BadRequest,
+                    Title = "Dados inválidos.",
+                    Detail = "Revise os campos informados.",
+                    Instance = context.HttpContext.Request.Path
+                };
+
+                problemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+
+                return new BadRequestObjectResult(problemDetails)
+                {
+                    ContentTypes = { "application/problem+json" }
+                };
+            };
+        });
 
         services.AddProblemDetails(options =>
         {
@@ -248,19 +270,23 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRobotSettingsRepository, RobotSettingsRepository>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IAuthFacadeService, AuthFacadeService>();
+        services.AddScoped<IAuthRegistrationApplicationService, AuthRegistrationApplicationService>();
+        services.AddScoped<IAuthAccessApplicationService, AuthAccessApplicationService>();
+        services.AddScoped<IAuthPasswordApplicationService, AuthPasswordApplicationService>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
         services.AddScoped<IImportIdentityEngine, ImportIdentityEngine>();
         services.AddScoped<IBankStatementImportEngine, BankStatementImportEngine>();
         services.AddScoped<IRobotTask, ReminderRobotTask>();
         services.AddScoped<IRobotRunner, RobotRunner>();
         services.AddScoped<IAuditService, AuditService>();
-        services.AddScoped<IProfileService, ProfileService>();
+        services.AddScoped<IProfileQueryService, ProfileQueryService>();
+        services.AddScoped<IProfileCommandService, ProfileCommandService>();
         services.AddScoped<IInvestmentsService, InvestmentsService>();
         services.AddScoped<IInvestmentPortfolioCommandService, InvestmentPortfolioCommandService>();
         services.AddScoped<IInvestmentMarketIntegrationService, InvestmentMarketIntegrationService>();
-        services.AddScoped<IInvestmentsFacadeService, InvestmentsFacadeService>();
-        services.AddScoped<IOnboardingService, OnboardingService>();
+        services.AddScoped<IInvestmentsApplicationService, InvestmentsApplicationService>();
+        services.AddScoped<IOnboardingQueryService, OnboardingService>();
+        services.AddScoped<IOnboardingCommandService, OnboardingService>();
         services.AddScoped<ICardsService, CardsService>();
         services.AddScoped<ICashflowProjectionEngine, CashflowProjectionEngine>();
         services.AddScoped<IRiskBotService, RiskBotService>();
@@ -280,11 +306,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IGoalsService, GoalsService>();
         services.AddScoped<IGoalContributionsService, GoalContributionsService>();
         services.AddScoped<IInstallmentsService, InstallmentsService>();
-        services.AddScoped<ILookupsService, LookupsService>();
+        services.AddScoped<ILookupPaymentMethodService, LookupsService>();
+        services.AddScoped<ILookupCardBrandService, LookupsService>();
+        services.AddScoped<ILookupInstitutionService, LookupsService>();
         services.AddScoped<IPlansService, PlansService>();
         services.AddScoped<IIncomeSummaryService, IncomeSummaryService>();
+        services.AddScoped<IPreferenceSettingsService, PreferenceSettingsService>();
         services.AddScoped<IUserPrivacyCenterService, UserPrivacyCenterService>();
-        services.AddScoped<IPreferencesService, PreferencesService>();
         services.AddScoped<IUserSessionService, UserSessionService>();
         services.AddScoped<IPasswordResetService, PasswordResetService>();
         services.AddScoped<IBillingNotificationService, BillingNotificationService>();
@@ -297,9 +325,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IStripeBillingWebhookService, StripeBillingWebhookService>();
         services.AddScoped<ISubscriptionCatalogService, SubscriptionCatalogService>();
         services.AddScoped<ISubscriptionManagementService, SubscriptionManagementService>();
-        services.AddScoped<ISubscriptionsService, SubscriptionsService>();
-        services.AddScoped<IBillingService, BillingService>();
-        services.AddScoped<INotificationsService, NotificationsService>();
+        services.AddScoped<INotificationQueryService, NotificationQueryService>();
+        services.AddScoped<INotificationGenerationService, NotificationGenerationService>();
+        services.AddScoped<INotificationCommandService, NotificationCommandService>();
         services.AddScoped<IAdminUsersService, AdminUsersService>();
         services.AddScoped<IAdminPaymentMethodsService, AdminPaymentMethodsService>();
         services.AddScoped<IAdminCardBrandsService, AdminCardBrandsService>();
@@ -309,7 +337,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAdminEmailDiagnosticsService, AdminEmailDiagnosticsService>();
         services.AddScoped<IAdminParametersService, AdminParametersService>();
         services.AddScoped<IAdminCategoriesService, AdminCategoriesService>();
-        services.AddScoped<IAdminRobotsService, AdminRobotsService>();
+        services.AddScoped<IAdminRobotMonitorService, AdminRobotsService>();
+        services.AddScoped<IAdminRobotExecutionService, AdminRobotsService>();
+        services.AddScoped<IAdminRuntimeInfoService, AdminRuntimeInfoService>();
         services.AddSingleton<InvoiceParserFactory>();
         services.AddScoped<IInvoiceImportService, InvoiceImportService>();
         services.AddScoped<IB3ImportService, B3ImportService>();
@@ -361,7 +391,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IB3SyncService, B3SyncService>();
         services.AddScoped<IDataPortabilityService, DataPortabilityService>();
         services.AddScoped<IDataPortabilityGuardService, DataPortabilityGuardService>();
-        services.AddScoped<IDataPortabilityFacadeService, DataPortabilityFacadeService>();
+        services.AddScoped<IDataPortabilityApplicationService, DataPortabilityApplicationService>();
         services.AddScoped<IClaimsTransformation, UserFeatureClaimsTransformation>();
         services.AddHostedService<RobotsHostedService>();
 

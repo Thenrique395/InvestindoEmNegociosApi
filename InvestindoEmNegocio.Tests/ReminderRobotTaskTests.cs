@@ -36,7 +36,7 @@ public class ReminderRobotTaskTests
                     MoneyType.Expense)
             ]);
 
-        var notificationsService = new Mock<INotificationsService>();
+        var notificationsService = new Mock<INotificationGenerationService>();
         notificationsService.Setup(x => x.GenerateAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         var emailSender = new Mock<IEmailSender>();
@@ -75,7 +75,7 @@ public class ReminderRobotTaskTests
         notifRepo.Setup(x => x.ListByUserAsync(It.IsAny<Guid>(), It.IsAny<bool>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<UserNotification>());
 
-        var notificationsService = new Mock<INotificationsService>();
+        var notificationsService = new Mock<INotificationGenerationService>();
         notificationsService.Setup(x => x.GenerateAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(2);
 
         var emailSender = new Mock<IEmailSender>();
@@ -122,7 +122,7 @@ public class ReminderRobotTaskTests
                     MoneyType.Expense)
             ]);
 
-        var notificationsService = new Mock<INotificationsService>();
+        var notificationsService = new Mock<INotificationGenerationService>();
         notificationsService.Setup(x => x.GenerateAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(1);
 
         var emailSender = new Mock<IEmailSender>();

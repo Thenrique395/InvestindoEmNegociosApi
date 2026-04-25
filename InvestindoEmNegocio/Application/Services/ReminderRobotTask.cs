@@ -12,7 +12,7 @@ public sealed class ReminderRobotTask(
     IUserRepository userRepository,
     IUserProfileRepository userProfileRepository,
     IUserNotificationRepository userNotificationRepository,
-    INotificationsService notificationsService,
+    INotificationGenerationService notificationGenerationService,
     IEmailSender emailSender,
     ILogger<ReminderRobotTask> logger) : IRobotTask
 {
@@ -37,7 +37,7 @@ public sealed class ReminderRobotTask(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var generated = await notificationsService.GenerateAsync(user.Id, cancellationToken);
+            var generated = await notificationGenerationService.GenerateAsync(user.Id, cancellationToken);
             totalGenerated += generated;
 
             if (generated <= 0) continue;

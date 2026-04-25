@@ -7,7 +7,7 @@ namespace InvestindoEmNegocio.Application.Services;
 public sealed class AdminRobotsService(
     IEnumerable<IRobotTask> robotTasks,
     IRobotRunner robotRunner,
-    IInvestDbContext dbContext) : IAdminRobotsService
+    IInvestDbContext dbContext) : IAdminRobotMonitorService, IAdminRobotExecutionService
 {
     public async Task<RobotMonitorResponseDto> MonitorAsync(RobotMonitorQueryDto query, CancellationToken cancellationToken = default)
     {

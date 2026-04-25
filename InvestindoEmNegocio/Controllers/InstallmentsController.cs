@@ -1,5 +1,4 @@
 using InvestindoEmNegocio.Application.DTOs;
-using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Infrastructure.Api;
@@ -17,7 +16,7 @@ public class InstallmentsController(IInstallmentsService installmentsService, IA
 {
     [HttpGet]
     [Authorize(Policy = AppAuthorizationPolicies.FeatureInstallmentsRead)]
-    // Lista parcelas do usuário com filtros opcionais por status, vencimento e tipo (receita/despesa).
+    // Lists user installments with optional status, due date, and money type filters.
     public async Task<IActionResult> List([FromQuery] InstallmentStatus? status, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] MoneyType? type, [FromQuery] ListQuery query, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
@@ -41,21 +40,17 @@ public class InstallmentsController(IInstallmentsService installmentsService, IA
 
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = AppAuthorizationPolicies.FeatureInstallmentsManage)]
-    // Remove apenas a parcela (e pagamentos) sem excluir o plano inteiro.
+    // Deletes a single installment and its payments without removing the parent plan.
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        var userId = GetUserId();
-        try
+        return await ExecuteWithProblemMappingAsync(async () =>
         {
+            var userId = GetUserId();
             var removed = await installmentsService.DeleteAsync(userId, id, cancellationToken);
             if (!removed) return NotFound();
             await auditService.LogAsync(userId, "DELETE", "Installment", id.ToString(), GetIpAddress(), GetUserAgent(), null, cancellationToken);
             return NoContent();
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            throw new AppProblemException("Acesso negado", ex.Message, StatusCodes.Status403Forbidden);
-        }
+        }, "Parcela inválida", unauthorizedAccessTitle: "Acesso negado");
     }
 
 }

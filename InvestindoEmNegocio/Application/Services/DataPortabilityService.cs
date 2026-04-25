@@ -159,51 +159,23 @@ public sealed class DataPortabilityService(
         if (snapshot.Profile is not null)
         {
             var p = snapshot.Profile;
+            var fullName = RequireTrimmedValue(p.FullName, "profile.fullName");
             var existingProfile = await dbContext.UserProfiles.FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken);
             if (existingProfile is null)
             {
-                var profile = new UserProfile(
-                    userId,
-                    RequireValue(p.FullName, "profile.fullName"),
-                    p.Document ?? string.Empty,
-                    p.Phone ?? string.Empty,
-                    p.BirthDate,
-                    p.AvatarUrl ?? string.Empty,
-                    p.City ?? string.Empty,
-                    p.State ?? string.Empty,
-                    p.Country ?? string.Empty,
-                    string.IsNullOrWhiteSpace(p.Language) ? "pt-BR" : p.Language,
-                    string.IsNullOrWhiteSpace(p.Currency) ? "BRL" : p.Currency,
-                    p.CarryOverDay,
-                    p.FinancialGoal ?? string.Empty,
-                    p.IntelligenceMode);
-                profile.SetNotificationPreferences(p.NotifyUpcomingEnabled, p.NotifyOverdueEnabled, p.NotifyEmailEnabled, p.NotifyInAppEnabled, p.NotifyDaysBeforeDue);
+                var profile = DataPortabilityImportHydrator.CreateUserProfile(userId, p, fullName);
                 await dbContext.UserProfiles.AddAsync(profile, cancellationToken);
             }
             else
             {
-                existingProfile.SetData(
-                    RequireValue(p.FullName, "profile.fullName"),
-                    p.Document ?? string.Empty,
-                    p.Phone ?? string.Empty,
-                    p.BirthDate,
-                    p.AvatarUrl ?? string.Empty,
-                    p.City ?? string.Empty,
-                    p.State ?? string.Empty,
-                    p.Country ?? string.Empty,
-                    string.IsNullOrWhiteSpace(p.Language) ? "pt-BR" : p.Language,
-                    string.IsNullOrWhiteSpace(p.Currency) ? "BRL" : p.Currency,
-                    p.CarryOverDay,
-                    p.FinancialGoal ?? string.Empty,
-                    p.IntelligenceMode);
-                existingProfile.SetNotificationPreferences(p.NotifyUpcomingEnabled, p.NotifyOverdueEnabled, p.NotifyEmailEnabled, p.NotifyInAppEnabled, p.NotifyDaysBeforeDue);
+                DataPortabilityImportHydrator.UpdateUserProfile(existingProfile, p, fullName);
             }
             importedRecords++;
         }
 
         foreach (var c in snapshot.Categories)
         {
-            var name = RequireValue(c.Name, $"categories[{c.Id}].name");
+            var name = RequireTrimmedValue(c.Name, $"categories[{c.Id}].name");
             var categoryKey = name.ToLowerInvariant();
             if (existingCategoriesByName.TryGetValue(categoryKey, out var existingCategoryId))
             {
@@ -221,7 +193,7 @@ public sealed class DataPortabilityService(
 
         foreach (var c in snapshot.Cards)
         {
-            var holderName = RequireValue(c.HolderName, $"cards[{c.Id}].holderName");
+            var holderName = RequireTrimmedValue(c.HolderName, $"cards[{c.Id}].holderName");
             var nickname = string.IsNullOrWhiteSpace(c.Nickname) ? holderName : c.Nickname.Trim();
             var nicknameKey = nickname.ToLowerInvariant();
             if (existingCardsByNickname.TryGetValue(nicknameKey, out var existingCardId))
@@ -235,7 +207,7 @@ public sealed class DataPortabilityService(
                 c.BrandId,
                 holderName,
                 nickname,
-                RequireValue(c.Last4, $"cards[{c.Id}].last4"),
+                RequireTrimmedValue(c.Last4, $"cards[{c.Id}].last4"),
                 c.Bank,
                 c.CreditLimit,
                 c.StatementCloseDay,
@@ -248,7 +220,7 @@ public sealed class DataPortabilityService(
 
         foreach (var g in snapshot.Goals)
         {
-            var title = RequireValue(g.Title, $"goals[{g.Id}].title");
+            var title = RequireTrimmedValue(g.Title, $"goals[{g.Id}].title");
             var goalKey = $"{g.Year}:{title.ToLowerInvariant()}";
             if (existingGoalsByYearTitle.TryGetValue(goalKey, out var existingGoalId))
             {
@@ -274,7 +246,7 @@ public sealed class DataPortabilityService(
 
         foreach (var p in snapshot.Plans)
         {
-            var title = RequireValue(p.Title, $"plans[{p.Id}].title");
+            var title = RequireTrimmedValue(p.Title, $"plans[{p.Id}].title");
             var categoryId = p.CategoryId.HasValue && categoryMap.TryGetValue(p.CategoryId.Value, out var newCategoryId)
                 ? newCategoryId
                 : p.CategoryId;
@@ -282,19 +254,7 @@ public sealed class DataPortabilityService(
                 ? newCardId
                 : p.CardId;
 
-            var plan = new MoneyPlan(
-                userId,
-                p.Type,
-                title,
-                p.Amount,
-                p.Schedule,
-                p.StartDate,
-                p.Frequency,
-                p.InstallmentsCount,
-                p.DefaultPaymentMethodId,
-                categoryId,
-                cardId);
-            SetValue(plan, nameof(MoneyPlan.Status), p.Status);
+            var plan = DataPortabilityImportHydrator.CreateMoneyPlan(userId, p, title, categoryId, cardId);
             await dbContext.MoneyPlans.AddAsync(plan, cancellationToken);
             planMap[p.Id] = plan.Id;
             importedRecords++;
@@ -307,8 +267,7 @@ public sealed class DataPortabilityService(
                 continue;
             }
 
-            var installment = new MoneyInstallment(mappedPlanId, userId, i.InstallmentNo, i.DueDate, i.Amount, i.OriginalDueDate);
-            SetValue(installment, nameof(MoneyInstallment.Status), i.Status);
+            var installment = DataPortabilityImportHydrator.CreateMoneyInstallment(userId, mappedPlanId, i);
             await dbContext.MoneyInstallments.AddAsync(installment, cancellationToken);
             installmentMap[i.Id] = installment.Id;
             importedRecords++;
@@ -375,7 +334,7 @@ public sealed class DataPortabilityService(
             var position = new InvestmentPosition(
                 userId,
                 p.Type,
-                RequireValue(p.Asset, $"investmentPositions[{p.Id}].asset"),
+                RequireTrimmedValue(p.Asset, $"investmentPositions[{p.Id}].asset"),
                 p.Quantity,
                 p.AvgPrice,
                 p.OpenedAt,
@@ -424,7 +383,7 @@ public sealed class DataPortabilityService(
 
         foreach (var n in snapshot.Notifications)
         {
-            var normalizedReference = RequireValue(n.ReferenceKey, $"notifications[{n.Id}].referenceKey");
+            var normalizedReference = RequireTrimmedValue(n.ReferenceKey, $"notifications[{n.Id}].referenceKey");
             if (existingNotificationReferences.Contains(normalizedReference))
             {
                 continue;
@@ -432,17 +391,14 @@ public sealed class DataPortabilityService(
 
             var mappedPlanId = n.PlanId.HasValue && planMap.TryGetValue(n.PlanId.Value, out var pId) ? pId : (Guid?)null;
             var mappedInstallmentId = n.InstallmentId.HasValue && installmentMap.TryGetValue(n.InstallmentId.Value, out var iId) ? iId : (Guid?)null;
-            var notification = new UserNotification(
+            var title = RequireTrimmedValue(n.Title, $"notifications[{n.Id}].title");
+            var notification = DataPortabilityImportHydrator.CreateUserNotification(
                 userId,
-                n.Kind,
-                RequireValue(n.Title, $"notifications[{n.Id}].title"),
-                n.Message ?? string.Empty,
+                n,
                 normalizedReference,
-                n.MoneyType,
+                title,
                 mappedPlanId,
-                mappedInstallmentId,
-                n.DueDate);
-            SetValue(notification, nameof(UserNotification.ReadAt), n.ReadAt);
+                mappedInstallmentId);
             await dbContext.UserNotifications.AddAsync(notification, cancellationToken);
             existingNotificationReferences.Add(normalizedReference);
             importedRecords++;
@@ -478,7 +434,7 @@ public sealed class DataPortabilityService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    private static string RequireValue(string? value, string field)
+    private static string RequireTrimmedValue(string? value, string field)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
@@ -488,9 +444,4 @@ public sealed class DataPortabilityService(
         return value.Trim();
     }
 
-    private static void SetValue<TEntity>(TEntity entity, string propertyName, object? value)
-    {
-        var property = typeof(TEntity).GetProperty(propertyName);
-        property?.SetValue(entity, value);
-    }
 }

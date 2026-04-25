@@ -16,7 +16,7 @@ public class CardsController(ICardsService cardsService, IAuditService auditServ
 {
     [HttpGet]
     [Authorize(Policy = AppAuthorizationPolicies.FeatureCardsRead)]
-    // Lista cartões do usuário autenticado.
+    // Lists cards for the authenticated user.
     public async Task<IActionResult> List([FromQuery] ListQuery query, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
@@ -43,42 +43,34 @@ public class CardsController(ICardsService cardsService, IAuditService auditServ
 
     [HttpPost]
     [Authorize(Policy = AppAuthorizationPolicies.FeatureCardsManage)]
-    // Cria um novo cartão (armazenamos apenas last4 + marca + nome do titular).
+    // Creates a new card (we store only last4, brand, and holder name).
     public async Task<IActionResult> Create([FromBody] CardRequest request, CancellationToken cancellationToken)
     {
-        try
+        return await ExecuteWithProblemMappingAsync(async () =>
         {
             var userId = GetUserId();
             var card = await cardsService.CreateAsync(userId, request, cancellationToken);
             return CreatedAtAction(nameof(List), card);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Cartão inválido", ex.Message, StatusCodes.Status400BadRequest);
-        }
+        }, "Invalid card");
     }
 
     [HttpPut("{id:guid}")]
     [Authorize(Policy = AppAuthorizationPolicies.FeatureCardsManage)]
-    // Atualiza dados do cartão do usuário.
+    // Updates card data owned by the current user.
     public async Task<IActionResult> Update(Guid id, [FromBody] CardRequest request, CancellationToken cancellationToken)
     {
-        try
+        return await ExecuteWithProblemMappingAsync(async () =>
         {
             var userId = GetUserId();
             var updated = await cardsService.UpdateAsync(userId, id, request, cancellationToken);
             if (updated is null) return NotFound();
             return Ok(updated);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new AppProblemException("Cartão inválido", ex.Message, StatusCodes.Status400BadRequest);
-        }
+        }, "Invalid card");
     }
 
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = AppAuthorizationPolicies.FeatureCardsManage)]
-    // Remove cartão do usuário.
+    // Deletes a card owned by the current user.
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var userId = GetUserId();

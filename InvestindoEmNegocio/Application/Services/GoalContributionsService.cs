@@ -20,7 +20,7 @@ public class GoalContributionsService(
         if (!exists) return null;
 
         var items = await goalContributionRepository.ListByGoalAsync(goalId, userId, cancellationToken);
-        return items.Select(ToResponse).ToList();
+        return items.Select(CreateGoalContributionResponse).ToList();
     }
 
     public async Task<GoalContributionResponse?> CreateAsync(Guid userId, Guid goalId, GoalContributionRequest request, CancellationToken cancellationToken = default)
@@ -46,9 +46,9 @@ public class GoalContributionsService(
 
         await goalContributionRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Goal contribution created {UserId} {GoalId} {ContributionId}", userId, goalId, contrib.Id);
-        return ToResponse(contrib);
+        return CreateGoalContributionResponse(contrib);
     }
 
-    private static GoalContributionResponse ToResponse(GoalContribution g) =>
+    private static GoalContributionResponse CreateGoalContributionResponse(GoalContribution g) =>
         new(g.Id, g.Amount, g.Date, g.Note, g.CreatedAt);
 }

@@ -18,9 +18,8 @@ public class CategorizationServiceTests
     {
         await using var dbContext = CreateDbContext();
         var userId = Guid.NewGuid();
-        var categoryId = Guid.NewGuid();
         var category = new Category(userId, "Alimentação", MoneyType.Expense);
-        typeof(Category).GetProperty(nameof(Category.Id))?.SetValue(category, categoryId);
+        var categoryId = category.Id;
 
         var categoryRepository = new Mock<ICategoryRepository>();
         categoryRepository
@@ -49,9 +48,8 @@ public class CategorizationServiceTests
     {
         await using var dbContext = CreateDbContext();
         var userId = Guid.NewGuid();
-        var categoryId = Guid.NewGuid();
         var category = new Category(userId, "Transporte", MoneyType.Expense);
-        typeof(Category).GetProperty(nameof(Category.Id))?.SetValue(category, categoryId);
+        var categoryId = category.Id;
 
         var categoryRepository = new Mock<ICategoryRepository>();
         categoryRepository
@@ -80,9 +78,8 @@ public class CategorizationServiceTests
     {
         await using var dbContext = CreateDbContext();
         var userId = Guid.NewGuid();
-        var categoryId = Guid.NewGuid();
         var category = new Category(userId, "Transporte", MoneyType.Expense);
-        typeof(Category).GetProperty(nameof(Category.Id))?.SetValue(category, categoryId);
+        var categoryId = category.Id;
 
         var categoryRepository = new Mock<ICategoryRepository>();
         categoryRepository

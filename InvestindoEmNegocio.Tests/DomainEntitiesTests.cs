@@ -13,15 +13,15 @@ public class DomainEntitiesTests
         var userId = Guid.NewGuid();
 
         var expense = new Expense(userId, "  Mercado  ", "  Alimentação ", 120.50m, localDate);
-        var income = new Income(userId, "  Salário ", 5000m, localDate, fixa: true, fixaInicio: "2026-01", fixaFim: "2026-12");
+        var income = new Income(userId, "  Salário ", 5000m, localDate, isRecurring: true, recurringStart: "2026-01", recurringEnd: "2026-12");
 
-        expense.Nome.Should().Be("Mercado");
-        expense.Categoria.Should().Be("Alimentação");
-        expense.Vencimento.Kind.Should().Be(DateTimeKind.Utc);
+        expense.Name.Should().Be("Mercado");
+        expense.Category.Should().Be("Alimentação");
+        expense.DueAt.Kind.Should().Be(DateTimeKind.Utc);
 
-        income.Fonte.Should().Be("Salário");
-        income.Recebimento.Kind.Should().Be(DateTimeKind.Utc);
-        income.Fixa.Should().BeTrue();
+        income.Source.Should().Be("Salário");
+        income.ReceivedAt.Kind.Should().Be(DateTimeKind.Utc);
+        income.IsRecurring.Should().BeTrue();
     }
 
     [Fact]
@@ -48,6 +48,30 @@ public class DomainEntitiesTests
 
         goal.CurrentAmount.Should().Be(100m);
         goal.Status.Should().Be(GoalStatus.Planned);
+    }
+
+    [Fact]
+    public void MoneyPlan_Should_Enforce_Schedule_Invariants()
+    {
+        var userId = Guid.NewGuid();
+
+        var invalidOneTime = () => new MoneyPlan(userId, MoneyType.Expense, "Plano", 100m, ScheduleType.OneTime, new DateOnly(2026, 1, 1), installmentsCount: 2);
+        var invalidRecurring = () => new MoneyPlan(userId, MoneyType.Expense, "Plano", 100m, ScheduleType.Recurring, new DateOnly(2026, 1, 1), frequency: null, installmentsCount: null);
+
+        invalidOneTime.Should().Throw<ArgumentException>().WithMessage("*ONE_TIME requer installmentsCount = 1*");
+        invalidRecurring.Should().Throw<ArgumentException>().WithMessage("*RECURRING requer frequency*");
+    }
+
+    [Fact]
+    public void Category_Should_Validate_Name_In_Constructor_And_Update()
+    {
+        var category = new Category(Guid.NewGuid(), "Moradia", MoneyType.Expense);
+
+        var invalidCreate = () => new Category(Guid.NewGuid(), " ", MoneyType.Expense);
+        var invalidUpdate = () => category.Update(new string('A', 61), MoneyType.Expense);
+
+        invalidCreate.Should().Throw<ArgumentException>().WithMessage("*Nome da categoria é obrigatório*");
+        invalidUpdate.Should().Throw<ArgumentException>().WithMessage("*no máximo 60 caracteres*");
     }
 
     [Fact]

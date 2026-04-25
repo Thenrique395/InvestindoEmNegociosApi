@@ -9,6 +9,6 @@ public sealed class ForgotPasswordRequestValidator : AbstractValidator<ForgotPas
     {
         RuleFor(x => x.Email)
             .NotEmpty().WithMessage("E-mail é obrigatório.")
-            .EmailAddress().WithMessage("E-mail inválido.");
+            .EmailAddress().WithMessage("Email inválido.");
     }
 }

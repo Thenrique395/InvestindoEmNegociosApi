@@ -17,7 +17,7 @@ public sealed class CashflowProjectionEngine(
         DateOnly? referenceDate = null,
         CancellationToken cancellationToken = default)
     {
-        var normalizedPeriod = NormalizePeriod(period);
+        var normalizedPeriod = NormalizeProjectionPeriod(period);
         var anchorDate = referenceDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
         var (_, periodEnd) = ResolvePeriodRange(anchorDate, normalizedPeriod);
 
@@ -126,7 +126,7 @@ public sealed class CashflowProjectionEngine(
         return item.Status is InstallmentStatus.Open or InstallmentStatus.PartiallyPaid;
     }
 
-    private static string NormalizePeriod(string? period)
+    private static string NormalizeProjectionPeriod(string? period)
     {
         if (string.IsNullOrWhiteSpace(period)) return "month";
 
@@ -135,7 +135,7 @@ public sealed class CashflowProjectionEngine(
             "month" => "month",
             "quarter" => "quarter",
             "year" => "year",
-            _ => throw new ArgumentException("Período inválido. Use month, quarter ou year.")
+            _ => throw new ArgumentException("Invalid period. Use month, quarter ou year.")
         };
     }
 

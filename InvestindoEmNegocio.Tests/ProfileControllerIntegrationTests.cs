@@ -80,7 +80,8 @@ public class ProfileControllerIntegrationTests
         builder.Services.AddControllers().AddApplicationPart(typeof(ProfileController).Assembly);
         builder.Services.AddMemoryCache();
         builder.Services.AddSingleton<IUserProfileRepository, InMemoryUserProfileRepository>();
-        builder.Services.AddScoped<IProfileService, ProfileService>();
+        builder.Services.AddScoped<IProfileQueryService, ProfileQueryService>();
+        builder.Services.AddScoped<IProfileCommandService, ProfileCommandService>();
         builder.Services.AddSingleton<IAvatarStorageService, FakeAvatarStorageService>();
 
         builder.Services.AddAuthentication(options =>

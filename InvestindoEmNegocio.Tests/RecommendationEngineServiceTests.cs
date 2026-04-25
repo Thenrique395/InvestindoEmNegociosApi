@@ -26,14 +26,14 @@ public class RecommendationEngineServiceTests
             ["pending_income"],
             ["Base: 100"],
             [
-                new RiskBotRecommendationResponse("pending-income", "info", "Próxima receita pendente.", "Abrir receitas", "/receitas", new Dictionary<string, string> { ["focus"] = "pending" }, 100m, new DateOnly(2026, 3, 10)),
-                new RiskBotRecommendationResponse("due-soon-expenses", "warn", "Há despesas vencendo.", "Ver próximas despesas", "/despesas", new Dictionary<string, string> { ["focus"] = "upcoming" }, 1200m, new DateOnly(2026, 3, 11))
+                new RiskBotRecommendationResponse("pending-income", "info", "Próxima receita pendente.", "Abrir receitas", "/incomes", new Dictionary<string, string> { ["focus"] = "pending" }, 100m, new DateOnly(2026, 3, 10)),
+                new RiskBotRecommendationResponse("due-soon-expenses", "warn", "Há despesas vencendo.", "Ver próximas despesas", "/expenses", new Dictionary<string, string> { ["focus"] = "upcoming" }, 1200m, new DateOnly(2026, 3, 11))
             ]);
         var insights = new InsightEngineResponse(
             "month",
             new DateOnly(2026, 3, 9),
             new InsightEngineItemResponse("preventive", "preventive-upcoming-window", "warning", "Janela preventiva", "Há pressão próxima.", "Acompanhar vencimentos.", 62, null, 80m, 110m, 850m, ["Cobertura"], ["Reserve caixa"], ["pending_income"], ["Base: 100"], [
-                new RiskBotRecommendationResponse("pending-income", "info", "Próxima receita pendente.", "Abrir receitas", "/receitas", new Dictionary<string, string> { ["focus"] = "pending" }, 100m, new DateOnly(2026, 3, 10)),
+                new RiskBotRecommendationResponse("pending-income", "info", "Próxima receita pendente.", "Abrir receitas", "/incomes", new Dictionary<string, string> { ["focus"] = "pending" }, 100m, new DateOnly(2026, 3, 10)),
                 new RiskBotRecommendationResponse("wealth-surplus", "info", "Folga para metas.", "Abrir metas", "/metas", new Dictionary<string, string>(), 50m, null)
             ]),
             []);

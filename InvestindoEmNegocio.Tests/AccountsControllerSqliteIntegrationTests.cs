@@ -87,7 +87,7 @@ public class AccountsControllerSqliteIntegrationTests
 
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/accounts")
         {
-            Content = JsonContent.Create(new AccountRequest("Conta bloqueada", AccountType.Checking, 100m))
+            Content = JsonContent.Create(new AccountRequest("Account locked", AccountType.Checking, 100m))
         };
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "token");
 
