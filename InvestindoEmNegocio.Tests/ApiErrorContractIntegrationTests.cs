@@ -173,7 +173,12 @@ public class ApiErrorContractIntegrationTests
             services.AddSingleton<IAuthRegistrationApplicationService>(fakeAuthApplicationService);
             services.AddSingleton<IAuthPasswordApplicationService>(fakeAuthApplicationService);
             services.AddSingleton<IDataPortabilityApplicationService>(new FakeDataPortabilityApplicationService());
-            services.AddSingleton<IAccountsService>(new FakeAccountsService());
+            var accounts = new FakeAccountsService();
+            services.AddSingleton<IAccountsService>(accounts);
+            services.AddSingleton<IAccountQueryService>(sp => sp.GetRequiredService<IAccountsService>());
+            services.AddSingleton<IAccountCommandService>(sp => sp.GetRequiredService<IAccountsService>());
+            services.AddSingleton<IAccountTransactionQueryService>(sp => sp.GetRequiredService<IAccountsService>());
+            services.AddSingleton<IAccountTransferService>(sp => sp.GetRequiredService<IAccountsService>());
         });
 
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/accounts");
@@ -199,10 +204,15 @@ public class ApiErrorContractIntegrationTests
             services.AddSingleton<IAuthRegistrationApplicationService>(fakeAuthApplicationService);
             services.AddSingleton<IAuthPasswordApplicationService>(fakeAuthApplicationService);
             services.AddSingleton<IDataPortabilityApplicationService>(new FakeDataPortabilityApplicationService());
-            services.AddSingleton<IAccountsService>(new FakeAccountsService
+            var accounts = new FakeAccountsService
             {
                 OnCreateAsync = (_, _, _) => Task.FromException<AccountResponse>(new ArgumentException("Já existe uma conta com esse nome."))
-            });
+            };
+            services.AddSingleton<IAccountsService>(accounts);
+            services.AddSingleton<IAccountQueryService>(sp => sp.GetRequiredService<IAccountsService>());
+            services.AddSingleton<IAccountCommandService>(sp => sp.GetRequiredService<IAccountsService>());
+            services.AddSingleton<IAccountTransactionQueryService>(sp => sp.GetRequiredService<IAccountsService>());
+            services.AddSingleton<IAccountTransferService>(sp => sp.GetRequiredService<IAccountsService>());
         });
 
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/accounts");

@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Http;
 namespace InvestindoEmNegocio.Application.Services;
 
 public sealed class AuthAccessApplicationService(
-    IAuthService authService,
+    IAuthAccessService authAccessService,
     IAuditService auditService,
     ILogger<AuthAccessApplicationService> logger) : IAuthAccessApplicationService
 {
@@ -14,7 +14,7 @@ public sealed class AuthAccessApplicationService(
     {
         try
         {
-            var response = await authService.LoginAsync(request, cancellationToken);
+            var response = await authAccessService.LoginAsync(request, cancellationToken);
             await auditService.LogAsync(response.UserId, "LOGIN", "User", response.UserId.ToString(), ipAddress, userAgent, null, cancellationToken);
             return response;
         }
@@ -39,7 +39,7 @@ public sealed class AuthAccessApplicationService(
     {
         try
         {
-            return await authService.RefreshAsync(request, cancellationToken);
+            return await authAccessService.RefreshAsync(request, cancellationToken);
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -49,5 +49,5 @@ public sealed class AuthAccessApplicationService(
     }
 
     public Task LogoutAsync(RefreshTokenRequest request, CancellationToken cancellationToken = default) =>
-        authService.LogoutAsync(request, cancellationToken);
+        authAccessService.LogoutAsync(request, cancellationToken);
 }

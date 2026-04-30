@@ -15,7 +15,8 @@ public class AccountAnalyticsService(
     ICardRepository cardRepository,
     ILoanContractRepository loanContractRepository,
     ILoanInstallmentRepository loanInstallmentRepository,
-    IInvestmentsService investmentsService,
+    IInvestmentPositionQueryService investmentPositionQueryService,
+    IInvestmentMarketEnrichmentService investmentMarketEnrichmentService,
     ICashflowProjectionEngine cashflowProjectionEngine,
     IRiskBotService riskBotService,
     IInsightEngineService insightEngineService,
@@ -141,8 +142,8 @@ public class AccountAnalyticsService(
             accountsBalance += account.InitialBalance + net;
         }
 
-        var positions = await investmentsService.ListPositionsAsync(userId, cancellationToken);
-        var enrichedPositions = await investmentsService.EnrichWithMarketAsync(positions, cancellationToken);
+        var positions = await investmentPositionQueryService.ListPositionsAsync(userId, cancellationToken);
+        var enrichedPositions = await investmentMarketEnrichmentService.EnrichWithMarketAsync(positions, cancellationToken);
         var activePositions = enrichedPositions.Where(p => p.Quantity > 0).ToList();
         var investmentsBalance = activePositions.Where(IsFinancialInvestment).Sum(CalculatePositionValue);
         var tangibleAssetsBalance = activePositions.Where(IsTangibleAsset).Sum(CalculatePositionValue);
@@ -187,8 +188,8 @@ public class AccountAnalyticsService(
             accountTransactions[account.Id] = items;
         }
 
-        var positions = await investmentsService.ListPositionsAsync(userId, cancellationToken);
-        var enrichedPositions = await investmentsService.EnrichWithMarketAsync(positions, cancellationToken);
+        var positions = await investmentPositionQueryService.ListPositionsAsync(userId, cancellationToken);
+        var enrichedPositions = await investmentMarketEnrichmentService.EnrichWithMarketAsync(positions, cancellationToken);
 
         var installments = await moneyInstallmentRepository.ListByUserAsync(
             userId,

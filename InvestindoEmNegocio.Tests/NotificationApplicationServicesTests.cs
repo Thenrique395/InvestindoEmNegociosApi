@@ -495,7 +495,7 @@ public class NotificationApplicationServicesTests
         var profileRepository = new Mock<IUserProfileRepository>();
         profileRepository
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile(userId, "User", "123", "81999999999", null));
+            .ReturnsAsync(new UserProfile(userId, "User", "123", "81999999999", null, carryOverDay: today.Day));
 
         var settingsRepository = new Mock<INotificationSettingsRepository>();
         settingsRepository

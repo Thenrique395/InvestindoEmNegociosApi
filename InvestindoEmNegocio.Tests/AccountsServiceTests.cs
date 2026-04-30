@@ -1,5 +1,6 @@
 using FluentAssertions;
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
@@ -95,13 +96,29 @@ public class AccountsServiceTests
         items![0].Type.Should().Be(AccountTransactionType.Transfer);
     }
 
-    private static AccountsService BuildSut(
+    private static IAccountsService BuildSut(
         Mock<IAccountRepository>? accountRepository = null,
         Mock<IAccountTransactionRepository>? transactionRepository = null)
     {
-        return new AccountsService(
+        var query = new AccountQueryService(
+            accountRepository?.Object ?? Mock.Of<IAccountRepository>(),
+            transactionRepository?.Object ?? Mock.Of<IAccountTransactionRepository>());
+        var command = new AccountCommandService(
             accountRepository?.Object ?? Mock.Of<IAccountRepository>(),
             transactionRepository?.Object ?? Mock.Of<IAccountTransactionRepository>(),
-            NullLogger<AccountsService>.Instance);
+            NullLogger<AccountCommandService>.Instance);
+        var transactionQuery = new AccountTransactionQueryService(
+            accountRepository?.Object ?? Mock.Of<IAccountRepository>(),
+            transactionRepository?.Object ?? Mock.Of<IAccountTransactionRepository>());
+        var transfer = new AccountTransferService(
+            accountRepository?.Object ?? Mock.Of<IAccountRepository>(),
+            transactionRepository?.Object ?? Mock.Of<IAccountTransactionRepository>(),
+            NullLogger<AccountTransferService>.Instance);
+
+        return new AccountsService(
+            query,
+            command,
+            transactionQuery,
+            transfer);
     }
 }

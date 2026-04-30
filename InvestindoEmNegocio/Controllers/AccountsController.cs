@@ -10,14 +10,16 @@ namespace InvestindoEmNegocio.Controllers;
 [ApiController]
 [Route("api/accounts")]
 [Route("api/v1/accounts")]
-public class AccountsController(IAccountsService accountsService) : AuthenticatedControllerBase
+public class AccountsController(
+    IAccountQueryService accountQueryService,
+    IAccountCommandService accountCommandService) : AuthenticatedControllerBase
 {
     [HttpGet]
     [Authorize(Policy = AppAuthorizationPolicies.FeatureAccountsRead)]
     public async Task<IActionResult> List(CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var data = await accountsService.ListAsync(userId, cancellationToken);
+        var data = await accountQueryService.ListAsync(userId, cancellationToken);
         return Ok(data);
     }
 
@@ -28,7 +30,7 @@ public class AccountsController(IAccountsService accountsService) : Authenticate
         return await ExecuteWithProblemMappingAsync(async () =>
         {
             var userId = GetUserId();
-            var account = await accountsService.CreateAsync(userId, request, cancellationToken);
+            var account = await accountCommandService.CreateAsync(userId, request, cancellationToken);
             return CreatedAtAction(nameof(List), account);
         }, "Conta inválida");
     }
@@ -40,7 +42,7 @@ public class AccountsController(IAccountsService accountsService) : Authenticate
         return await ExecuteWithProblemMappingAsync(async () =>
         {
             var userId = GetUserId();
-            var updated = await accountsService.UpdateAsync(userId, id, request, cancellationToken);
+            var updated = await accountCommandService.UpdateAsync(userId, id, request, cancellationToken);
             if (updated is null) return NotFound();
             return Ok(updated);
         }, "Conta inválida");
@@ -51,7 +53,7 @@ public class AccountsController(IAccountsService accountsService) : Authenticate
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var removed = await accountsService.DeleteAsync(userId, id, cancellationToken);
+        var removed = await accountCommandService.DeleteAsync(userId, id, cancellationToken);
         if (!removed) return NotFound();
         return NoContent();
     }
@@ -61,7 +63,7 @@ public class AccountsController(IAccountsService accountsService) : Authenticate
     public async Task<IActionResult> Balance(Guid id, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var balance = await accountsService.GetBalanceAsync(userId, id, cancellationToken);
+        var balance = await accountQueryService.GetBalanceAsync(userId, id, cancellationToken);
         if (balance is null) return NotFound();
         return Ok(balance);
     }

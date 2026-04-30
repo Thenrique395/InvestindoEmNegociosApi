@@ -269,6 +269,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<INotificationSettingsRepository, NotificationSettingsRepository>();
         services.AddScoped<IRobotSettingsRepository, RobotSettingsRepository>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddScoped<IAuthRegistrationService, AuthRegistrationService>();
+        services.AddScoped<IAuthAccessService, AuthAccessService>();
+        services.AddScoped<IAuthPasswordService, AuthPasswordService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IAuthRegistrationApplicationService, AuthRegistrationApplicationService>();
         services.AddScoped<IAuthAccessApplicationService, AuthAccessApplicationService>();
@@ -281,6 +284,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IProfileQueryService, ProfileQueryService>();
         services.AddScoped<IProfileCommandService, ProfileCommandService>();
+        services.AddScoped<IInvestmentGoalQueryService, InvestmentPlanningService>();
+        services.AddScoped<IInvestmentGoalCommandService, InvestmentPlanningService>();
+        services.AddScoped<IInvestmentAllocationQueryService, InvestmentPlanningService>();
+        services.AddScoped<IInvestmentAllocationCommandService, InvestmentPlanningService>();
+        services.AddScoped<IInvestmentPositionQueryService, InvestmentPositionService>();
+        services.AddScoped<IInvestmentPositionCommandService, InvestmentPositionService>();
+        services.AddScoped<IInvestmentMarketEnrichmentService, InvestmentMarketEnrichmentService>();
         services.AddScoped<IInvestmentsService, InvestmentsService>();
         services.AddScoped<IInvestmentPortfolioCommandService, InvestmentPortfolioCommandService>();
         services.AddScoped<IInvestmentMarketIntegrationService, InvestmentMarketIntegrationService>();
@@ -292,8 +302,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRiskBotService, RiskBotService>();
         services.AddScoped<IInsightEngineService, InsightEngineService>();
         services.AddScoped<IRecommendationEngineService, RecommendationEngineService>();
-        services.AddScoped<IAccountAnalyticsService, AccountAnalyticsService>();
+        services.AddScoped<IAccountQueryService, AccountQueryService>();
+        services.AddScoped<IAccountCommandService, AccountCommandService>();
+        services.AddScoped<IAccountTransactionQueryService, AccountTransactionQueryService>();
+        services.AddScoped<IAccountTransferService, AccountTransferService>();
         services.AddScoped<IAccountsService, AccountsService>();
+        services.AddScoped<IAccountAnalyticsService, AccountAnalyticsService>();
         services.AddScoped<ILoansService, LoansService>();
         services.AddScoped<IMonthlyFinancialSnapshotService, MonthlyFinancialSnapshotService>();
         services.AddScoped<IFinancialAssistantService, FinancialAssistantService>();
@@ -389,6 +403,8 @@ public static class ServiceCollectionExtensions
             breakerHandledEventsAllowedBeforeBreaking: 4,
             breakerDuration: TimeSpan.FromSeconds(45));
         services.AddScoped<IB3SyncService, B3SyncService>();
+        services.AddScoped<IDataPortabilityExportService, DataPortabilityExportService>();
+        services.AddScoped<IDataPortabilityImportService, DataPortabilityImportService>();
         services.AddScoped<IDataPortabilityService, DataPortabilityService>();
         services.AddScoped<IDataPortabilityGuardService, DataPortabilityGuardService>();
         services.AddScoped<IDataPortabilityApplicationService, DataPortabilityApplicationService>();

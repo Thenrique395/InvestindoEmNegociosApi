@@ -285,6 +285,7 @@ public class AccountAnalyticsServiceTests
         Mock<IInsightEngineService>? insightEngineService = null,
         Mock<IRecommendationEngineService>? recommendationEngineService = null)
     {
+        var aggregate = investmentsService?.Object ?? Mock.Of<IInvestmentsService>();
         return new AccountAnalyticsService(
             accountRepository?.Object ?? Mock.Of<IAccountRepository>(),
             transactionRepository?.Object ?? Mock.Of<IAccountTransactionRepository>(),
@@ -294,7 +295,8 @@ public class AccountAnalyticsServiceTests
             cardRepository?.Object ?? Mock.Of<ICardRepository>(),
             loanContractRepository?.Object ?? Mock.Of<ILoanContractRepository>(),
             loanInstallmentRepository?.Object ?? Mock.Of<ILoanInstallmentRepository>(),
-            investmentsService?.Object ?? Mock.Of<IInvestmentsService>(),
+            aggregate,
+            aggregate,
             projectionEngine?.Object ?? Mock.Of<ICashflowProjectionEngine>(),
             riskBotService?.Object ?? Mock.Of<IRiskBotService>(),
             insightEngineService?.Object ?? Mock.Of<IInsightEngineService>(),

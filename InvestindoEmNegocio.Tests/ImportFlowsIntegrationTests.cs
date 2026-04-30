@@ -238,6 +238,10 @@ public class ImportFlowsIntegrationTests
             builder.Services.AddScoped<ILoanContractRepository, LoanContractRepository>();
             builder.Services.AddScoped<ILoanInstallmentRepository, LoanInstallmentRepository>();
 
+            builder.Services.AddScoped<IAccountQueryService, AccountQueryService>();
+            builder.Services.AddScoped<IAccountCommandService, AccountCommandService>();
+            builder.Services.AddScoped<IAccountTransactionQueryService, AccountTransactionQueryService>();
+            builder.Services.AddScoped<IAccountTransferService, AccountTransferService>();
             builder.Services.AddScoped<IAccountsService, AccountsService>();
             builder.Services.AddScoped<IAccountAnalyticsService, AccountAnalyticsService>();
             builder.Services.AddScoped<ICardsService, CardsService>();
@@ -253,6 +257,8 @@ public class ImportFlowsIntegrationTests
             builder.Services.AddSingleton<IRecurrenceDetectorService, NoOpRecurrenceDetectorService>();
             builder.Services.AddSingleton<IAuditService, NoOpAuditService>();
             builder.Services.AddSingleton<IInvestmentsService, StubInvestmentsService>();
+            builder.Services.AddSingleton<IInvestmentPositionQueryService>(sp => sp.GetRequiredService<IInvestmentsService>());
+            builder.Services.AddSingleton<IInvestmentMarketEnrichmentService>(sp => sp.GetRequiredService<IInvestmentsService>());
             builder.Services.AddSingleton<ICashflowProjectionEngine, StubCashflowProjectionEngine>();
             builder.Services.AddSingleton<IRiskBotService, StubRiskBotService>();
             builder.Services.AddSingleton<IInsightEngineService, StubInsightEngineService>();

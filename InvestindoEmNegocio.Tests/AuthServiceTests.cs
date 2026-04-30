@@ -261,7 +261,7 @@ public class AuthServiceTests
         refreshRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    private static AuthService BuildSut(
+    private static IAuthService BuildSut(
         Mock<IUserRepository>? userRepository = null,
         Mock<IAccountRepository>? accountRepository = null,
         Mock<IRefreshTokenRepository>? refreshTokenRepository = null,
@@ -287,12 +287,25 @@ public class AuthServiceTests
             }),
             NullLogger<PasswordResetService>.Instance);
 
-        return new AuthService(
+        var authRegistrationService = new AuthRegistrationService(
             userRepository?.Object ?? Mock.Of<IUserRepository>(),
             bootstrapService,
             sessionService,
+            NullLogger<AuthRegistrationService>.Instance);
+        var authAccessService = new AuthAccessService(
+            userRepository?.Object ?? Mock.Of<IUserRepository>(),
+            bootstrapService,
+            sessionService,
+            NullLogger<AuthAccessService>.Instance);
+        var authPasswordService = new AuthPasswordService(
+            userRepository?.Object ?? Mock.Of<IUserRepository>(),
             passwordResetService,
-            NullLogger<AuthService>.Instance);
+            NullLogger<AuthPasswordService>.Instance);
+
+        return new AuthService(
+            authRegistrationService,
+            authAccessService,
+            authPasswordService);
     }
 
     private static Mock<IJwtTokenGenerator> CreateDefaultTokenGenerator()

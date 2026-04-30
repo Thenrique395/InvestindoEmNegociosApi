@@ -2,13 +2,9 @@ using InvestindoEmNegocio.Application.DTOs;
 
 namespace InvestindoEmNegocio.Application.Interfaces;
 
-public interface IAuthService
+public interface IAuthService :
+    IAuthRegistrationService,
+    IAuthAccessService,
+    IAuthPasswordService
 {
-    Task<AuthResponse> RegisterAsync(RegisterUserRequest request, CancellationToken cancellationToken = default);
-    Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default);
-    Task ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default);
-    Task ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default);
-    Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request, CancellationToken cancellationToken = default);
-    Task<AuthResponse> RefreshAsync(RefreshTokenRequest request, CancellationToken cancellationToken = default);
-    Task LogoutAsync(RefreshTokenRequest request, CancellationToken cancellationToken = default);
 }

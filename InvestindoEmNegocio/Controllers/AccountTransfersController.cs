@@ -11,7 +11,7 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/accounts/transfers")]
 [Route("api/v1/accounts/transfers")]
 [Authorize(Policy = AppAuthorizationPolicies.FeatureAccountsManage)]
-public class AccountTransfersController(IAccountsService accountsService) : AuthenticatedControllerBase
+public class AccountTransfersController(IAccountTransferService accountTransferService) : AuthenticatedControllerBase
 {
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] AccountTransferRequest request, CancellationToken cancellationToken)
@@ -19,7 +19,7 @@ public class AccountTransfersController(IAccountsService accountsService) : Auth
         return await ExecuteWithProblemMappingAsync(async () =>
         {
             var userId = GetUserId();
-            var transfer = await accountsService.TransferAsync(userId, request, cancellationToken);
+            var transfer = await accountTransferService.TransferAsync(userId, request, cancellationToken);
             if (transfer is null) return NotFound();
             return Ok(transfer);
         }, "Invalid transfer");

@@ -17,7 +17,7 @@ public class DataPortabilityApplicationServiceTests
     [Fact]
     public async Task ExportAsync_Should_Throw_404_When_Feature_Is_Disabled()
     {
-        var sut = BuildService(enabled: false, portability: new Mock<IDataPortabilityService>());
+        var sut = BuildService(enabled: false, exportService: new Mock<IDataPortabilityExportService>(), importService: new Mock<IDataPortabilityImportService>());
 
         Func<Task> act = async () => await sut.ExportAsync(Guid.NewGuid());
 
@@ -29,7 +29,7 @@ public class DataPortabilityApplicationServiceTests
     [Fact]
     public async Task ImportAsync_Should_Throw_400_When_File_Length_Is_Invalid()
     {
-        var sut = BuildService(enabled: true, portability: new Mock<IDataPortabilityService>());
+        var sut = BuildService(enabled: true, exportService: new Mock<IDataPortabilityExportService>(), importService: new Mock<IDataPortabilityImportService>());
         await using var stream = new MemoryStream([1, 2, 3]);
 
         Func<Task> act = async () => await sut.ImportAsync(Guid.NewGuid(), stream, 0, replaceExisting: false);
@@ -42,11 +42,11 @@ public class DataPortabilityApplicationServiceTests
     [Fact]
     public async Task ImportAsync_Should_Map_JsonException_To_400()
     {
-        var portability = new Mock<IDataPortabilityService>();
-        portability
+        var importService = new Mock<IDataPortabilityImportService>();
+        importService
             .Setup(x => x.ImportAsync(It.IsAny<Guid>(), It.IsAny<Stream>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new JsonException("json inválido"));
-        var sut = BuildService(enabled: true, portability: portability, maxImportMb: 1);
+        var sut = BuildService(enabled: true, exportService: new Mock<IDataPortabilityExportService>(), importService: importService, maxImportMb: 1);
         await using var stream = new MemoryStream([1]);
 
         Func<Task> act = async () => await sut.ImportAsync(Guid.NewGuid(), stream, 1, replaceExisting: true);
@@ -59,11 +59,11 @@ public class DataPortabilityApplicationServiceTests
     [Fact]
     public async Task ImportAsync_Should_Map_DbUpdateException_To_400()
     {
-        var portability = new Mock<IDataPortabilityService>();
-        portability
+        var importService = new Mock<IDataPortabilityImportService>();
+        importService
             .Setup(x => x.ImportAsync(It.IsAny<Guid>(), It.IsAny<Stream>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new DbUpdateException("db fail"));
-        var sut = BuildService(enabled: true, portability: portability, maxImportMb: 1);
+        var sut = BuildService(enabled: true, exportService: new Mock<IDataPortabilityExportService>(), importService: importService, maxImportMb: 1);
         await using var stream = new MemoryStream([1]);
 
         Func<Task> act = async () => await sut.ImportAsync(Guid.NewGuid(), stream, 1, replaceExisting: false);
@@ -77,11 +77,11 @@ public class DataPortabilityApplicationServiceTests
     public async Task ImportAsync_Should_Return_Result_When_Valid()
     {
         var expected = new ImportUserDataResult(12);
-        var portability = new Mock<IDataPortabilityService>();
-        portability
+        var importService = new Mock<IDataPortabilityImportService>();
+        importService
             .Setup(x => x.ImportAsync(It.IsAny<Guid>(), It.IsAny<Stream>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(expected);
-        var sut = BuildService(enabled: true, portability: portability, maxImportMb: 10);
+        var sut = BuildService(enabled: true, exportService: new Mock<IDataPortabilityExportService>(), importService: importService, maxImportMb: 10);
         await using var stream = new MemoryStream([1, 2]);
 
         var result = await sut.ImportAsync(Guid.NewGuid(), stream, fileLength: 2, replaceExisting: true);
@@ -89,7 +89,11 @@ public class DataPortabilityApplicationServiceTests
         result.Should().BeEquivalentTo(expected);
     }
 
-    private static DataPortabilityApplicationService BuildService(bool enabled, Mock<IDataPortabilityService> portability, int maxImportMb = 20)
+    private static DataPortabilityApplicationService BuildService(
+        bool enabled,
+        Mock<IDataPortabilityExportService> exportService,
+        Mock<IDataPortabilityImportService> importService,
+        int maxImportMb = 20)
     {
         var options = Options.Create(new DataPortabilityOptions
         {
@@ -98,6 +102,6 @@ public class DataPortabilityApplicationServiceTests
         });
         var guard = new DataPortabilityGuardService(options, NullLogger<DataPortabilityGuardService>.Instance);
 
-        return new DataPortabilityApplicationService(portability.Object, guard, NullLogger<DataPortabilityApplicationService>.Instance);
+        return new DataPortabilityApplicationService(exportService.Object, importService.Object, guard, NullLogger<DataPortabilityApplicationService>.Instance);
     }
 }

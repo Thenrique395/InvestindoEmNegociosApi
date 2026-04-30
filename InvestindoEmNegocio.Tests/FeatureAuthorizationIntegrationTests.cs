@@ -94,11 +94,24 @@ public class FeatureAuthorizationIntegrationTests
             builder.WebHost.UseTestServer();
 
             builder.Services.AddControllers().AddApplicationPart(typeof(AccountsController).Assembly);
-            builder.Services.AddSingleton(BuildAccountsService());
+            var accountsService = BuildAccountsService();
+            builder.Services.AddSingleton(accountsService);
+            builder.Services.AddSingleton<IAccountQueryService>(sp => sp.GetRequiredService<IAccountsService>());
+            builder.Services.AddSingleton<IAccountCommandService>(sp => sp.GetRequiredService<IAccountsService>());
+            builder.Services.AddSingleton<IAccountTransactionQueryService>(sp => sp.GetRequiredService<IAccountsService>());
+            builder.Services.AddSingleton<IAccountTransferService>(sp => sp.GetRequiredService<IAccountsService>());
             builder.Services.AddSingleton(Mock.Of<ICardsService>());
             builder.Services.AddSingleton(Mock.Of<IInstallmentsService>());
             builder.Services.AddSingleton(Mock.Of<IAuditService>());
-            builder.Services.AddSingleton(BuildInvestmentsService());
+            var investmentsService = BuildInvestmentsService();
+            builder.Services.AddSingleton(investmentsService);
+            builder.Services.AddSingleton<IInvestmentGoalQueryService>(sp => sp.GetRequiredService<IInvestmentsService>());
+            builder.Services.AddSingleton<IInvestmentGoalCommandService>(sp => sp.GetRequiredService<IInvestmentsService>());
+            builder.Services.AddSingleton<IInvestmentAllocationQueryService>(sp => sp.GetRequiredService<IInvestmentsService>());
+            builder.Services.AddSingleton<IInvestmentAllocationCommandService>(sp => sp.GetRequiredService<IInvestmentsService>());
+            builder.Services.AddSingleton<IInvestmentPositionQueryService>(sp => sp.GetRequiredService<IInvestmentsService>());
+            builder.Services.AddSingleton<IInvestmentPositionCommandService>(sp => sp.GetRequiredService<IInvestmentsService>());
+            builder.Services.AddSingleton<IInvestmentMarketEnrichmentService>(sp => sp.GetRequiredService<IInvestmentsService>());
             builder.Services.AddSingleton(Mock.Of<IInvestmentsApplicationService>());
             builder.Services.AddSingleton(Mock.Of<IInvestmentBenchmarksService>());
             builder.Services.AddSingleton(Mock.Of<IB3SyncService>());

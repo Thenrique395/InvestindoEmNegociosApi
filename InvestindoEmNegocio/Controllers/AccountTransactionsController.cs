@@ -9,7 +9,7 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/accounts/{id:guid}/transactions")]
 [Route("api/v1/accounts/{id:guid}/transactions")]
 [Authorize(Policy = AppAuthorizationPolicies.FeatureAccountsRead)]
-public class AccountTransactionsController(IAccountsService accountsService) : AuthenticatedControllerBase
+public class AccountTransactionsController(IAccountTransactionQueryService accountTransactionQueryService) : AuthenticatedControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List(
@@ -19,7 +19,7 @@ public class AccountTransactionsController(IAccountsService accountsService) : A
         CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var data = await accountsService.ListTransactionsAsync(userId, id, fromUtc, toUtc, cancellationToken);
+        var data = await accountTransactionQueryService.ListTransactionsAsync(userId, id, fromUtc, toUtc, cancellationToken);
         if (data is null) return NotFound();
         return Ok(data);
     }

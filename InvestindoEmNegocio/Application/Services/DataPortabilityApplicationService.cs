@@ -9,14 +9,15 @@ using Microsoft.Extensions.Options;
 namespace InvestindoEmNegocio.Application.Services;
 
 public sealed class DataPortabilityApplicationService(
-    IDataPortabilityService dataPortabilityService,
+    IDataPortabilityExportService dataPortabilityExportService,
+    IDataPortabilityImportService dataPortabilityImportService,
     IDataPortabilityGuardService dataPortabilityGuardService,
     ILogger<DataPortabilityApplicationService> logger) : IDataPortabilityApplicationService
 {
     public async Task<(string FileName, byte[] Content)> ExportAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         dataPortabilityGuardService.EnsureEnabled();
-        return await dataPortabilityService.ExportAsync(userId, cancellationToken);
+        return await dataPortabilityExportService.ExportAsync(userId, cancellationToken);
     }
 
     public async Task<ImportUserDataResult> ImportAsync(
@@ -31,7 +32,7 @@ public sealed class DataPortabilityApplicationService(
 
         try
         {
-            return await dataPortabilityService.ImportAsync(userId, stream, replaceExisting, cancellationToken);
+            return await dataPortabilityImportService.ImportAsync(userId, stream, replaceExisting, cancellationToken);
         }
         catch (InvalidOperationException ex)
         {

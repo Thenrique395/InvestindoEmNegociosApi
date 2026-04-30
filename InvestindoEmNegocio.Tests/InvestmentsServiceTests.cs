@@ -438,18 +438,31 @@ public class InvestmentsServiceTests
         result[0].MarketProvider.Should().Be("brapi");
     }
 
-    private static InvestmentsService BuildSut(
+    private static IInvestmentsService BuildSut(
         Mock<IInvestmentGoalRepository>? goalRepository = null,
         Mock<IInvestmentAllocationTargetRepository>? allocationRepository = null,
         Mock<IInvestmentPositionRepository>? positionRepository = null,
         Mock<IMarketDataService>? marketDataService = null)
     {
-        return new InvestmentsService(
+        var planningService = new InvestmentPlanningService(
             goalRepository?.Object ?? Mock.Of<IInvestmentGoalRepository>(),
             allocationRepository?.Object ?? Mock.Of<IInvestmentAllocationTargetRepository>(),
+            NullLogger<InvestmentPlanningService>.Instance);
+        var positionService = new InvestmentPositionService(
             positionRepository?.Object ?? Mock.Of<IInvestmentPositionRepository>(),
-            marketDataService?.Object ?? Mock.Of<IMarketDataService>(),
             new MemoryCache(new MemoryCacheOptions()),
-            NullLogger<InvestmentsService>.Instance);
+            NullLogger<InvestmentPositionService>.Instance);
+        var marketEnrichmentService = new InvestmentMarketEnrichmentService(
+            marketDataService?.Object ?? Mock.Of<IMarketDataService>(),
+            NullLogger<InvestmentMarketEnrichmentService>.Instance);
+
+        return new InvestmentsService(
+            planningService,
+            planningService,
+            planningService,
+            planningService,
+            positionService,
+            positionService,
+            marketEnrichmentService);
     }
 }

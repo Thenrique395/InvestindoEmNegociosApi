@@ -12,14 +12,15 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/v1/investments/positions")]
 [Authorize(Policy = AppAuthorizationPolicies.FeatureInvestmentsAccess)]
 public class InvestmentPositionsController(
-    IInvestmentsService investmentsService,
+    IInvestmentPositionQueryService investmentPositionQueryService,
+    IInvestmentMarketEnrichmentService investmentMarketEnrichmentService,
     IInvestmentsApplicationService investmentsApplicationService) : AuthenticatedControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] ListQuery query, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var data = await investmentsService.ListPositionsAsync(userId, cancellationToken);
+        var data = await investmentPositionQueryService.ListPositionsAsync(userId, cancellationToken);
         var (items, total, page, pageSize, isPaged) = ListQueryHelper.Apply(
             data,
             query,
@@ -35,7 +36,7 @@ public class InvestmentPositionsController(
             });
 
         var list = items.ToList();
-        list = await investmentsService.EnrichWithMarketAsync(list, cancellationToken);
+        list = await investmentMarketEnrichmentService.EnrichWithMarketAsync(list, cancellationToken);
 
         if (isPaged)
             ListQueryHelper.WritePaginationHeaders(Response, total, page, pageSize);
@@ -47,7 +48,7 @@ public class InvestmentPositionsController(
     public async Task<IActionResult> Get(Guid id, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var position = await investmentsService.GetPositionAsync(userId, id, cancellationToken);
+        var position = await investmentPositionQueryService.GetPositionAsync(userId, id, cancellationToken);
         if (position is null) return NotFound();
         return Ok(position);
     }

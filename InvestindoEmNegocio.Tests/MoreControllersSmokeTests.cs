@@ -95,7 +95,7 @@ public class MoreControllersSmokeTests
         accounts.Setup(x => x.TransferAsync(It.IsAny<Guid>(), It.IsAny<AccountTransferRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new AccountTransferResponse(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 50, DateTime.UtcNow, "Transfer"));
 
-        var accountsController = new AccountsController(accounts.Object);
+        var accountsController = new AccountsController(accounts.Object, accounts.Object);
         var summariesController = new AccountSummariesController(accountAnalytics.Object);
         var insightsController = new AccountInsightsController(accountAnalytics.Object);
         var transactionsController = new AccountTransactionsController(accounts.Object);

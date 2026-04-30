@@ -1,6 +1,7 @@
 using System.Text;
 using FluentAssertions;
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
@@ -21,7 +22,7 @@ public class DataPortabilityServiceTests
         await using var dbContext = CreateDbContext();
         var cache = new MemoryCache(new MemoryCacheOptions());
         var options = Options.Create(new DataPortabilityOptions { ExportCacheSeconds = 60 });
-        var sut = new DataPortabilityService(dbContext, cache, options);
+        var sut = BuildSut(dbContext, cache, options);
 
         var userId = Guid.NewGuid();
 
@@ -39,7 +40,7 @@ public class DataPortabilityServiceTests
         await using var dbContext = CreateDbContext();
         var cache = new MemoryCache(new MemoryCacheOptions());
         var options = Options.Create(new DataPortabilityOptions { ExportCacheSeconds = 0 });
-        var sut = new DataPortabilityService(dbContext, cache, options);
+        var sut = BuildSut(dbContext, cache, options);
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes("{}"));
 
         var result = await sut.ImportAsync(Guid.NewGuid(), stream, replaceExisting: false, CancellationToken.None);
@@ -54,7 +55,7 @@ public class DataPortabilityServiceTests
         await EnsureReferenceDataAsync(dbContext);
         var cache = new MemoryCache(new MemoryCacheOptions());
         var options = Options.Create(new DataPortabilityOptions { ExportCacheSeconds = 0 });
-        var sut = new DataPortabilityService(dbContext, cache, options);
+        var sut = BuildSut(dbContext, cache, options);
         var userId = Guid.NewGuid();
 
         var snapshot = BuildCompleteSnapshot(userId);
@@ -86,7 +87,7 @@ public class DataPortabilityServiceTests
         await EnsureReferenceDataAsync(dbContext);
         var cache = new MemoryCache(new MemoryCacheOptions());
         var options = Options.Create(new DataPortabilityOptions { ExportCacheSeconds = 0 });
-        var sut = new DataPortabilityService(dbContext, cache, options);
+        var sut = BuildSut(dbContext, cache, options);
         var userId = Guid.NewGuid();
 
         await SeedExistingUserDataAsync(dbContext, userId);
@@ -116,7 +117,7 @@ public class DataPortabilityServiceTests
         await using var dbContext = CreateDbContext();
         var cache = new MemoryCache(new MemoryCacheOptions());
         var options = Options.Create(new DataPortabilityOptions { ExportCacheSeconds = 0 });
-        var sut = new DataPortabilityService(dbContext, cache, options);
+        var sut = BuildSut(dbContext, cache, options);
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes("{ invalid json }"));
 
         Func<Task> act = async () => await sut.ImportAsync(Guid.NewGuid(), stream, replaceExisting: false, CancellationToken.None);
@@ -131,7 +132,7 @@ public class DataPortabilityServiceTests
         await EnsureReferenceDataAsync(dbContext);
         var cache = new MemoryCache(new MemoryCacheOptions());
         var options = Options.Create(new DataPortabilityOptions { ExportCacheSeconds = 0 });
-        var sut = new DataPortabilityService(dbContext, cache, options);
+        var sut = BuildSut(dbContext, cache, options);
         var userId = Guid.NewGuid();
 
         var snapshot = new UserDataSnapshot
@@ -186,6 +187,13 @@ public class DataPortabilityServiceTests
     {
         var json = System.Text.Json.JsonSerializer.Serialize(snapshot);
         return new MemoryStream(Encoding.UTF8.GetBytes(json));
+    }
+
+    private static IDataPortabilityService BuildSut(InvestDbContext dbContext, MemoryCache cache, IOptions<DataPortabilityOptions> options)
+    {
+        var exportService = new DataPortabilityExportService(dbContext, cache, options);
+        var importService = new DataPortabilityImportService(dbContext, cache);
+        return new DataPortabilityService(exportService, importService);
     }
 
     private static UserDataSnapshot BuildCompleteSnapshot(Guid sourceUserId)

@@ -161,6 +161,8 @@ public class InvestmentControllersTests
     {
         var controller = new InvestmentGoalsController(
             Mock.Of<IInvestmentsService>(),
+            Mock.Of<IInvestmentsService>(),
+            Mock.Of<IInvestmentsService>(),
             Mock.Of<IInvestmentsApplicationService>())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
@@ -175,8 +177,11 @@ public class InvestmentControllersTests
         Mock<IInvestmentsService>? service = null,
         Mock<IInvestmentsApplicationService>? applicationService = null)
     {
+        var aggregate = service?.Object ?? Mock.Of<IInvestmentsService>();
         var controller = new InvestmentGoalsController(
-            service?.Object ?? Mock.Of<IInvestmentsService>(),
+            aggregate,
+            aggregate,
+            aggregate,
             applicationService?.Object ?? Mock.Of<IInvestmentsApplicationService>());
 
         SetAuth(controller);
@@ -187,8 +192,10 @@ public class InvestmentControllersTests
         Mock<IInvestmentsService>? service = null,
         Mock<IInvestmentsApplicationService>? applicationService = null)
     {
+        var aggregate = service?.Object ?? Mock.Of<IInvestmentsService>();
         var controller = new InvestmentPositionsController(
-            service?.Object ?? Mock.Of<IInvestmentsService>(),
+            aggregate,
+            aggregate,
             applicationService?.Object ?? Mock.Of<IInvestmentsApplicationService>());
 
         SetAuth(controller);

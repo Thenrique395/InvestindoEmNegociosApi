@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Http;
 namespace InvestindoEmNegocio.Application.Services;
 
 public sealed class AuthPasswordApplicationService(
-    IAuthService authService,
+    IAuthPasswordService authPasswordService,
     IAuditService auditService,
     ILogger<AuthPasswordApplicationService> logger) : IAuthPasswordApplicationService
 {
@@ -14,7 +14,7 @@ public sealed class AuthPasswordApplicationService(
     {
         try
         {
-            await authService.ForgotPasswordAsync(request, cancellationToken);
+            await authPasswordService.ForgotPasswordAsync(request, cancellationToken);
             await auditService.LogAsync(null, "FORGOT_PASSWORD_REQUEST", "User", request.Email.Trim().ToLowerInvariant(), ipAddress, userAgent, null, cancellationToken);
         }
         catch (ArgumentException ex)
@@ -28,7 +28,7 @@ public sealed class AuthPasswordApplicationService(
     {
         try
         {
-            await authService.ResetPasswordAsync(request, cancellationToken);
+            await authPasswordService.ResetPasswordAsync(request, cancellationToken);
             await auditService.LogAsync(null, "RESET_PASSWORD", "User", "password-reset", ipAddress, userAgent, null, cancellationToken);
         }
         catch (UnauthorizedAccessException ex)
@@ -47,7 +47,7 @@ public sealed class AuthPasswordApplicationService(
     {
         try
         {
-            await authService.ChangePasswordAsync(userId, request, cancellationToken);
+            await authPasswordService.ChangePasswordAsync(userId, request, cancellationToken);
             await auditService.LogAsync(userId, "CHANGE_PASSWORD", "User", userId.ToString(), ipAddress, userAgent, null, cancellationToken);
         }
         catch (UnauthorizedAccessException ex)

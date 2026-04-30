@@ -111,8 +111,10 @@ public class InvestmentsApplicationServiceTests
         Mock<IB3ImportService>? b3ImportService = null,
         Mock<IB3SyncService>? b3SyncService = null)
     {
+        var aggregate = investmentsService?.Object ?? Mock.Of<IInvestmentsService>();
         var portfolioCommandService = new InvestmentPortfolioCommandService(
-            investmentsService?.Object ?? Mock.Of<IInvestmentsService>(),
+            aggregate,
+            aggregate,
             auditService?.Object ?? Mock.Of<IAuditService>());
         var marketIntegrationService = new InvestmentMarketIntegrationService(
             marketDataService?.Object ?? Mock.Of<IMarketDataService>(),

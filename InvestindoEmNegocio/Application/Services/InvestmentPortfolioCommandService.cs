@@ -6,7 +6,8 @@ using Microsoft.AspNetCore.Http;
 namespace InvestindoEmNegocio.Application.Services;
 
 public sealed class InvestmentPortfolioCommandService(
-    IInvestmentsService investmentsService,
+    IInvestmentAllocationCommandService investmentAllocationCommandService,
+    IInvestmentPositionCommandService investmentPositionCommandService,
     IAuditService auditService) : IInvestmentPortfolioCommandService
 {
     public async Task<InvestmentAllocationTargetDto> UpsertAllocationTargetAsync(
@@ -16,7 +17,7 @@ public sealed class InvestmentPortfolioCommandService(
     {
         try
         {
-            return await investmentsService.UpsertAllocationTargetAsync(userId, request, cancellationToken);
+            return await investmentAllocationCommandService.UpsertAllocationTargetAsync(userId, request, cancellationToken);
         }
         catch (ArgumentException ex)
         {
@@ -31,7 +32,7 @@ public sealed class InvestmentPortfolioCommandService(
     {
         try
         {
-            return await investmentsService.CreatePositionAsync(userId, request, cancellationToken);
+            return await investmentPositionCommandService.CreatePositionAsync(userId, request, cancellationToken);
         }
         catch (ArgumentException ex)
         {
@@ -47,7 +48,7 @@ public sealed class InvestmentPortfolioCommandService(
     {
         try
         {
-            return await investmentsService.UpdatePositionAsync(userId, positionId, request, cancellationToken);
+            return await investmentPositionCommandService.UpdatePositionAsync(userId, positionId, request, cancellationToken);
         }
         catch (ArgumentException ex)
         {
@@ -62,7 +63,7 @@ public sealed class InvestmentPortfolioCommandService(
         string? userAgent,
         CancellationToken cancellationToken = default)
     {
-        var removed = await investmentsService.DeletePositionAsync(userId, positionId, cancellationToken);
+        var removed = await investmentPositionCommandService.DeletePositionAsync(userId, positionId, cancellationToken);
         if (!removed)
         {
             throw new AppProblemException("Posição não encontrada", "Posição não encontrada.", StatusCodes.Status404NotFound);
@@ -87,7 +88,7 @@ public sealed class InvestmentPortfolioCommandService(
     {
         try
         {
-            return await investmentsService.AddMovementAsync(userId, positionId, request, cancellationToken);
+            return await investmentPositionCommandService.AddMovementAsync(userId, positionId, request, cancellationToken);
         }
         catch (ArgumentException ex)
         {

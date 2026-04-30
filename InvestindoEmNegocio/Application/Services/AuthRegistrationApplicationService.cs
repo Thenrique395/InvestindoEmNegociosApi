@@ -6,14 +6,14 @@ using Microsoft.AspNetCore.Http;
 namespace InvestindoEmNegocio.Application.Services;
 
 public sealed class AuthRegistrationApplicationService(
-    IAuthService authService,
+    IAuthRegistrationService authRegistrationService,
     ILogger<AuthRegistrationApplicationService> logger) : IAuthRegistrationApplicationService
 {
     public async Task<AuthResponse> RegisterAsync(RegisterUserRequest request, CancellationToken cancellationToken = default)
     {
         try
         {
-            return await authService.RegisterAsync(request, cancellationToken);
+            return await authRegistrationService.RegisterAsync(request, cancellationToken);
         }
         catch (ArgumentException ex)
         {

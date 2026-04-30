@@ -11,14 +11,16 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/v1/investments")]
 [Authorize(Policy = AppAuthorizationPolicies.FeatureInvestmentsAccess)]
 public class InvestmentGoalsController(
-    IInvestmentsService investmentsService,
+    IInvestmentGoalQueryService investmentGoalQueryService,
+    IInvestmentGoalCommandService investmentGoalCommandService,
+    IInvestmentAllocationQueryService investmentAllocationQueryService,
     IInvestmentsApplicationService investmentsApplicationService) : AuthenticatedControllerBase
 {
     [HttpGet("goal")]
     public async Task<ActionResult<InvestmentGoalDto>> GetGoal(CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var goal = await investmentsService.GetGoalAsync(userId, cancellationToken);
+        var goal = await investmentGoalQueryService.GetGoalAsync(userId, cancellationToken);
         if (goal is null) return NoContent();
         return Ok(goal);
     }
@@ -27,7 +29,7 @@ public class InvestmentGoalsController(
     public async Task<ActionResult<InvestmentGoalDto>> UpsertGoal([FromBody] UpsertInvestmentGoalRequest request, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var goal = await investmentsService.UpsertGoalAsync(userId, request, cancellationToken);
+        var goal = await investmentGoalCommandService.UpsertGoalAsync(userId, request, cancellationToken);
         return Ok(goal);
     }
 
@@ -35,7 +37,7 @@ public class InvestmentGoalsController(
     public async Task<ActionResult<InvestmentAllocationTargetDto>> GetAllocationTarget(CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var target = await investmentsService.GetAllocationTargetAsync(userId, cancellationToken);
+        var target = await investmentAllocationQueryService.GetAllocationTargetAsync(userId, cancellationToken);
         return Ok(target);
     }
 
