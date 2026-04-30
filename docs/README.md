@@ -102,6 +102,8 @@ Regra prática:
 
 - [BILLING_STRIPE_PLAYBOOK.md](./BILLING_STRIPE_PLAYBOOK.md)
   - usar para operação técnica do Stripe, webhook, portal e configuração externa
+- [DEPLOY_GITHUB_ENVIRONMENTS.md](./DEPLOY_GITHUB_ENVIRONMENTS.md)
+  - usar para configurar `development` e `production` no GitHub sem `.env` versionado
 
 ### Schema e persistência versionada
 
@@ -127,12 +129,25 @@ Use:
 - health checks e OpenAPI do ambiente ativo para validação operacional
 - documentação central em `../../docs/` para direção de produto e regras transversais
 
+## Pipeline de deploy
+
+O deploy da API deve promover a mesma imagem Docker de `development` para `production`.
+
+Regras operacionais:
+
+- segredos ficam apenas em GitHub Environments e no host de destino
+- a pipeline nao deve gerar nem enviar `.env` para o servidor
+- `development` sobe primeiro para validacao
+- `production` sobe apenas apos aprovacao do environment no GitHub
+- o servidor recebe apenas `docker-compose.yml` e `schema.sql`, com configuracao injetada por variaveis de ambiente no job de deploy
+
 ## Atalho por tipo de dúvida
 
 - como implementar no backend: `BACKEND_PADROES_IMPLEMENTACAO.md`
 - quem pode acessar o quê: `AUTHORIZATION_MATRIX.md`
 - como a API deve responder erro: `API_CONTRATO_ERROS.md`
 - como operar billing Stripe: `BILLING_STRIPE_PLAYBOOK.md`
+- como configurar deploy `DEV -> PRD`: `DEPLOY_GITHUB_ENVIRONMENTS.md`
 
 ## O que não deve viver aqui
 
