@@ -22,6 +22,19 @@ Regra pratica:
 - frontend pode esconder modulos por UX
 - backend continua sendo a fonte final de autorizacao
 - mudanca de `[Authorize(Policy = ...)]`, role minima ou feature gate exige atualizacao deste arquivo
+- por legibilidade, os exemplos de rota abaixo omitem restricoes de template como `:guid` e `:int`, mas o desenho deve continuar equivalente ao controller real
+
+## Relacao com outros normativos
+
+- este documento deve ser lido junto com `./Agent.md`
+- padrao de implementacao e checklist de mudanca backend ficam em `./BACKEND_PADROES_IMPLEMENTACAO.md`
+- contrato de erro e status HTTP fica em `./API_CONTRATO_ERROS.md`
+
+## Como interpretar os grupos abaixo
+
+- a `policy real` e sempre a protecao aplicada hoje no controller
+- a `faixa funcional` e uma leitura operacional para produto e UX, nao substitui a policy real
+- se houver conflito entre faixa funcional e controller, o controller vence e o desalinhamento deve ser registrado aqui
 
 ## Hierarquia de perfis
 
@@ -134,11 +147,26 @@ Observacao:
 - `Advanced+ via feature`: investimentos e market data
 - `Administrativo via feature`: usuarios, parametros, robos e categorias padrao
 
+## Checklist minimo de validacao
+
+- revisar o controller e confirmar a `policy real` aplicada hoje
+- revisar `AppAuthorizationPolicies` e a feature correspondente
+- revisar impacto em claims, overrides e bypass de `Admin`
+- revisar consumidores impactados no frontend e em fluxos administrativos
+- revisar testes de autorizacao e smoke dos endpoints alterados
+- revisar `./API_CONTRATO_ERROS.md` quando houver mudanca de status HTTP, erro de acesso ou comportamento de billing/auth
+
 ## Mapeamento atual por grupo
 
 ### Publico
 
 Sem autenticacao:
+
+Classificacao:
+
+- `policy real`: `AllowAnonymous`
+- `faixa funcional`: publico
+- `sensivel`: auth, recuperacao de acesso, webhook de billing
 
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
@@ -151,6 +179,12 @@ Sem autenticacao:
 ### Basic via feature gate
 
 Protegidos por feature, nao por role minima direta no controller:
+
+Classificacao:
+
+- `policy real`: feature gate por endpoint
+- `faixa funcional`: base comum e self-service
+- `sensivel`: auth, billing, subscriptions, exclusao de conta
 
 - `feature.auth.security.manage`
   - `POST /api/v1/auth/change-password`
@@ -207,7 +241,7 @@ Protegidos por feature, nao por role minima direta no controller:
   - `DELETE /api/v1/plans/{id}`
 
 - `feature.incomes.summary.read`
-  - `GET /api/v1/receitas/summary`
+  - `GET /api/v1/incomes/summary`
 
 - `feature.goals.manage`
   - `GET /api/v1/goals/income`
@@ -249,6 +283,12 @@ Regra atual:
 ### Intermediate+ via feature gate
 
 Protegidos por feature, nao por role minima direta no controller:
+
+Classificacao:
+
+- `policy real`: feature gate por endpoint
+- `faixa funcional`: operacao financeira intermediaria
+- `sensivel`: importacao, analytics, assistente financeiro
 
 - `feature.accounts.manage`
   - `POST /api/v1/accounts`
@@ -298,12 +338,12 @@ Protegidos por feature, nao por role minima direta no controller:
   - `POST /api/v1/installments/{id}/anticipations`
 
 - `feature.financial-assistant.access`
-  - `GET /api/v1/financialassistant/context`
-  - `POST /api/v1/financialassistant/chat`
+  - `GET /api/v1/financial-assistant/context`
+  - `POST /api/v1/financial-assistant/chat`
 
 - `feature.monthly-snapshots.access`
-  - `GET /api/v1/monthlysnapshots`
-  - `POST /api/v1/monthlysnapshots/generate`
+  - `GET /api/v1/monthly-snapshots`
+  - `POST /api/v1/monthly-snapshots/generate`
 
 - `feature.loans.access`
   - `GET /api/v1/loans`
@@ -319,6 +359,12 @@ Regra pratica:
 ### Advanced+ via feature gate
 
 Protegidos por `feature.investments.access`:
+
+Classificacao:
+
+- `policy real`: `feature.investments.access`
+- `faixa funcional`: investimentos e market data
+- `sensivel`: investimentos, importacao B3, sincronizacao externa
 
 - `GET /api/v1/investments/goal`
 - `PUT /api/v1/investments/goal`
@@ -347,6 +393,12 @@ Regra pratica:
 ### Administrativo via feature gate
 
 Protegidos por feature administrativa:
+
+Classificacao:
+
+- `policy real`: feature administrativa por endpoint
+- `faixa funcional`: administracao interna
+- `sensivel`: usuarios, parametros, robos, categorias padrao
 
 - `feature.admin.users.manage`
   - `GET /api/v1/admin/users`

@@ -19,7 +19,7 @@ Use este diretório quando a dúvida for sobre:
 - autorização real por role, feature ou policy
 - padrão de implementação do backend
 - playbooks operacionais e documentação técnica específica da API
-- operação técnica da API, incluindo billing Stripe
+- operação técnica da API, incluindo billing e assinatura
 
 Não use este diretório como fonte principal para:
 
@@ -85,7 +85,19 @@ Regra prática:
 - ao mexer em policies, roles, features ou autorização efetiva
 - ao revisar padrões de implementação do backend
 - ao validar cobertura, smoke tests ou playbooks operacionais
-- ao operar billing Stripe, saldo/transações ou fluxos críticos específicos da API
+- ao operar billing, saldo/transações ou fluxos críticos específicos da API
+
+## Agente local
+
+Este diretório possui um agente operacional específico para o backend:
+
+- [Agent.md](./Agent.md)
+
+Regra:
+
+- este arquivo orienta a execução do Codex no escopo da API
+- a documentação deste diretório continua sendo a fonte de verdade técnica do backend
+- quando houver conflito de execução, `../../Agent.md` prevalece como regra geral da pasta de trabalho
 
 ## Documentos principais
 
@@ -100,8 +112,6 @@ Regra prática:
 
 ### Playbooks operacionais
 
-- [BILLING_STRIPE_PLAYBOOK.md](./BILLING_STRIPE_PLAYBOOK.md)
-  - usar para operação técnica do Stripe, webhook, portal e configuração externa
 - [DEPLOY_GITHUB_ENVIRONMENTS.md](./DEPLOY_GITHUB_ENVIRONMENTS.md)
   - usar para configurar `development` e `production` no GitHub sem `.env` versionado
 
@@ -131,22 +141,20 @@ Use:
 
 ## Pipeline de deploy
 
-O deploy da API deve promover a mesma imagem Docker de `development` para `production`.
+O detalhe operacional de deploy nao deve ficar duplicado neste indice.
 
-Regras operacionais:
+Use:
 
-- segredos ficam apenas em GitHub Environments e no host de destino
-- a pipeline nao deve gerar nem enviar `.env` para o servidor
-- `development` sobe primeiro para validacao
-- `production` sobe apenas apos aprovacao do environment no GitHub
-- o servidor recebe apenas `docker-compose.yml` e `schema.sql`, com configuracao injetada por variaveis de ambiente no job de deploy
+- [DEPLOY_GITHUB_ENVIRONMENTS.md](./DEPLOY_GITHUB_ENVIRONMENTS.md)
+  - para configuracao de `development` e `production`
+  - para secrets/vars e aprovacao manual no GitHub
+  - para o fluxo de promocao `DEV -> PRD`
 
 ## Atalho por tipo de dúvida
 
 - como implementar no backend: `BACKEND_PADROES_IMPLEMENTACAO.md`
 - quem pode acessar o quê: `AUTHORIZATION_MATRIX.md`
 - como a API deve responder erro: `API_CONTRATO_ERROS.md`
-- como operar billing Stripe: `BILLING_STRIPE_PLAYBOOK.md`
 - como configurar deploy `DEV -> PRD`: `DEPLOY_GITHUB_ENVIRONMENTS.md`
 
 ## O que não deve viver aqui
