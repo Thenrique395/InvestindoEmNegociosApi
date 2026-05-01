@@ -64,6 +64,19 @@ Consultar quando aplicavel:
 - `./AUTHORIZATION_MATRIX.md`
 - `./DEPLOY_GITHUB_ENVIRONMENTS.md`
 
+## Artefatos do backend
+
+Usar estes pontos de referencia para navegar mais rapido:
+
+- policies e regras de autorizacao: `InvestindoEmNegociosApi/InvestindoEmNegocio/Infrastructure/Auth/`
+- controllers HTTP: `InvestindoEmNegociosApi/InvestindoEmNegocio/Controllers/`
+- servicos de aplicacao: `InvestindoEmNegociosApi/InvestindoEmNegocio/Application/Services/`
+- contratos e interfaces de aplicacao: `InvestindoEmNegociosApi/InvestindoEmNegocio/Application/Interfaces/`
+- persistencia e bootstrap de banco: `InvestindoEmNegociosApi/InvestindoEmNegocio/Infrastructure/Data/`
+- schema inicial do banco: `InvestindoEmNegociosApi/InvestindoEmNegocio/Infrastructure/Data/schema.sql`
+- testes backend: `InvestindoEmNegociosApi/InvestindoEmNegocio.Tests/`
+- documentacao normativa local da API: `InvestindoEmNegociosApi/docs/`
+
 ## Fluxo obrigatorio de leitura
 
 ### Mudanca de endpoint, DTO, status HTTP ou erro
