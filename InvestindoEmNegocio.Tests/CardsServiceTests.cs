@@ -1,9 +1,12 @@
 using FluentAssertions;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -45,6 +48,27 @@ public class CardsServiceTests
         result.Last4.Should().Be("1234");
         cardRepository.Verify(x => x.AddAsync(It.IsAny<Card>(), It.IsAny<CancellationToken>()), Times.Once);
         cardRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateAsync_Should_Throw_Conflict_When_Nickname_Already_Exists()
+    {
+        var userId = Guid.NewGuid();
+        var brandRepository = new Mock<ICardBrandRepository>();
+        brandRepository
+            .Setup(x => x.ExistsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        var cardRepository = new Mock<ICardRepository>();
+        cardRepository
+            .Setup(x => x.NicknameExistsAsync(userId, "Principal", null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        var sut = BuildSut(cardRepository, brandRepository);
+
+        Func<Task> act = async () => await sut.CreateAsync(userId, NewRequest());
+
+        await act.Should().ThrowAsync<AppProblemException>()
+            .Where(ex => ex.StatusCode == StatusCodes.Status409Conflict);
+        cardRepository.Verify(x => x.AddAsync(It.IsAny<Card>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -109,6 +133,58 @@ public class CardsServiceTests
         updated!.HolderName.Should().Be("Henrique Santos");
         updated.Bank.Should().Be("Banco X");
         cardRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_Should_Throw_Conflict_When_Nickname_Already_Exists_For_Another_Card()
+    {
+        var userId = Guid.NewGuid();
+        var cardId = Guid.NewGuid();
+        var existing = new Card(userId, 1, "Nome antigo", "Antigo", "0000", "Banco antigo", 1200, 5, 15);
+
+        var cardRepository = new Mock<ICardRepository>();
+        cardRepository
+            .Setup(x => x.GetByIdAsync(cardId, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existing);
+        cardRepository
+            .Setup(x => x.NicknameExistsAsync(userId, "Principal", cardId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var brandRepository = new Mock<ICardBrandRepository>();
+        brandRepository
+            .Setup(x => x.ExistsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var sut = BuildSut(cardRepository, brandRepository);
+
+        Func<Task> act = async () => await sut.UpdateAsync(userId, cardId, NewRequest());
+
+        await act.Should().ThrowAsync<AppProblemException>()
+            .Where(ex => ex.StatusCode == StatusCodes.Status409Conflict);
+        cardRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateAsync_Should_Throw_Conflict_When_Save_Fails_With_DbUpdateException()
+    {
+        var userId = Guid.NewGuid();
+        var brandRepository = new Mock<ICardBrandRepository>();
+        brandRepository
+            .Setup(x => x.ExistsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        var cardRepository = new Mock<ICardRepository>();
+        cardRepository
+            .Setup(x => x.NicknameExistsAsync(userId, "Principal", null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        cardRepository
+            .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateException());
+        var sut = BuildSut(cardRepository, brandRepository);
+
+        Func<Task> act = async () => await sut.CreateAsync(userId, NewRequest());
+
+        await act.Should().ThrowAsync<AppProblemException>()
+            .Where(ex => ex.StatusCode == StatusCodes.Status409Conflict);
     }
 
     [Fact]

@@ -20,6 +20,16 @@ public class CardRepository(InvestDbContext context) : ICardRepository
         return await context.Cards.FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId, cancellationToken);
     }
 
+    public async Task<bool> NicknameExistsAsync(Guid userId, string nickname, Guid? excludeCardId = null, CancellationToken cancellationToken = default)
+    {
+        var normalizedNickname = nickname.Trim().ToUpperInvariant();
+
+        return await context.Cards.AsNoTracking()
+            .Where(c => c.UserId == userId)
+            .Where(c => !excludeCardId.HasValue || c.Id != excludeCardId.Value)
+            .AnyAsync(c => c.Nickname.ToUpper() == normalizedNickname, cancellationToken);
+    }
+
     public async Task AddAsync(Card card, CancellationToken cancellationToken = default)
     {
         await context.Cards.AddAsync(card, cancellationToken);

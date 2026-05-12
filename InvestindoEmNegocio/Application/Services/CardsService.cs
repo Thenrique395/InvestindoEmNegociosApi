@@ -1,9 +1,12 @@
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Finance;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Application.Services;
@@ -30,18 +33,31 @@ public class CardsService(
         if (!await brandRepository.ExistsAsync(request.BrandId, cancellationToken))
             throw new ArgumentException("BrandId não encontrado.");
 
+        var nickname = ResolveNickname(request);
+        if (await cardRepository.NicknameExistsAsync(userId, nickname, null, cancellationToken))
+            throw new AppProblemException("Cartão já existe", "Já existe um cartão com esse nome/apelido.", StatusCodes.Status409Conflict);
+
         var card = new Card(
             userId,
             request.BrandId,
             request.HolderName,
-            request.Nickname ?? request.HolderName,
+            nickname,
             request.Last4,
             request.Bank,
             request.CreditLimit,
             request.StatementCloseDay,
             request.DueDay);
         await cardRepository.AddAsync(card, cancellationToken);
-        await cardRepository.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await cardRepository.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            throw new AppProblemException("Cartão já existe", "Já existe um cartão com esse nome/apelido.", StatusCodes.Status409Conflict);
+        }
+
         _logger.LogInformation("Card created {UserId} {CardId}", userId, card.Id);
         return MapToResponse(card);
     }
@@ -54,16 +70,29 @@ public class CardsService(
         if (!await brandRepository.ExistsAsync(request.BrandId, cancellationToken))
             throw new ArgumentException("BrandId não encontrado.");
 
+        var nickname = ResolveNickname(request);
+        if (await cardRepository.NicknameExistsAsync(userId, nickname, id, cancellationToken))
+            throw new AppProblemException("Cartão já existe", "Já existe um cartão com esse nome/apelido.", StatusCodes.Status409Conflict);
+
         card.Update(
             request.BrandId,
             request.HolderName,
-            request.Nickname ?? request.HolderName,
+            nickname,
             request.Last4,
             request.Bank,
             request.CreditLimit,
             request.StatementCloseDay,
             request.DueDay);
-        await cardRepository.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await cardRepository.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            throw new AppProblemException("Cartão já existe", "Já existe um cartão com esse nome/apelido.", StatusCodes.Status409Conflict);
+        }
+
         _logger.LogInformation("Card updated {UserId} {CardId}", userId, card.Id);
         return MapToResponse(card);
     }
@@ -188,4 +217,9 @@ public class CardsService(
             c.DueDay,
             c.CreatedAt,
             c.UpdatedAt);
+
+    private static string ResolveNickname(CardRequest request) =>
+        string.IsNullOrWhiteSpace(request.Nickname)
+            ? request.HolderName.Trim()
+            : request.Nickname.Trim();
 }

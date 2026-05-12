@@ -116,7 +116,44 @@ public class CardsControllerSqliteIntegrationTests
         statements[0].Items.Should().ContainSingle(x => x.Title == "Mercado mensal" && x.OpenAmount == 180m);
     }
 
+    [Fact]
+    public async Task Create_Should_Return_Conflict_When_Nickname_Is_Duplicated_For_Same_User()
+    {
+        await using var host = await TestCardsApiHost.StartAsync();
+        var client = host.App.GetTestClient();
+
+        await host.SeedAsync(db =>
+        {
+            db.CardBrands.Add(new CardBrand(5, "Mastercard", "mastercard"));
+            return Task.CompletedTask;
+        });
+
+        var firstRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/cards")
+        {
+            Content = JsonContent.Create(new CardRequest(5, "Joanna Amanda", "2312", "Joanna Amanda", "ITAÚ", 10000m, 25, 1))
+        };
+        firstRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "token");
+
+        var firstResponse = await client.SendAsync(firstRequest);
+        firstResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var duplicateRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/cards")
+        {
+            Content = JsonContent.Create(new CardRequest(5, "Joanna Amanda", "9999", "Joanna Amanda", "ITAÚ", 10000m, 25, 1))
+        };
+        duplicateRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "token");
+
+        var duplicateResponse = await client.SendAsync(duplicateRequest);
+
+        duplicateResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        var problem = await duplicateResponse.Content.ReadFromJsonAsync<ProblemDetailsEnvelope>();
+        problem.Should().NotBeNull();
+        problem!.Title.Should().Be("Cartão já existe");
+        problem.Detail.Should().Be("Já existe um cartão com esse nome/apelido.");
+    }
+
     private sealed record TotalDebtEnvelope(decimal Total);
+    private sealed record ProblemDetailsEnvelope(string Title, string Detail);
 
     private sealed class TestCardsApiHost(WebApplication app, SqliteConnection connection) : IAsyncDisposable
     {
