@@ -131,6 +131,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Apply development database schema
+        env:
+          DB_CONN: ${{ secrets.DB_CONN }}
+        run: ./scripts/apply-schema-from-db-conn.sh
+
       - name: Upload compose and schema
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -223,6 +233,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Apply production database schema
+        env:
+          DB_CONN: ${{ secrets.DB_CONN }}
+        run: ./scripts/apply-schema-from-db-conn.sh
 
       - name: Upload compose and schema
         uses: appleboy/scp-action@v0.1.7
