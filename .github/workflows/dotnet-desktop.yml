@@ -178,8 +178,8 @@ jobs:
           STRIPE_PUBLISHABLE_KEY: ${{ vars.STRIPE_PUBLISHABLE_KEY }}
           STRIPE_FRONTEND_BASE_URL: ${{ vars.STRIPE_FRONTEND_BASE_URL }}
           STRIPE_PAYMENT_METHOD_TYPES: ${{ vars.STRIPE_PAYMENT_METHOD_TYPES }}
-          GHCR_USER: ${{ secrets.GHCR_USER }}
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
@@ -281,8 +281,8 @@ jobs:
           STRIPE_PUBLISHABLE_KEY: ${{ vars.STRIPE_PUBLISHABLE_KEY }}
           STRIPE_FRONTEND_BASE_URL: ${{ vars.STRIPE_FRONTEND_BASE_URL }}
           STRIPE_PAYMENT_METHOD_TYPES: ${{ vars.STRIPE_PAYMENT_METHOD_TYPES }}
-          GHCR_USER: ${{ secrets.GHCR_USER }}
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
