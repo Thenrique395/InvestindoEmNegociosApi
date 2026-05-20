@@ -1,0 +1,38 @@
+services:
+  backend:
+    image: ${BACKEND_IMAGE:-ghcr.io/thenrique395/investindoemnegociosapi:latest}
+    ports:
+      - "${API_PORT:-5059}:5059"
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://0.0.0.0:5059
+      ConnectionStrings__Default: ${DB_CONN}
+      Jwt__Issuer: InvestindoEmNegocio
+      Jwt__Audience: InvestindoEmNegocio
+      Jwt__SecretKey: ${JWT_SECRET_KEY}
+      OTEL_SERVICE_NAME: InvestindoEmNegocio
+      OTEL_TRACES_EXPORTER: none
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      MarketData__Provider: free
+      MarketData__BrapiToken: ${BRAPI_TOKEN}
+      PasswordReset__FrontendResetUrl: ${PASSWORD_RESET_FRONTEND_URL:-http://localhost:4200/reset-password}
+      PasswordReset__TokenExpiryMinutes: ${PASSWORD_RESET_TOKEN_EXPIRY_MINUTES:-30}
+      Smtp__Host: ${SMTP_HOST:-}
+      Smtp__Port: ${SMTP_PORT:-587}
+      Smtp__EnableSsl: ${SMTP_ENABLE_SSL:-true}
+      Smtp__Username: ${SMTP_USER:-}
+      Smtp__Password: ${SMTP_PASS:-}
+      Smtp__FromEmail: ${SMTP_FROM_EMAIL:-}
+      Smtp__FromName: ${SMTP_FROM_NAME:-Investindo em Negocios}
+      Stripe__SecretKey: ${STRIPE_SECRET_KEY:-}
+      Stripe__WebhookSecret: ${STRIPE_WEBHOOK_SECRET:-}
+      Stripe__PublishableKey: ${STRIPE_PUBLISHABLE_KEY:-}
+      Stripe__FrontendBaseUrl: ${STRIPE_FRONTEND_BASE_URL:-http://localhost:4200}
+      Stripe__PaymentMethodTypes: ${STRIPE_PAYMENT_METHOD_TYPES:-card}
+      Database__ApplySchemaOnStartup: "false"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:5059/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 10

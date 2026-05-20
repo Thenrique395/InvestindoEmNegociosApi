@@ -141,13 +141,13 @@ jobs:
           DB_CONN: ${{ secrets.DB_CONN }}
         run: ./scripts/apply-schema-from-db-conn.sh
 
-      - name: Upload compose and schema
+      - name: Upload deployment compose
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "docker-compose.yml,InvestindoEmNegocio/Infrastructure/Data/schema.sql"
+          source: "docker-compose.deploy.yml"
           target: ${{ env.DEPLOY_PATH }}
 
       - name: Deploy stack to development
@@ -217,10 +217,9 @@ jobs:
             mkdir -p "$DEPLOY_PATH"
             cd "$DEPLOY_PATH"
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
-            docker compose -p "$STACK_NAME" config >/dev/null
-            docker compose -p "$STACK_NAME" pull
-            docker compose -p "$STACK_NAME" up -d --remove-orphans
-            wait_for_service_health postgres
+            docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml config >/dev/null
+            docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml pull
+            docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml up -d --remove-orphans
             wait_for_service_health backend
 
   deploy-prd:
@@ -244,13 +243,13 @@ jobs:
           DB_CONN: ${{ secrets.DB_CONN }}
         run: ./scripts/apply-schema-from-db-conn.sh
 
-      - name: Upload compose and schema
+      - name: Upload deployment compose
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "docker-compose.yml,InvestindoEmNegocio/Infrastructure/Data/schema.sql"
+          source: "docker-compose.deploy.yml"
           target: ${{ env.DEPLOY_PATH }}
 
       - name: Deploy stack to production
@@ -320,8 +319,7 @@ jobs:
             mkdir -p "$DEPLOY_PATH"
             cd "$DEPLOY_PATH"
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
-            docker compose -p "$STACK_NAME" config >/dev/null
-            docker compose -p "$STACK_NAME" pull
-            docker compose -p "$STACK_NAME" up -d --remove-orphans
-            wait_for_service_health postgres
+            docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml config >/dev/null
+            docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml pull
+            docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml up -d --remove-orphans
             wait_for_service_health backend
