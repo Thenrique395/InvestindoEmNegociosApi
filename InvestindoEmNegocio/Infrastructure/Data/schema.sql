@@ -634,6 +634,27 @@ CREATE UNIQUE INDEX IF NOT EXISTS "IX_billing_webhook_events_Provider_ProviderEv
 CREATE INDEX IF NOT EXISTS "IX_billing_webhook_events_ReceivedAt"
     ON billing_webhook_events ("ReceivedAt");
 
+CREATE TABLE IF NOT EXISTS user_subscriptions (
+    "Id" uuid NOT NULL,
+    "UserId" uuid NOT NULL,
+    "PlanCode" character varying(32) NOT NULL,
+    "RoleGranted" integer NOT NULL,
+    "BillingCycle" integer NOT NULL,
+    "Status" integer NOT NULL,
+    "PriceAmount" numeric(14,2) NOT NULL,
+    "Currency" character varying(8) NOT NULL,
+    "AutoRenew" boolean NOT NULL DEFAULT TRUE,
+    "ExternalCustomerId" character varying(120) NULL,
+    "ExternalSubscriptionId" character varying(120) NULL,
+    "ExternalPriceId" character varying(120) NULL,
+    "StartedAt" timestamp with time zone NOT NULL,
+    "RenewsAt" timestamp with time zone NOT NULL,
+    "CancelledAt" timestamp with time zone NULL,
+    "UpdatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_user_subscriptions" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_user_subscriptions_users_UserId" FOREIGN KEY ("UserId") REFERENCES users ("Id") ON DELETE CASCADE
+);
+
 ALTER TABLE IF EXISTS user_subscriptions
     ADD COLUMN IF NOT EXISTS "ExternalCustomerId" character varying(120) NULL;
 
@@ -645,6 +666,9 @@ ALTER TABLE IF EXISTS user_subscriptions
 
 CREATE INDEX IF NOT EXISTS "IX_user_subscriptions_ExternalSubscriptionId"
     ON user_subscriptions ("ExternalSubscriptionId");
+
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_user_subscriptions_UserId"
+    ON user_subscriptions ("UserId");
 
 CREATE INDEX IF NOT EXISTS "IX_money_payments_AccountId"
     ON money_payments ("AccountId");
@@ -719,22 +743,6 @@ CREATE TABLE IF NOT EXISTS monthly_financial_snapshots (
     "CreatedAt" timestamp with time zone NOT NULL,
     CONSTRAINT "PK_monthly_financial_snapshots" PRIMARY KEY ("Id"),
     CONSTRAINT "FK_monthly_financial_snapshots_users_UserId" FOREIGN KEY ("UserId") REFERENCES users ("Id") ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS user_subscriptions (
-    id uuid PRIMARY KEY,
-    user_id uuid NOT NULL UNIQUE,
-    plan_code varchar(32) NOT NULL,
-    role_granted integer NOT NULL,
-    billing_cycle integer NOT NULL,
-    status integer NOT NULL,
-    price_amount numeric(14,2) NOT NULL,
-    currency varchar(8) NOT NULL,
-    auto_renew boolean NOT NULL DEFAULT TRUE,
-    started_at timestamp without time zone NOT NULL,
-    renews_at timestamp without time zone NOT NULL,
-    cancelled_at timestamp without time zone NULL,
-    updated_at timestamp without time zone NOT NULL
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS "IX_monthly_financial_snapshots_UserId_Year_Month"
