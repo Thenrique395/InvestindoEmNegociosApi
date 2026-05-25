@@ -8,6 +8,7 @@ riderModule.iml
 coverage.cobertura.xml
 coverage.opencover.xml
 *.trx
+*.lscache
 
 # OS / IDE
 .DS_Store
