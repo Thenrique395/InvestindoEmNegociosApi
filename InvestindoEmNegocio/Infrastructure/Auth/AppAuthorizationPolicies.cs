@@ -36,7 +36,7 @@ public static class AppAuthorizationPolicies
     public const string FeatureAccountsImport = "feature.accounts.import";
     public const string FeatureCardsRead = "feature.cards.read";
     public const string FeatureCardsCreateUpdate = "feature.cards.create-update";
-    public const string FeatureCardsAdminManage = "feature.cards.manage";
+    public const string FeatureCardsDelete = "feature.cards.delete";
     public const string FeatureCardsStatementsRead = "feature.cards.statements";
     public const string FeatureCategoriesRead = "feature.categories.read";
     public const string FeatureCategoriesManage = "feature.categories.manage";
@@ -100,7 +100,7 @@ public static class AppAuthorizationPolicies
         AddFeaturePolicy(options, FeatureAccountsImport, AppFeatureKeys.AccountsImport);
         AddFeaturePolicy(options, FeatureCardsRead, AppFeatureKeys.CardsRead);
         AddFeaturePolicy(options, FeatureCardsCreateUpdate, AppFeatureKeys.CardsCreateUpdate);
-        AddFeaturePolicy(options, FeatureCardsAdminManage, AppFeatureKeys.CardsAdminManage);
+        AddFeaturePolicy(options, FeatureCardsDelete, AppFeatureKeys.CardsDelete);
         AddFeaturePolicy(options, FeatureCardsStatementsRead, AppFeatureKeys.CardsStatementsRead);
         AddFeaturePolicy(options, FeatureCategoriesRead, AppFeatureKeys.CategoriesRead);
         AddFeaturePolicy(options, FeatureCategoriesManage, AppFeatureKeys.CategoriesManage);

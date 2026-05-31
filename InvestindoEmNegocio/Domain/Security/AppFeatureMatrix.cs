@@ -29,6 +29,7 @@ public static class AppFeatureMatrix
                 AppFeatureKeys.AccountsRead,
                 AppFeatureKeys.CardsRead,
                 AppFeatureKeys.CardsCreateUpdate,
+                AppFeatureKeys.CardsDelete,
                 AppFeatureKeys.CategoriesRead
             },
             [UserRole.Intermediate] = new(StringComparer.OrdinalIgnoreCase)
@@ -57,6 +58,7 @@ public static class AppFeatureMatrix
                 AppFeatureKeys.AccountsImport,
                 AppFeatureKeys.CardsRead,
                 AppFeatureKeys.CardsCreateUpdate,
+                AppFeatureKeys.CardsDelete,
                 AppFeatureKeys.CardsStatementsRead,
                 AppFeatureKeys.CategoriesRead,
                 AppFeatureKeys.CategoriesManage,
@@ -91,6 +93,7 @@ public static class AppFeatureMatrix
                 AppFeatureKeys.AccountsImport,
                 AppFeatureKeys.CardsRead,
                 AppFeatureKeys.CardsCreateUpdate,
+                AppFeatureKeys.CardsDelete,
                 AppFeatureKeys.CardsStatementsRead,
                 AppFeatureKeys.CategoriesRead,
                 AppFeatureKeys.CategoriesManage,
@@ -126,7 +129,7 @@ public static class AppFeatureMatrix
                 AppFeatureKeys.AccountsImport,
                 AppFeatureKeys.CardsRead,
                 AppFeatureKeys.CardsCreateUpdate,
-                AppFeatureKeys.CardsAdminManage,
+                AppFeatureKeys.CardsDelete,
                 AppFeatureKeys.CardsStatementsRead,
                 AppFeatureKeys.CategoriesRead,
                 AppFeatureKeys.CategoriesManage,

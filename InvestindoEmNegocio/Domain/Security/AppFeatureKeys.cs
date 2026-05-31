@@ -27,7 +27,7 @@ public static class AppFeatureKeys
     public const string AccountsImport = "accounts.import";
     public const string CardsRead = "cards.read";
     public const string CardsCreateUpdate = "cards.create-update";
-    public const string CardsAdminManage = "cards.manage";
+    public const string CardsDelete = "cards.delete";
     public const string CardsStatementsRead = "cards.statements";
     public const string CategoriesRead = "categories.read";
     public const string CategoriesManage = "categories.manage";
@@ -67,7 +67,7 @@ public static class AppFeatureKeys
         AccountsImport,
         CardsRead,
         CardsCreateUpdate,
-        CardsAdminManage,
+        CardsDelete,
         CardsStatementsRead,
         CategoriesRead,
         CategoriesManage,

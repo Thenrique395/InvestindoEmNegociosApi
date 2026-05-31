@@ -69,7 +69,7 @@ public class CardsController(ICardsService cardsService, IAuditService auditServ
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Policy = AppAuthorizationPolicies.FeatureCardsAdminManage)]
+    [Authorize(Policy = AppAuthorizationPolicies.FeatureCardsDelete)]
     // Deletes a card owned by the current user.
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {

@@ -81,7 +81,7 @@ Observacao:
 - `feature.accounts.import`
 - `feature.cards.read`
 - `feature.cards.create-update`
-- `feature.cards.manage`
+- `feature.cards.delete`
 - `feature.cards.statements`
 - `feature.categories.read`
 - `feature.categories.manage`
@@ -121,7 +121,7 @@ Observacao:
 - `accounts.import`
 - `cards.read`
 - `cards.create-update`
-- `cards.manage`
+- `cards.delete`
 - `cards.statements`
 - `categories.read`
 - `categories.manage`
@@ -322,7 +322,7 @@ Classificacao:
   - `POST /api/v1/cards`
   - `PUT /api/v1/cards/{id}`
 
-- `feature.cards.manage`
+- `feature.cards.delete`
   - `DELETE /api/v1/cards/{id}`
 
 - `feature.cards.statements`
