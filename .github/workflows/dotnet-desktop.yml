@@ -217,6 +217,7 @@ jobs:
             mkdir -p "$DEPLOY_PATH"
             cd "$DEPLOY_PATH"
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml down --remove-orphans || true
             docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml config >/dev/null
             docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml pull
             docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml up -d --remove-orphans
@@ -319,6 +320,7 @@ jobs:
             mkdir -p "$DEPLOY_PATH"
             cd "$DEPLOY_PATH"
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml down --remove-orphans || true
             docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml config >/dev/null
             docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml pull
             docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml up -d --remove-orphans
