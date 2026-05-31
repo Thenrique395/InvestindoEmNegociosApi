@@ -37,7 +37,7 @@ public class OnboardingServiceTests
 
         var result = await sut.UpdateStatusAsync(userId, new UpdateOnboardingRequest(99, true));
 
-        result.Step.Should().Be(2);
+        result.Step.Should().Be(3);
         result.Completed.Should().BeTrue();
         repository.Verify(x => x.AddAsync(It.IsAny<UserOnboarding>(), It.IsAny<CancellationToken>()), Times.Once);
         repository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);

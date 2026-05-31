@@ -20,7 +20,7 @@ public class OnboardingService(IUserOnboardingRepository repository, ILogger<Onb
     public async Task<OnboardingStatusDto> UpdateStatusAsync(Guid userId, UpdateOnboardingRequest request,
         CancellationToken cancellationToken = default)
     {
-        var step = Math.Max(0, Math.Min(2, request.Step));
+        var step = Math.Max(0, Math.Min(3, request.Step));
         var onboarding = await repository.GetByUserAsync(userId, cancellationToken);
         if (onboarding is null)
         {

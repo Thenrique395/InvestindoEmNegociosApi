@@ -8,6 +8,6 @@ public sealed class UpdateOnboardingRequestValidator : AbstractValidator<UpdateO
     public UpdateOnboardingRequestValidator()
     {
         RuleFor(x => x.Step)
-            .InclusiveBetween(0, 2).WithMessage("Etapa do onboarding deve estar entre 0 e 2.");
+            .InclusiveBetween(0, 3).WithMessage("Etapa do onboarding deve estar entre 0 e 3.");
     }
 }
