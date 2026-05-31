@@ -151,6 +151,7 @@ public class ServiceCollectionExtensionsTests
 
         configuredPolicy.Should().NotBeNull();
         configuredPolicy!.Origins.Should().Contain("https://35.174.50.187:4000");
+        configuredPolicy.Origins.Should().Contain("http://35.174.50.187:4201");
         configuredPolicy.Origins.Should().Contain("http://localhost:4200");
         configuredPolicy.SupportsCredentials.Should().BeTrue();
     }

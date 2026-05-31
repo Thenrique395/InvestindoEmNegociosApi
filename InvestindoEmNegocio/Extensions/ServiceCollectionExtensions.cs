@@ -148,6 +148,7 @@ public static class ServiceCollectionExtensions
             "http://localhost:4200",
             "http://127.0.0.1:4200",
             "http://35.174.50.187:4200",
+            "http://35.174.50.187:4201",
             "http://localhost:4000",
             "http://127.0.0.1:4000",
             "http://35.174.50.187:4000",
