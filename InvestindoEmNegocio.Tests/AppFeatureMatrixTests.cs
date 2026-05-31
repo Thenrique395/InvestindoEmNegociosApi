@@ -29,6 +29,8 @@ public class AppFeatureMatrixTests
             AppFeatureKeys.InstallmentsPay,
             AppFeatureKeys.InstallmentsManage,
             AppFeatureKeys.AccountsRead,
+            AppFeatureKeys.CardsRead,
+            AppFeatureKeys.CardsCreateUpdate,
             AppFeatureKeys.CategoriesRead
         ];
 
@@ -47,9 +49,8 @@ public class AppFeatureMatrixTests
             AppFeatureKeys.AccountsManage,
             AppFeatureKeys.AccountsAnalytics,
             AppFeatureKeys.AccountsImport,
-            AppFeatureKeys.CardsRead,
-            AppFeatureKeys.CardsManage,
-            AppFeatureKeys.CardsStatements,
+            AppFeatureKeys.CardsAdminManage,
+            AppFeatureKeys.CardsStatementsRead,
             AppFeatureKeys.CategoriesManage,
             AppFeatureKeys.InvoiceImportAccess,
             AppFeatureKeys.FinancialAssistantAccess,
@@ -75,8 +76,8 @@ public class AppFeatureMatrixTests
             AppFeatureKeys.AccountsAnalytics,
             AppFeatureKeys.AccountsImport,
             AppFeatureKeys.CardsRead,
-            AppFeatureKeys.CardsManage,
-            AppFeatureKeys.CardsStatements,
+            AppFeatureKeys.CardsCreateUpdate,
+            AppFeatureKeys.CardsStatementsRead,
             AppFeatureKeys.CategoriesManage,
             AppFeatureKeys.InvoiceImportAccess,
             AppFeatureKeys.FinancialAssistantAccess,

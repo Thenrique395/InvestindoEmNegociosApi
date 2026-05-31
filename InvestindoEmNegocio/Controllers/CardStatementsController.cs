@@ -9,7 +9,7 @@ namespace InvestindoEmNegocio.Controllers;
 [ApiController]
 [Route("api/cards/{id:guid}/statements")]
 [Route("api/v1/cards/{id:guid}/statements")]
-[Authorize(Policy = AppAuthorizationPolicies.FeatureCardsStatements)]
+[Authorize(Policy = AppAuthorizationPolicies.FeatureCardsStatementsRead)]
 public class CardStatementsController(ICardsService cardsService) : AuthenticatedControllerBase
 {
     [HttpGet]

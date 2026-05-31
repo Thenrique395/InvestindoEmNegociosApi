@@ -80,6 +80,7 @@ Observacao:
 - `feature.accounts.analytics`
 - `feature.accounts.import`
 - `feature.cards.read`
+- `feature.cards.create-update`
 - `feature.cards.manage`
 - `feature.cards.statements`
 - `feature.categories.read`
@@ -119,6 +120,7 @@ Observacao:
 - `accounts.analytics`
 - `accounts.import`
 - `cards.read`
+- `cards.create-update`
 - `cards.manage`
 - `cards.statements`
 - `categories.read`
@@ -316,9 +318,11 @@ Classificacao:
   - `GET /api/v1/cards`
   - `GET /api/v1/cards/debt/total`
 
-- `feature.cards.manage`
+- `feature.cards.create-update`
   - `POST /api/v1/cards`
   - `PUT /api/v1/cards/{id}`
+
+- `feature.cards.manage`
   - `DELETE /api/v1/cards/{id}`
 
 - `feature.cards.statements`

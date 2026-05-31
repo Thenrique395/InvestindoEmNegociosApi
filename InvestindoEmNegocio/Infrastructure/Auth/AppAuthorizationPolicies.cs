@@ -35,8 +35,9 @@ public static class AppAuthorizationPolicies
     public const string FeatureAccountsAnalytics = "feature.accounts.analytics";
     public const string FeatureAccountsImport = "feature.accounts.import";
     public const string FeatureCardsRead = "feature.cards.read";
-    public const string FeatureCardsManage = "feature.cards.manage";
-    public const string FeatureCardsStatements = "feature.cards.statements";
+    public const string FeatureCardsCreateUpdate = "feature.cards.create-update";
+    public const string FeatureCardsAdminManage = "feature.cards.manage";
+    public const string FeatureCardsStatementsRead = "feature.cards.statements";
     public const string FeatureCategoriesRead = "feature.categories.read";
     public const string FeatureCategoriesManage = "feature.categories.manage";
     public const string FeatureInvoiceImportAccess = "feature.invoice-import.access";
@@ -98,8 +99,9 @@ public static class AppAuthorizationPolicies
         AddFeaturePolicy(options, FeatureAccountsAnalytics, AppFeatureKeys.AccountsAnalytics);
         AddFeaturePolicy(options, FeatureAccountsImport, AppFeatureKeys.AccountsImport);
         AddFeaturePolicy(options, FeatureCardsRead, AppFeatureKeys.CardsRead);
-        AddFeaturePolicy(options, FeatureCardsManage, AppFeatureKeys.CardsManage);
-        AddFeaturePolicy(options, FeatureCardsStatements, AppFeatureKeys.CardsStatements);
+        AddFeaturePolicy(options, FeatureCardsCreateUpdate, AppFeatureKeys.CardsCreateUpdate);
+        AddFeaturePolicy(options, FeatureCardsAdminManage, AppFeatureKeys.CardsAdminManage);
+        AddFeaturePolicy(options, FeatureCardsStatementsRead, AppFeatureKeys.CardsStatementsRead);
         AddFeaturePolicy(options, FeatureCategoriesRead, AppFeatureKeys.CategoriesRead);
         AddFeaturePolicy(options, FeatureCategoriesManage, AppFeatureKeys.CategoriesManage);
         AddFeaturePolicy(options, FeatureInvoiceImportAccess, AppFeatureKeys.InvoiceImportAccess);

@@ -26,8 +26,9 @@ public static class AppFeatureKeys
     public const string AccountsAnalytics = "accounts.analytics";
     public const string AccountsImport = "accounts.import";
     public const string CardsRead = "cards.read";
-    public const string CardsManage = "cards.manage";
-    public const string CardsStatements = "cards.statements";
+    public const string CardsCreateUpdate = "cards.create-update";
+    public const string CardsAdminManage = "cards.manage";
+    public const string CardsStatementsRead = "cards.statements";
     public const string CategoriesRead = "categories.read";
     public const string CategoriesManage = "categories.manage";
     public const string InvoiceImportAccess = "invoice-import.access";
@@ -65,8 +66,9 @@ public static class AppFeatureKeys
         AccountsAnalytics,
         AccountsImport,
         CardsRead,
-        CardsManage,
-        CardsStatements,
+        CardsCreateUpdate,
+        CardsAdminManage,
+        CardsStatementsRead,
         CategoriesRead,
         CategoriesManage,
         InvoiceImportAccess,

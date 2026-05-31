@@ -42,7 +42,7 @@ public class CardsController(ICardsService cardsService, IAuditService auditServ
     }
 
     [HttpPost]
-    [Authorize(Policy = AppAuthorizationPolicies.FeatureCardsManage)]
+    [Authorize(Policy = AppAuthorizationPolicies.FeatureCardsCreateUpdate)]
     // Creates a new card (we store only last4, brand, and holder name).
     public async Task<IActionResult> Create([FromBody] CardRequest request, CancellationToken cancellationToken)
     {
@@ -55,7 +55,7 @@ public class CardsController(ICardsService cardsService, IAuditService auditServ
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Policy = AppAuthorizationPolicies.FeatureCardsManage)]
+    [Authorize(Policy = AppAuthorizationPolicies.FeatureCardsCreateUpdate)]
     // Updates card data owned by the current user.
     public async Task<IActionResult> Update(Guid id, [FromBody] CardRequest request, CancellationToken cancellationToken)
     {
@@ -69,7 +69,7 @@ public class CardsController(ICardsService cardsService, IAuditService auditServ
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Policy = AppAuthorizationPolicies.FeatureCardsManage)]
+    [Authorize(Policy = AppAuthorizationPolicies.FeatureCardsAdminManage)]
     // Deletes a card owned by the current user.
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
