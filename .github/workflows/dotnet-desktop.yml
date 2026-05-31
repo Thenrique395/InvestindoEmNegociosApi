@@ -218,6 +218,12 @@ jobs:
             cd "$DEPLOY_PATH"
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml down --remove-orphans || true
+            occupied_containers="$(docker ps --filter "publish=$API_PORT" --format '{{.ID}}' | tr '\n' ' ')"
+            if [ -n "$occupied_containers" ]; then
+              echo "Stopping containers occupying port $API_PORT: $occupied_containers"
+              docker stop $occupied_containers || true
+              docker rm -f $occupied_containers || true
+            fi
             docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml config >/dev/null
             docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml pull
             docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml up -d --remove-orphans
@@ -321,6 +327,12 @@ jobs:
             cd "$DEPLOY_PATH"
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml down --remove-orphans || true
+            occupied_containers="$(docker ps --filter "publish=$API_PORT" --format '{{.ID}}' | tr '\n' ' ')"
+            if [ -n "$occupied_containers" ]; then
+              echo "Stopping containers occupying port $API_PORT: $occupied_containers"
+              docker stop $occupied_containers || true
+              docker rm -f $occupied_containers || true
+            fi
             docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml config >/dev/null
             docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml pull
             docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml up -d --remove-orphans
