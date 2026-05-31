@@ -33,15 +33,41 @@ public static class FeatureAccessEvaluator
 
     public static UserRole? ResolveRole(ClaimsPrincipal user)
     {
-        var roleClaimValue =
-            user.FindFirstValue(ClaimTypes.Role) ??
-            user.FindFirstValue("role") ??
-            user.FindFirstValue("http://schemas.microsoft.com/ws/2008/06/identity/claims/role");
+        foreach (var roleClaimValue in GetRoleClaimValues(user))
+        {
+            if (TryParseRole(roleClaimValue, out var currentRole))
+                return currentRole;
 
-        if (!Enum.TryParse<UserRole>(roleClaimValue, ignoreCase: true, out var currentRole))
-            return null;
+            if (roleClaimValue is null)
+                continue;
 
-        return currentRole;
+            foreach (var candidate in roleClaimValue.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (TryParseRole(candidate, out var parsedRole))
+                    return parsedRole;
+            }
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<string?> GetRoleClaimValues(ClaimsPrincipal user)
+    {
+        yield return user.FindFirstValue(ClaimTypes.Role);
+        yield return user.FindFirstValue("role");
+        yield return user.FindFirstValue("roles");
+        yield return user.FindFirstValue("http://schemas.microsoft.com/ws/2008/06/identity/claims/role");
+    }
+
+    private static bool TryParseRole(string? roleClaimValue, out UserRole role)
+    {
+        if (string.IsNullOrWhiteSpace(roleClaimValue))
+        {
+            role = default;
+            return false;
+        }
+
+        return Enum.TryParse<UserRole>(roleClaimValue, ignoreCase: true, out role);
     }
 
     private static HashSet<string> ResolveExplicitFeatures(ClaimsPrincipal user)

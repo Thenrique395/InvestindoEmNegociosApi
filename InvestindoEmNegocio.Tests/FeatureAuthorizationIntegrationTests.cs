@@ -37,7 +37,21 @@ public class FeatureAuthorizationIntegrationTests
     }
 
     [Fact]
-    public async Task Basic_Should_Return_Forbidden_For_Card_Management()
+    public async Task Basic_Should_Be_Able_To_List_Accounts_With_Roles_Claim()
+    {
+        await using var host = await FeatureAuthorizationTestHost.StartAsync(UserRole.Basic, "roles");
+        var client = host.App.GetTestClient();
+
+        var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/accounts");
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "token");
+
+        var response = await client.SendAsync(request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Basic_Should_Be_Able_To_Create_Cards()
     {
         await using var host = await FeatureAuthorizationTestHost.StartAsync(UserRole.Basic);
         var client = host.App.GetTestClient();
@@ -50,7 +64,7 @@ public class FeatureAuthorizationIntegrationTests
 
         var response = await client.SendAsync(request);
 
-        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
     }
 
     [Fact]
@@ -88,7 +102,7 @@ public class FeatureAuthorizationIntegrationTests
     {
         public WebApplication App { get; } = app;
 
-        public static async Task<FeatureAuthorizationTestHost> StartAsync(UserRole role)
+        public static async Task<FeatureAuthorizationTestHost> StartAsync(UserRole role, string roleClaimType = ClaimTypes.Role)
         {
             var builder = WebApplication.CreateBuilder();
             builder.WebHost.UseTestServer();
@@ -125,7 +139,7 @@ public class FeatureAuthorizationIntegrationTests
                 })
                 .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>("TestAuth", options =>
                 {
-                    options.ClaimsIssuer = role.ToString();
+                    options.ClaimsIssuer = roleClaimType + "|" + role.ToString();
                 });
 
             builder.Services.AddAuthorizationBuilder()
@@ -175,11 +189,18 @@ public class FeatureAuthorizationIntegrationTests
     {
         protected override Task<AuthenticateResult> HandleAuthenticateAsync()
         {
-            var role = Options.ClaimsIssuer ?? UserRole.Basic.ToString();
+            var roleClaimParts = (Options.ClaimsIssuer ?? $"{ClaimTypes.Role}|{UserRole.Basic}")
+                .Split('|', 2, StringSplitOptions.TrimEntries);
+            var roleClaimType = roleClaimParts.Length > 0 && !string.IsNullOrWhiteSpace(roleClaimParts[0])
+                ? roleClaimParts[0]
+                : ClaimTypes.Role;
+            var role = roleClaimParts.Length > 1 && !string.IsNullOrWhiteSpace(roleClaimParts[1])
+                ? roleClaimParts[1]
+                : UserRole.Basic.ToString();
             var claims = new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, Guid.Parse("11111111-1111-1111-1111-111111111111").ToString()),
-                new Claim(ClaimTypes.Role, role)
+                new Claim(roleClaimType, role)
             };
 
             var identity = new ClaimsIdentity(claims, Scheme.Name);

@@ -144,8 +144,8 @@ Observacao:
 ## Leitura rapida por faixa de acesso
 
 - `Publico`: autenticacao publica, recuperacao de acesso e webhook do provedor
-- `Basic via feature`: seguranca da conta, perfil, preferencias, onboarding, notificacoes, consultas gerais, portabilidade, billing self-service, assinaturas, planos, receitas, metas, parcelas basicas, leitura de contas e leitura de categorias
-- `Intermediate+ via feature`: gestao e analytics de contas, cartoes, gestao de categorias, importacoes, antecipacao de parcelas, assistente financeiro, snapshots mensais e emprestimos
+- `Basic via feature`: seguranca da conta, perfil, preferencias, onboarding, notificacoes, consultas gerais, portabilidade, billing self-service, assinaturas, planos, receitas, metas, parcelas basicas, leitura de contas, cartoes basicos e leitura de categorias
+- `Intermediate+ via feature`: gestao e analytics de contas, faturas de cartao, gestao de categorias, importacoes, antecipacao de parcelas, assistente financeiro, snapshots mensais e emprestimos
 - `Advanced+ via feature`: investimentos e market data
 - `Administrativo via feature`: usuarios, parametros, robos e categorias padrao
 
@@ -279,8 +279,8 @@ Classificacao:
 
 Regra atual:
 
-- `Basic` recebe os recursos comuns acima, `accounts.read` e `categories.read`
-- `Basic` nao recebe cartoes, gestao de contas, analytics, importacoes, antecipacao, assistente financeiro, snapshots, emprestimos nem investimentos
+- `Basic` recebe os recursos comuns acima, `accounts.read`, `cards.read`, `cards.create-update`, `cards.delete` e `categories.read`
+- `Basic` nao recebe faturas de cartao, gestao de contas, analytics, importacoes, antecipacao, assistente financeiro, snapshots, emprestimos nem investimentos
 
 ### Intermediate+ via feature gate
 
