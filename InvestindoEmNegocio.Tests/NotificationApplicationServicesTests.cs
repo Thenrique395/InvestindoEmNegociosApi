@@ -422,7 +422,7 @@ public class NotificationApplicationServicesTests
         var profileRepository = new Mock<IUserProfileRepository>();
         profileRepository
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile(userId, "User", "123", "81999999999", null));
+            .ReturnsAsync(new UserProfile(userId, "User", "123", "81999999999", null, carryOverDay: CashflowCarryOverDay(today)));
 
         var settingsRepository = new Mock<INotificationSettingsRepository>();
         settingsRepository
@@ -571,7 +571,7 @@ public class NotificationApplicationServicesTests
         var profileRepository = new Mock<IUserProfileRepository>();
         profileRepository
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile(userId, "User", "123", "81999999999", null));
+            .ReturnsAsync(new UserProfile(userId, "User", "123", "81999999999", null, carryOverDay: CashflowCarryOverDay(today)));
 
         var settingsRepository = new Mock<INotificationSettingsRepository>();
         settingsRepository
@@ -646,7 +646,7 @@ public class NotificationApplicationServicesTests
         var profileRepository = new Mock<IUserProfileRepository>();
         profileRepository
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile(userId, "User", "123", "81999999999", null));
+            .ReturnsAsync(new UserProfile(userId, "User", "123", "81999999999", null, carryOverDay: CashflowCarryOverDay(today)));
 
         var settingsRepository = new Mock<INotificationSettingsRepository>();
         settingsRepository
@@ -823,5 +823,10 @@ public class NotificationApplicationServicesTests
     private static void SetInstallmentStatus(MoneyInstallment installment, InstallmentStatus status)
     {
         installment.RestoreStatus(status);
+    }
+
+    private static int CashflowCarryOverDay(DateOnly today)
+    {
+        return today.Day == 1 ? 28 : 1;
     }
 }

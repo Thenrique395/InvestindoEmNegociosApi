@@ -36,6 +36,8 @@ if (applySchemaOnStartup)
     await app.ApplyDatabaseSchemaAsync();
 }
 
+await app.SeedReferenceDataAsync();
+
 if (bootstrapOnly)
 {
     app.Logger.LogInformation("BootstrapOnly habilitado. Encerrando aplicação após preparar o banco.");
