@@ -445,7 +445,7 @@ public class NotificationApplicationServicesTests
 
         var expensePlan = new MoneyPlan(userId, MoneyType.Expense, "Aluguel", 900m, ScheduleType.OneTime, today, null, 1);
         var incomePlan = new MoneyPlan(userId, MoneyType.Income, "Salário", 1000m, ScheduleType.OneTime, today, null, 1);
-        var overdueExpense = new MoneyInstallment(expensePlan.Id, userId, 1, today.AddDays(-3), 900m);
+        var overdueExpense = new MoneyInstallment(expensePlan.Id, userId, 1, today.AddDays(-1), 900m);
         var pendingIncome = new MoneyInstallment(incomePlan.Id, userId, 1, today.AddDays(5), 1000m);
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository
@@ -596,7 +596,7 @@ public class NotificationApplicationServicesTests
         var expensePlan = new MoneyPlan(userId, MoneyType.Expense, "Condomínio", 300m, ScheduleType.OneTime, today, null, 1);
         var receivedIncome = new MoneyInstallment(incomePlan.Id, userId, 1, today, 1000m);
         SetInstallmentStatus(receivedIncome, InstallmentStatus.Paid);
-        var overdueExpense = new MoneyInstallment(expensePlan.Id, userId, 1, today.AddDays(-3), 300m);
+        var overdueExpense = new MoneyInstallment(expensePlan.Id, userId, 1, today.AddDays(-1), 300m);
 
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository
@@ -669,7 +669,7 @@ public class NotificationApplicationServicesTests
 
         var expensePlan = new MoneyPlan(userId, MoneyType.Expense, "Aluguel", 900m, ScheduleType.OneTime, today, null, 1);
         var incomePlan = new MoneyPlan(userId, MoneyType.Income, "Salário", 500m, ScheduleType.OneTime, today, null, 1);
-        var overdueExpense = new MoneyInstallment(expensePlan.Id, userId, 1, today.AddDays(-4), 900m);
+        var overdueExpense = new MoneyInstallment(expensePlan.Id, userId, 1, today.AddDays(-1), 900m);
         var pendingIncome = new MoneyInstallment(incomePlan.Id, userId, 1, today.AddDays(2), 500m);
 
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
