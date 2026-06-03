@@ -1,6 +1,9 @@
 # Deploy com GitHub Environments
 
-Este documento define como configurar os environments `development` e `production` usados pela pipeline em [../.github/workflows/dotnet-desktop.yml](../.github/workflows/dotnet-desktop.yml).
+Este documento define como configurar os environments `development` e `production` usados pelos workflows de deploy da API:
+
+- [../.github/workflows/dotnet-desktop.yml](../.github/workflows/dotnet-desktop.yml): entrega automatica em `development` a partir da `main`.
+- [../.github/workflows/deploy-backend-production.yml](../.github/workflows/deploy-backend-production.yml): promocao manual para `production`.
 
 ## Objetivo
 
@@ -9,8 +12,8 @@ O fluxo esperado da API e:
 1. gerar uma imagem Docker imutavel no GHCR com tag igual ao `SHA` do commit
 2. subir essa imagem em `development`
 3. validar o ambiente
-4. aprovar o environment `production`
-5. promover a mesma imagem para `production`
+4. executar manualmente o workflow `Deploy Backend Production`
+5. promover a imagem escolhida para `production`
 
 Segredos nao devem ser commitados nem enviados em arquivo `.env` para o servidor.
 
@@ -21,7 +24,9 @@ Crie estes GitHub Environments no repositorio:
 - `development`
 - `production`
 
-No environment `production`, configure `required reviewers` para forcar aprovacao manual antes do deploy.
+Para operador unico, nao use `required reviewers` como bloqueio principal do environment `production`, porque o GitHub pode impedir autoaprovacao. A aprovacao de PRD acontece pelo acionamento manual do workflow `Deploy Backend Production`.
+
+Se o time crescer, `required reviewers` pode ser reativado para exigir aprovacao de outra pessoa antes do deploy.
 
 ## Variaveis e segredos usados pela pipeline
 
@@ -160,14 +165,15 @@ Alguns valores nao sao configurados no GitHub Environment porque ja estao fixos 
 - o banco continua ouvindo em `5432` dentro da rede Docker; `POSTGRES_PORT` muda apenas a porta publicada no host
 - `API_PORT` muda apenas a porta publicada no host; a API continua ouvindo em `5059` dentro do container
 - `GHCR_TOKEN` precisa conseguir fazer pull da imagem no servidor
-- a pipeline envia apenas `docker-compose.yml` e `InvestindoEmNegocio/Infrastructure/Data/schema.sql`
-- o bootstrap do schema acontece via service `schema-bootstrap` antes da API principal subir
+- a pipeline envia `docker-compose.deploy.yml` para o servidor
+- o schema e aplicado pelo script `scripts/apply-schema-from-db-conn.sh` antes do deploy do container
 
 ## Checklist de configuracao
 
 1. Criar `development` e `production` em `Settings > Environments`.
 2. Cadastrar os `vars` e `secrets` listados acima em cada environment.
-3. Configurar `required reviewers` no environment `production`.
+3. Garantir que o environment `production` nao bloqueie autoaprovacao quando houver apenas um operador.
 4. Garantir Docker e Docker Compose Plugin instalados no servidor.
 5. Garantir que o usuario remoto tenha permissao para rodar Docker.
-6. Fazer um `workflow_dispatch` ou merge em `main` para validar o fluxo completo.
+6. Fazer merge em `main` para validar DEV.
+7. Executar manualmente `Deploy Backend Production` para validar PRD.
