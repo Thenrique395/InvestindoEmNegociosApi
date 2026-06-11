@@ -87,9 +87,7 @@ public sealed class SubscriptionManagementService(
         }
         else
         {
-            subscription.CancelNow(DateTime.UtcNow);
-            user.SetRole(UserRole.Basic);
-            await userRepository.SaveChangesAsync(cancellationToken);
+            subscription.ScheduleCancellation(DateTime.UtcNow);
         }
 
         await userSubscriptionRepository.SaveChangesAsync(cancellationToken);

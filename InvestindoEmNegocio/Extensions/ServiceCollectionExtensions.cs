@@ -281,6 +281,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IImportIdentityEngine, ImportIdentityEngine>();
         services.AddScoped<IBankStatementImportEngine, BankStatementImportEngine>();
         services.AddScoped<IRobotTask, ReminderRobotTask>();
+        services.AddScoped<IRobotTask, SubscriptionExpirationRobotTask>();
         services.AddScoped<IRobotRunner, RobotRunner>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IProfileQueryService, ProfileQueryService>();

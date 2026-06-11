@@ -46,13 +46,14 @@ public class SubscriptionManagementServiceTests
     }
 
     [Fact]
-    public async Task CancelAsync_Should_Downgrade_To_Basic_And_Stop_AutoRenew()
+    public async Task CancelAsync_Should_Schedule_Cancellation_And_Keep_Access_Until_Cycle_End()
     {
         await using var dbContext = CreateDbContext();
         var user = new User("Teste", "teste@teste.com", "hash");
         user.SetRole(UserRole.Advanced);
         await dbContext.Users.AddAsync(user);
-        await dbContext.UserSubscriptions.AddAsync(new UserSubscription(
+        var renewsAt = DateTime.UtcNow.AddDays(20);
+        var subscription = new UserSubscription(
             user.Id,
             "advanced",
             UserRole.Advanced,
@@ -60,7 +61,9 @@ public class SubscriptionManagementServiceTests
             59.90m,
             "BRL",
             DateTime.UtcNow.AddMonths(-1),
-            DateTime.UtcNow.AddDays(20)));
+            renewsAt);
+        subscription.Activate("advanced", UserRole.Advanced, SubscriptionBillingCycle.Monthly, 59.90m, "BRL", DateTime.UtcNow.AddMonths(-1), renewsAt);
+        await dbContext.UserSubscriptions.AddAsync(subscription);
         await dbContext.SaveChangesAsync();
 
         var jwt = new Mock<IJwtTokenGenerator>();
@@ -81,9 +84,10 @@ public class SubscriptionManagementServiceTests
 
         result.Current.PlanCode.Should().Be("advanced");
         result.Current.AutoRenew.Should().BeFalse();
-        result.Current.Status.Should().Be("Cancelled");
+        result.Current.Status.Should().Be("Active");
+        result.Current.RenewsAt.Should().BeCloseTo(renewsAt, TimeSpan.FromSeconds(1));
         result.Session.Token.Should().Be("jwt-token");
-        (await dbContext.Users.SingleAsync()).Role.Should().Be(UserRole.Basic);
+        (await dbContext.Users.SingleAsync()).Role.Should().Be(UserRole.Advanced);
     }
 
     private static InvestDbContext CreateDbContext()

@@ -1,4 +1,5 @@
 using InvestindoEmNegocio.Domain.Entities;
+using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
 using InvestindoEmNegocio.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,11 @@ public sealed class UserSubscriptionRepository(InvestDbContext context) : IUserS
 
     public Task<UserSubscription?> GetByExternalCustomerIdAsync(string externalCustomerId, CancellationToken cancellationToken = default)
         => context.UserSubscriptions.FirstOrDefaultAsync(x => x.ExternalCustomerId == externalCustomerId, cancellationToken);
+
+    public async Task<IReadOnlyList<UserSubscription>> ListDueForExpirationAsync(DateTime nowUtc, CancellationToken cancellationToken = default)
+        => await context.UserSubscriptions
+            .Where(x => x.Status == UserSubscriptionStatus.Active && !x.AutoRenew && x.RenewsAt <= nowUtc)
+            .ToListAsync(cancellationToken);
 
     public Task AddAsync(UserSubscription subscription, CancellationToken cancellationToken = default)
         => context.UserSubscriptions.AddAsync(subscription, cancellationToken).AsTask();
