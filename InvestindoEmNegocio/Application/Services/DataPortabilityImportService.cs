@@ -56,11 +56,13 @@ public sealed class DataPortabilityImportService(
                 DataPortabilityImportHydrator.UpdateUserProfile(existingProfile, p, fullName);
             }
 
-            if (!string.IsNullOrWhiteSpace(p.Document))
+            var user = await dbContext.Users.FirstOrDefaultAsync(x => x.Id == userId, cancellationToken);
+            if (user is not null)
             {
-                var user = await dbContext.Users.FirstOrDefaultAsync(x => x.Id == userId, cancellationToken);
-                if (user is not null && string.IsNullOrEmpty(user.Document))
+                if (!string.IsNullOrWhiteSpace(p.Document) && string.IsNullOrEmpty(user.Document))
                     user.SetDocument(p.Document);
+
+                user.UpdateProfileDetails(p.AvatarUrl ?? string.Empty, p.City ?? string.Empty, p.State ?? string.Empty, p.Country ?? string.Empty);
             }
 
             importedRecords++;

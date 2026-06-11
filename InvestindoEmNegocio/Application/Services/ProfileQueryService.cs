@@ -20,7 +20,7 @@ public sealed class ProfileQueryService(
         if (profile is null) return null;
 
         var user = await userRepository.GetByIdAsync(userId, cancellationToken);
-        var mapped = ProfileDtoFactory.CreateDto(profile, user?.Document ?? string.Empty);
+        var mapped = ProfileDtoFactory.CreateDto(profile, user);
         cache.Set(cacheKey, mapped, TimeSpan.FromSeconds(15));
 
         return mapped;

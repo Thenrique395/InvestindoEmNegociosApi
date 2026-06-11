@@ -26,6 +26,22 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasMaxLength(11)
             .HasDefaultValue(string.Empty);
 
+        builder.Property(u => u.AvatarUrl)
+            .IsRequired(false)
+            .HasMaxLength(400);
+
+        builder.Property(u => u.City)
+            .IsRequired(false)
+            .HasMaxLength(120);
+
+        builder.Property(u => u.State)
+            .IsRequired(false)
+            .HasMaxLength(80);
+
+        builder.Property(u => u.Country)
+            .IsRequired(false)
+            .HasMaxLength(120);
+
         builder.Property(u => u.PasswordHash)
             .IsRequired()
             .HasMaxLength(500);

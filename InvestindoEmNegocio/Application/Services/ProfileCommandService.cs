@@ -19,25 +19,30 @@ public sealed class ProfileCommandService(
         try
         {
             var user = await userRepository.GetByIdAsync(userId, cancellationToken);
-            var document = user?.Document ?? string.Empty;
+            if (user is not null)
+            {
+                user.UpdateProfileDetails(request.AvatarUrl, request.City, request.State, request.Country);
+                await userRepository.SaveChangesAsync(cancellationToken);
+            }
+
             var existing = await profileRepository.GetByUserIdAsync(userId, cancellationToken);
             if (existing is null)
             {
                 var profile = new UserProfile(userId, request.FullName, request.Phone, request.BirthDate,
-                    request.AvatarUrl, request.City, request.State, request.Country, request.Language, "BRL", request.CarryOverDay, request.FinancialGoal, request.IntelligenceMode);
+                    request.Language, "BRL", request.CarryOverDay, request.FinancialGoal, request.IntelligenceMode);
                 await profileRepository.AddAsync(profile, cancellationToken);
                 await profileRepository.SaveChangesAsync(cancellationToken);
                 cache.Remove(ProfileQueryService.CacheKey(userId));
                 logger.LogInformation("User profile created {UserId}", userId);
-                return ProfileDtoFactory.CreateDto(profile, document);
+                return ProfileDtoFactory.CreateDto(profile, user);
             }
 
-            existing.UpdateProfileData(request.FullName, request.Phone, request.BirthDate, request.AvatarUrl,
-                request.City, request.State, request.Country, request.Language, existing.Currency, request.CarryOverDay, request.FinancialGoal, request.IntelligenceMode);
+            existing.UpdateProfileData(request.FullName, request.Phone, request.BirthDate,
+                request.Language, existing.Currency, request.CarryOverDay, request.FinancialGoal, request.IntelligenceMode);
             await profileRepository.SaveChangesAsync(cancellationToken);
             cache.Remove(ProfileQueryService.CacheKey(userId));
             logger.LogInformation("User profile updated {UserId}", userId);
-            return ProfileDtoFactory.CreateDto(existing, document);
+            return ProfileDtoFactory.CreateDto(existing, user);
         }
         catch (ArgumentException ex)
         {
@@ -57,31 +62,19 @@ public sealed class ProfileCommandService(
                 StatusCodes.Status404NotFound);
         }
 
-        try
+        var user = await userRepository.GetByIdAsync(userId, cancellationToken);
+        if (user is null)
         {
-            existing.UpdateProfileData(
-                existing.FullName,
-                existing.Phone,
-                existing.BirthDate,
-                avatarUrl,
-                existing.City,
-                existing.State,
-                existing.Country,
-                existing.Language,
-                existing.Currency,
-                existing.CarryOverDay,
-                existing.FinancialGoal,
-                existing.IntelligenceMode);
-            await profileRepository.SaveChangesAsync(cancellationToken);
-            cache.Remove(ProfileQueryService.CacheKey(userId));
-            logger.LogInformation("User avatar updated {UserId}", userId);
-            var user = await userRepository.GetByIdAsync(userId, cancellationToken);
-            return ProfileDtoFactory.CreateDto(existing, user?.Document ?? string.Empty);
+            throw new AppProblemException(
+                "Perfil não encontrado",
+                "Preencha seus dados antes de enviar a foto.",
+                StatusCodes.Status404NotFound);
         }
-        catch (ArgumentException ex)
-        {
-            logger.LogWarning(ex, "Atualização de avatar inválida para {UserId}", userId);
-            throw new AppProblemException("Perfil inválido", ex.Message, StatusCodes.Status400BadRequest);
-        }
+
+        user.UpdateProfileDetails(avatarUrl, user.City, user.State, user.Country);
+        await userRepository.SaveChangesAsync(cancellationToken);
+        cache.Remove(ProfileQueryService.CacheKey(userId));
+        logger.LogInformation("User avatar updated {UserId}", userId);
+        return ProfileDtoFactory.CreateDto(existing, user);
     }
 }

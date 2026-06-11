@@ -20,18 +20,6 @@ public class UserProfileConfiguration : IEntityTypeConfiguration<UserProfile>
             .HasMaxLength(30);
 
         builder.Property(x => x.BirthDate);
-        builder.Property(x => x.AvatarUrl)
-            .IsRequired(false)
-            .HasMaxLength(400);
-        builder.Property(x => x.City)
-            .IsRequired(false)
-            .HasMaxLength(120);
-        builder.Property(x => x.State)
-            .IsRequired(false)
-            .HasMaxLength(80);
-        builder.Property(x => x.Country)
-            .IsRequired(false)
-            .HasMaxLength(120);
         builder.Property(x => x.FinancialGoal)
             .IsRequired(false)
             .HasMaxLength(80);

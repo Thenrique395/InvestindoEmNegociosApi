@@ -38,10 +38,15 @@ public sealed class DataPortabilityExportService(
             .ToListAsync(cancellationToken);
         var positionIds = investmentPositions.Select(x => x.Id).ToHashSet();
 
-        var userDocument = await dbContext.Users.AsNoTracking()
+        var userData = await dbContext.Users.AsNoTracking()
             .Where(x => x.Id == userId)
-            .Select(x => x.Document)
-            .FirstOrDefaultAsync(cancellationToken) ?? string.Empty;
+            .Select(x => new { x.Document, x.AvatarUrl, x.City, x.State, x.Country })
+            .FirstOrDefaultAsync(cancellationToken);
+        var userDocument = userData?.Document ?? string.Empty;
+        var userAvatarUrl = userData?.AvatarUrl ?? string.Empty;
+        var userCity = userData?.City ?? string.Empty;
+        var userState = userData?.State ?? string.Empty;
+        var userCountry = userData?.Country ?? string.Empty;
 
         var snapshot = new UserDataSnapshot
         {
@@ -49,7 +54,7 @@ public sealed class DataPortabilityExportService(
             Profile = await dbContext.UserProfiles.AsNoTracking()
                 .Where(x => x.UserId == userId)
                 .Select(x => new UserProfileData(
-                    x.Id, x.FullName, userDocument, x.Phone, x.BirthDate, x.AvatarUrl, x.City, x.State, x.Country,
+                    x.Id, x.FullName, userDocument, x.Phone, x.BirthDate, userAvatarUrl, userCity, userState, userCountry,
                     x.FinancialGoal, x.CarryOverDay, x.IntelligenceMode, x.Language, x.Currency, x.NotifyUpcomingEnabled, x.NotifyOverdueEnabled, x.NotifyEmailEnabled,
                     x.NotifyInAppEnabled, x.NotifyDaysBeforeDue, x.CreatedAt, x.UpdatedAt))
                 .FirstOrDefaultAsync(cancellationToken),

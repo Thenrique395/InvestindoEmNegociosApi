@@ -100,7 +100,7 @@ public class ProfileQueryAndCommandServicesTests
     }
 
     [Fact]
-    public async Task UpdateAvatarAsync_Should_Map_ArgumentException_To_400()
+    public async Task UpdateAvatarAsync_Should_Throw_404_When_User_Not_Found()
     {
         var userId = Guid.NewGuid();
         var profile = NewProfile(userId);
@@ -108,18 +108,18 @@ public class ProfileQueryAndCommandServicesTests
         repository
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(profile);
-        repository
-            .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new ArgumentException("avatar inválido"));
         using var memoryCache = new MemoryCache(new MemoryCacheOptions());
         var userRepository = new Mock<IUserRepository>();
+        userRepository
+            .Setup(x => x.GetByIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
         var sut = new ProfileCommandService(repository.Object, userRepository.Object, memoryCache, NullLogger<ProfileCommandService>.Instance);
 
         Func<Task> act = async () => await sut.UpdateAvatarAsync(userId, "http://cdn/avatar.png");
 
         var ex = await act.Should().ThrowAsync<AppProblemException>();
-        ex.Which.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
-        ex.Which.Title.Should().Be("Perfil inválido");
+        ex.Which.StatusCode.Should().Be(StatusCodes.Status404NotFound);
+        ex.Which.Title.Should().Be("Perfil não encontrado");
     }
 
     [Fact]

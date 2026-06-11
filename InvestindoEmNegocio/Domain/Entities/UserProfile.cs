@@ -9,10 +9,6 @@ public class UserProfile
     public string FullName { get; private set; } = string.Empty;
     public string Phone { get; private set; } = string.Empty;
     public DateTime? BirthDate { get; private set; }
-    public string AvatarUrl { get; private set; } = string.Empty;
-    public string City { get; private set; } = string.Empty;
-    public string State { get; private set; } = string.Empty;
-    public string Country { get; private set; } = string.Empty;
     public int CarryOverDay { get; private set; } = 1;
     public string FinancialGoal { get; private set; } = string.Empty;
     public string IntelligenceMode { get; private set; } = "B";
@@ -33,10 +29,6 @@ public class UserProfile
         string fullName,
         string phone,
         DateTime? birthDate,
-        string avatarUrl = "",
-        string city = "",
-        string state = "",
-        string country = "",
         string language = "pt-BR",
         string currency = "BRL",
         int carryOverDay = 1,
@@ -44,17 +36,13 @@ public class UserProfile
         string intelligenceMode = "B")
     {
         UserId = userId;
-        UpdateProfileData(fullName, phone, birthDate, avatarUrl, city, state, country, language, currency, carryOverDay, financialGoal, intelligenceMode);
+        UpdateProfileData(fullName, phone, birthDate, language, currency, carryOverDay, financialGoal, intelligenceMode);
     }
 
     public void UpdateProfileData(
         string fullName,
         string phone,
         DateTime? birthDate,
-        string avatarUrl = "",
-        string city = "",
-        string state = "",
-        string country = "",
         string language = "pt-BR",
         string currency = "BRL",
         int carryOverDay = 1,
@@ -64,10 +52,6 @@ public class UserProfile
         FullName = fullName.Trim();
         Phone = SanitizePhone(phone);
         BirthDate = NormalizeUtcDate(birthDate);
-        AvatarUrl = avatarUrl?.Trim() ?? string.Empty;
-        City = city?.Trim() ?? string.Empty;
-        State = state?.Trim() ?? string.Empty;
-        Country = country?.Trim() ?? string.Empty;
         CarryOverDay = NormalizeCarryOverDay(carryOverDay);
         FinancialGoal = financialGoal?.Trim() ?? string.Empty;
         IntelligenceMode = NormalizeIntelligenceMode(intelligenceMode);

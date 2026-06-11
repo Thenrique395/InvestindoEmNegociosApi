@@ -9,6 +9,10 @@ public class User
     public string Name { get; private set; }
     public string Email { get; private set; }
     public string Document { get; private set; } = string.Empty;
+    public string AvatarUrl { get; private set; } = string.Empty;
+    public string City { get; private set; } = string.Empty;
+    public string State { get; private set; } = string.Empty;
+    public string Country { get; private set; } = string.Empty;
     public string PasswordHash { get; private set; }
     public UserRole Role { get; private set; } = UserRole.Basic;
     public bool IsActive { get; private set; } = true;
@@ -42,6 +46,15 @@ public class User
     private static string SanitizeDocument(string document)
     {
         return new string((document ?? string.Empty).Where(char.IsDigit).ToArray());
+    }
+
+    public void UpdateProfileDetails(string avatarUrl, string city, string state, string country)
+    {
+        AvatarUrl = avatarUrl?.Trim() ?? string.Empty;
+        City = city?.Trim() ?? string.Empty;
+        State = state?.Trim() ?? string.Empty;
+        Country = country?.Trim() ?? string.Empty;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void SetRole(UserRole role)
