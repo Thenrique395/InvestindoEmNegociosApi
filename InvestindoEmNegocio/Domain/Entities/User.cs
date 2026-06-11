@@ -1,3 +1,4 @@
+using System.Linq;
 using InvestindoEmNegocio.Domain.Enums;
 
 namespace InvestindoEmNegocio.Domain.Entities;
@@ -7,6 +8,7 @@ public class User
     public Guid Id { get; private set; } = Guid.NewGuid();
     public string Name { get; private set; }
     public string Email { get; private set; }
+    public string Document { get; private set; } = string.Empty;
     public string PasswordHash { get; private set; }
     public UserRole Role { get; private set; } = UserRole.Basic;
     public bool IsActive { get; private set; } = true;
@@ -23,11 +25,23 @@ public class User
         PasswordHash = string.Empty;
     }
 
-    public User(string name, string email, string passwordHash)
+    public User(string name, string email, string passwordHash, string document = "")
     {
         Name = name;
         Email = email;
         PasswordHash = passwordHash;
+        Document = SanitizeDocument(document);
+    }
+
+    public void SetDocument(string document)
+    {
+        Document = SanitizeDocument(document);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    private static string SanitizeDocument(string document)
+    {
+        return new string((document ?? string.Empty).Where(char.IsDigit).ToArray());
     }
 
     public void SetRole(UserRole role)

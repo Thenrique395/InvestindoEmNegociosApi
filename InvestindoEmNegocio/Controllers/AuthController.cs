@@ -10,8 +10,18 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/auth")]
 [Route("api/v1/auth")]
 [EnableRateLimiting("auth")]
-public class AuthController(IAuthAccessApplicationService authAccessApplicationService) : AuthenticatedControllerBase
+public class AuthController(
+    IAuthAccessApplicationService authAccessApplicationService,
+    IAuthAvailabilityService authAvailabilityService) : AuthenticatedControllerBase
 {
+    [HttpPost("check-availability")]
+    [AllowAnonymous]
+    public async Task<ActionResult<CheckAvailabilityResponse>> CheckAvailability([FromBody] CheckAvailabilityRequest request, CancellationToken cancellationToken)
+    {
+        var response = await authAvailabilityService.CheckAsync(request, cancellationToken);
+        return Ok(response);
+    }
+
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)

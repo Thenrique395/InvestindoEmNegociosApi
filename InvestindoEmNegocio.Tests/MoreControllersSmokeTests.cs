@@ -297,7 +297,10 @@ public class MoreControllersSmokeTests
         privacy.Setup(x => x.RevokeOwnSessionsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new RevokeSessionsResponse(2, DateTime.UtcNow));
 
-        var authController = new AuthController(authAccess.Object);
+        var authAvailability = new Mock<IAuthAvailabilityService>();
+        authAvailability.Setup(x => x.CheckAsync(It.IsAny<CheckAvailabilityRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CheckAvailabilityResponse(false, false));
+        var authController = new AuthController(authAccess.Object, authAvailability.Object);
         var authRegistrationController = new AuthRegistrationController(authRegistration.Object);
         var authPasswordsController = new AuthPasswordsController(authPassword.Object);
         var summariesController = new PreferenceSummariesController(privacy.Object);
@@ -312,7 +315,7 @@ public class MoreControllersSmokeTests
         (await authController.Login(new LoginRequest("u@test.com", "123"), CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
         (await authController.Refresh(new RefreshTokenRequest("refresh"), CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
         (await authController.Logout(new RefreshTokenRequest("refresh"), CancellationToken.None)).Should().BeOfType<NoContentResult>();
-        (await authRegistrationController.Register(new RegisterUserRequest("U", "u@test.com", "123456"), CancellationToken.None)).Result.Should().BeOfType<CreatedAtActionResult>();
+        (await authRegistrationController.Register(new RegisterUserRequest("U", "u@test.com", "123456", "52998224725"), CancellationToken.None)).Result.Should().BeOfType<CreatedAtActionResult>();
         (await authPasswordsController.ChangePassword(new ChangePasswordRequest("old", "new"), CancellationToken.None)).Should().BeOfType<NoContentResult>();
         (await authPasswordsController.ForgotPassword(new ForgotPasswordRequest("u@test.com"), CancellationToken.None)).Should().BeOfType<AcceptedResult>();
         (await authPasswordsController.ResetPassword(new ResetPasswordRequest("token", "new"), CancellationToken.None)).Should().BeOfType<NoContentResult>();
@@ -348,7 +351,7 @@ public class MoreControllersSmokeTests
         profileController.ControllerContext.HttpContext.Request.Scheme = "https";
         profileController.ControllerContext.HttpContext.Request.Host = new HostString("example.com");
         (await profileController.Get(CancellationToken.None)).Result.Should().BeOfType<NoContentResult>();
-        (await profileController.Upsert(new UpsertUserProfileRequest("A", "1", "2", null, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, "pt-BR"), CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
+        (await profileController.Upsert(new UpsertUserProfileRequest("A", "2", null, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, "pt-BR"), CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
         (await profileController.UploadAvatar(new UploadAvatarRequest { Avatar = BuildFormFile("image/png") }, CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
 
         var contrib = new Mock<IGoalContributionsService>();

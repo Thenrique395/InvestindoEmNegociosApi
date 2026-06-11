@@ -1,5 +1,6 @@
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
+using InvestindoEmNegocio.Application.Validation;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Repositories;
 using Microsoft.Extensions.Logging;
@@ -22,8 +23,12 @@ public class AuthRegistrationService(
         if (await userRepository.EmailExistsAsync(normalizedEmail, cancellationToken))
             throw new InvalidOperationException("E-mail já está em uso.");
 
+        var document = CpfValidation.Normalize(request.Document);
+        if (await userRepository.DocumentExistsAsync(document, cancellationToken))
+            throw new InvalidOperationException("CPF já está em uso.");
+
         var passwordHash = BCryptNet.HashPassword(request.Password, AuthServicePolicies.BcryptWorkFactor);
-        var user = new User(request.Name.Trim(), normalizedEmail, passwordHash);
+        var user = new User(request.Name.Trim(), normalizedEmail, passwordHash, document);
 
         await userRepository.AddAsync(user, cancellationToken);
         await userRepository.SaveChangesAsync(cancellationToken);

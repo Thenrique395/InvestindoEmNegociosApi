@@ -179,7 +179,6 @@ CREATE TABLE user_profiles (
     "Id" uuid NOT NULL,
     "UserId" uuid NOT NULL,
     "FullName" character varying(200) NOT NULL,
-    "Document" character varying(50) NOT NULL,
     "Phone" character varying(30) NOT NULL,
     "BirthDate" timestamp with time zone,
     "AvatarUrl" character varying(400),
@@ -205,6 +204,7 @@ CREATE TABLE users (
     "Id" uuid NOT NULL,
     "Name" character varying(200) NOT NULL,
     "Email" character varying(200) NOT NULL,
+    "Document" character varying(11) NOT NULL DEFAULT '',
     "PasswordHash" character varying(500) NOT NULL,
     "Role" character varying(30) NOT NULL DEFAULT 'Basic',
     "IsActive" boolean NOT NULL DEFAULT TRUE,
@@ -776,3 +776,30 @@ BEGIN
         ALTER TABLE users ADD COLUMN IF NOT EXISTS "Role" character varying(30) NOT NULL DEFAULT 'Basic';
     END IF;
 END $$;
+
+-- Move CPF/Document from user_profiles to users (centralized identity field).
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'users'
+    ) THEN
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS "Document" character varying(11) NOT NULL DEFAULT '';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'user_profiles' AND column_name = 'Document'
+    ) THEN
+        UPDATE users
+        SET "Document" = up."Document"
+        FROM user_profiles up
+        WHERE up."UserId" = users."Id" AND users."Document" = '' AND up."Document" <> '';
+
+        ALTER TABLE user_profiles DROP COLUMN "Document";
+    END IF;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_users_Document" ON users ("Document") WHERE "Document" <> '';

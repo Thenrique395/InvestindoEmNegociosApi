@@ -35,7 +35,7 @@ public sealed class PreferenceSettingsService(
         if (profile is null)
         {
             var primaryLocale = request.Locales.FirstOrDefault() ?? "pt-BR";
-            profile = new UserProfile(userId, string.Empty, string.Empty, string.Empty, null, string.Empty,
+            profile = new UserProfile(userId, string.Empty, string.Empty, null, string.Empty,
                 string.Empty, string.Empty, string.Empty, primaryLocale, request.Currency);
             await profileRepository.AddAsync(profile, cancellationToken);
         }

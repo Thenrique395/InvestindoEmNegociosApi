@@ -15,7 +15,7 @@ public class ReminderRobotTaskTests
     public async Task RunAsync_Should_Send_Email_When_User_Has_Email_Enabled_And_New_Notifications()
     {
         var user = new User("Teste", "teste@email.com", "hash");
-        var profile = new UserProfile(user.Id, "Teste", "12345678901", "(81) 99999-9999", null);
+        var profile = new UserProfile(user.Id, "Teste", "(81) 99999-9999", null);
         profile.SetNotificationPreferences(upcomingEnabled: true, overdueEnabled: true, emailEnabled: true, inAppEnabled: true, daysBeforeDue: 3);
 
         var usersRepo = new Mock<IUserRepository>();
@@ -62,7 +62,7 @@ public class ReminderRobotTaskTests
     public async Task RunAsync_Should_Not_Send_Email_When_Profile_Email_Is_Disabled()
     {
         var user = new User("Teste", "teste@email.com", "hash");
-        var profile = new UserProfile(user.Id, "Teste", "12345678901", "(81) 99999-9999", null);
+        var profile = new UserProfile(user.Id, "Teste", "(81) 99999-9999", null);
         profile.SetNotificationPreferences(upcomingEnabled: true, overdueEnabled: true, emailEnabled: false, inAppEnabled: true, daysBeforeDue: 3);
 
         var usersRepo = new Mock<IUserRepository>();
@@ -101,7 +101,7 @@ public class ReminderRobotTaskTests
     public async Task RunAsync_Should_Count_Email_Failure_When_Sender_Throws()
     {
         var user = new User("Teste", "teste@email.com", "hash");
-        var profile = new UserProfile(user.Id, "Teste", "12345678901", "(81) 99999-9999", null);
+        var profile = new UserProfile(user.Id, "Teste", "(81) 99999-9999", null);
         profile.SetNotificationPreferences(upcomingEnabled: true, overdueEnabled: true, emailEnabled: true, inAppEnabled: true, daysBeforeDue: 3);
 
         var usersRepo = new Mock<IUserRepository>();

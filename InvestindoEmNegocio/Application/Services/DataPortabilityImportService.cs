@@ -55,6 +55,14 @@ public sealed class DataPortabilityImportService(
             {
                 DataPortabilityImportHydrator.UpdateUserProfile(existingProfile, p, fullName);
             }
+
+            if (!string.IsNullOrWhiteSpace(p.Document))
+            {
+                var user = await dbContext.Users.FirstOrDefaultAsync(x => x.Id == userId, cancellationToken);
+                if (user is not null && string.IsNullOrEmpty(user.Document))
+                    user.SetDocument(p.Document);
+            }
+
             importedRecords++;
         }
 

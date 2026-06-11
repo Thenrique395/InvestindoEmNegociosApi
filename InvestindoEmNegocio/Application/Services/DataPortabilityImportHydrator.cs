@@ -10,7 +10,6 @@ internal static class DataPortabilityImportHydrator
         var profile = new UserProfile(
             userId,
             fullName,
-            data.Document ?? string.Empty,
             data.Phone ?? string.Empty,
             data.BirthDate,
             data.AvatarUrl ?? string.Empty,
@@ -37,7 +36,6 @@ internal static class DataPortabilityImportHydrator
     {
         existingProfile.UpdateProfileData(
             fullName,
-            data.Document ?? string.Empty,
             data.Phone ?? string.Empty,
             data.BirthDate,
             data.AvatarUrl ?? string.Empty,

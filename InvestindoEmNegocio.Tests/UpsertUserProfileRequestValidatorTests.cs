@@ -13,7 +13,6 @@ public class UpsertUserProfileRequestValidatorTests
     {
         var request = new UpsertUserProfileRequest(
             FullName: "Henrique Santos",
-            Document: "12345678901",
             Phone: "+55 81 999999999",
             BirthDate: new DateTime(1990, 1, 1),
             AvatarUrl: "https://cdn/avatar.png",
@@ -31,11 +30,10 @@ public class UpsertUserProfileRequestValidatorTests
     }
 
     [Fact]
-    public void Validate_Should_Fail_For_Invalid_Document_And_Phone()
+    public void Validate_Should_Fail_For_Invalid_Phone_And_Name()
     {
         var request = new UpsertUserProfileRequest(
             FullName: "He",
-            Document: "123",
             Phone: "81999999999",
             BirthDate: null,
             AvatarUrl: "",
@@ -50,7 +48,6 @@ public class UpsertUserProfileRequestValidatorTests
         var result = _sut.Validate(request);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Select(e => e.ErrorMessage).Should().Contain(m => m.Contains("CPF deve ter exatamente 11 dígitos", StringComparison.Ordinal));
         result.Errors.Select(e => e.ErrorMessage).Should().Contain(m => m.Contains("Telefone deve estar no formato", StringComparison.Ordinal));
         result.Errors.Select(e => e.ErrorMessage).Should().Contain(m => m.Contains("Nome completo deve ter ao menos 3 caracteres", StringComparison.Ordinal));
     }
@@ -60,7 +57,6 @@ public class UpsertUserProfileRequestValidatorTests
     {
         var request = new UpsertUserProfileRequest(
             FullName: "Henrique Santos",
-            Document: "12345678901",
             Phone: "(81) 99525-7823",
             BirthDate: new DateTime(1990, 1, 1),
             AvatarUrl: "",
@@ -84,7 +80,6 @@ public class UpsertUserProfileRequestValidatorTests
     {
         var request = new UpsertUserProfileRequest(
             FullName: "Henrique Santos",
-            Document: "12345678901",
             Phone: "(81) 99525-7823",
             BirthDate: new DateTime(1990, 1, 1),
             AvatarUrl: "",
@@ -108,7 +103,6 @@ public class UpsertUserProfileRequestValidatorTests
     {
         var request = new UpsertUserProfileRequest(
             FullName: "Henrique Santos",
-            Document: "12345678901",
             Phone: "(81) 99525-7823",
             BirthDate: new DateTime(1990, 1, 1),
             AvatarUrl: "",

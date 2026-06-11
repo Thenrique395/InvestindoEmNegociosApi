@@ -284,7 +284,7 @@ public class DataPortabilityServiceTests
         var plan = new MoneyPlan(userId, MoneyType.Expense, "Plano Antigo", 100m, ScheduleType.OneTime, DateOnly.FromDateTime(DateTime.UtcNow), null, 1, 1, category.Id, card.Id);
         var installment = new MoneyInstallment(plan.Id, userId, 1, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(3)), 100m);
         var payment = new MoneyPayment(installment.Id, userId, DateTime.UtcNow, 100m, 1, "Pago");
-        var profile = new UserProfile(userId, "Usuario Antigo", "11111111111", "11999999999", null);
+        var profile = new UserProfile(userId, "Usuario Antigo", "11999999999", null);
         var onboarding = new UserOnboarding(userId, 1, false);
         var investmentGoal = new InvestmentGoal(userId, 50000m);
         var allocationTarget = new InvestmentAllocationTarget(userId, 25m, 25m, 25m, 25m);

@@ -63,7 +63,7 @@ public class AuthApplicationServicesTests
             .ThrowsAsync(new InvalidOperationException("Email já existe"));
         var sut = new AuthRegistrationApplicationService(authService.Object, NullLogger<AuthRegistrationApplicationService>.Instance);
 
-        Func<Task> act = async () => await sut.RegisterAsync(new RegisterUserRequest("User", "user@mail.com", "123456"));
+        Func<Task> act = async () => await sut.RegisterAsync(new RegisterUserRequest("User", "user@mail.com", "123456", "52998224725"));
 
         var ex = await act.Should().ThrowAsync<AppProblemException>();
         ex.Which.StatusCode.Should().Be(StatusCodes.Status409Conflict);

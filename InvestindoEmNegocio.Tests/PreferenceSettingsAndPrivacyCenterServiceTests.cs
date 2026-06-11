@@ -75,7 +75,7 @@ public class PreferenceSettingsAndPrivacyCenterServiceTests
         var userId = user.Id;
 
         await dbContext.Users.AddAsync(user);
-        await dbContext.UserProfiles.AddAsync(new UserProfile(userId, "Teste", "12345678901", "(81) 99999-9999", null));
+        await dbContext.UserProfiles.AddAsync(new UserProfile(userId, "Teste", "(81) 99999-9999", null));
         await dbContext.Categories.AddAsync(new Category(userId, "Moradia", MoneyType.Expense));
         await dbContext.Accounts.AddAsync(new Account(userId, "Conta principal", AccountType.Checking, 1000m));
         await dbContext.RefreshTokens.AddAsync(new RefreshToken(userId, "refresh-hash", DateTime.UtcNow.AddDays(7)));
@@ -107,7 +107,7 @@ public class PreferenceSettingsAndPrivacyCenterServiceTests
         var userId = user.Id;
 
         await dbContext.Users.AddAsync(user);
-        await dbContext.UserProfiles.AddAsync(new UserProfile(userId, "Teste", "12345678901", "(81) 99999-9999", null));
+        await dbContext.UserProfiles.AddAsync(new UserProfile(userId, "Teste", "(81) 99999-9999", null));
         await dbContext.SaveChangesAsync();
 
         var sut = new UserPrivacyCenterService(userRepository, new RefreshTokenRepository(dbContext), Mock.Of<IAuditService>(), dbContext);

@@ -11,10 +11,6 @@ public class UpsertUserProfileRequestValidator : AbstractValidator<UpsertUserPro
             .NotEmpty().WithMessage("Nome completo é obrigatório.")
             .MinimumLength(3).WithMessage("Nome completo deve ter ao menos 3 caracteres.");
 
-        RuleFor(x => x.Document)
-            .NotEmpty().WithMessage("CPF é obrigatório.")
-            .Must(BeDigits11).WithMessage("CPF deve ter exatamente 11 dígitos.");
-
         RuleFor(x => x.Phone)
             .NotEmpty().WithMessage("Telefone é obrigatório.")
             .Matches(@"^(\(\d{2}\)\s\d{5}-\d{4}|\+\d{2}\s\d{2}\s\d{9})$").WithMessage("Telefone deve estar no formato (81) 99525-7823.");
@@ -33,11 +29,5 @@ public class UpsertUserProfileRequestValidator : AbstractValidator<UpsertUserPro
                 return normalized is "B" or "C";
             })
             .WithMessage("Modo de inteligência deve ser B ou C.");
-    }
-
-    private bool BeDigits11(string document)
-    {
-        var digits = new string((document ?? string.Empty).Where(char.IsDigit).ToArray());
-        return digits.Length == 11;
     }
 }

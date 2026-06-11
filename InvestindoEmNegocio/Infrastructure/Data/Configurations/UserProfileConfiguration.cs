@@ -15,10 +15,6 @@ public class UserProfileConfiguration : IEntityTypeConfiguration<UserProfile>
             .IsRequired()
             .HasMaxLength(200);
 
-        builder.Property(x => x.Document)
-            .IsRequired()
-            .HasMaxLength(50);
-
         builder.Property(x => x.Phone)
             .IsRequired()
             .HasMaxLength(30);

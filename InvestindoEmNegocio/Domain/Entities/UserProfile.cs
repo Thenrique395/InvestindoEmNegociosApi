@@ -7,7 +7,6 @@ public class UserProfile
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid UserId { get; private set; }
     public string FullName { get; private set; } = string.Empty;
-    public string Document { get; private set; } = string.Empty;
     public string Phone { get; private set; } = string.Empty;
     public DateTime? BirthDate { get; private set; }
     public string AvatarUrl { get; private set; } = string.Empty;
@@ -32,7 +31,6 @@ public class UserProfile
     public UserProfile(
         Guid userId,
         string fullName,
-        string document,
         string phone,
         DateTime? birthDate,
         string avatarUrl = "",
@@ -46,12 +44,11 @@ public class UserProfile
         string intelligenceMode = "B")
     {
         UserId = userId;
-        UpdateProfileData(fullName, document, phone, birthDate, avatarUrl, city, state, country, language, currency, carryOverDay, financialGoal, intelligenceMode);
+        UpdateProfileData(fullName, phone, birthDate, avatarUrl, city, state, country, language, currency, carryOverDay, financialGoal, intelligenceMode);
     }
 
     public void UpdateProfileData(
         string fullName,
-        string document,
         string phone,
         DateTime? birthDate,
         string avatarUrl = "",
@@ -65,7 +62,6 @@ public class UserProfile
         string intelligenceMode = "B")
     {
         FullName = fullName.Trim();
-        Document = SanitizeDocument(document);
         Phone = SanitizePhone(phone);
         BirthDate = NormalizeUtcDate(birthDate);
         AvatarUrl = avatarUrl?.Trim() ?? string.Empty;
@@ -95,12 +91,6 @@ public class UserProfile
         Language = string.IsNullOrWhiteSpace(language) ? "pt-BR" : language.Trim();
         Currency = string.IsNullOrWhiteSpace(currency) ? "BRL" : currency.Trim().ToUpperInvariant();
         UpdatedAt = DateTime.UtcNow;
-    }
-
-    private static string SanitizeDocument(string document)
-    {
-        var digits = new string(document.Where(char.IsDigit).ToArray());
-        return digits;
     }
 
     private static string SanitizePhone(string phone)

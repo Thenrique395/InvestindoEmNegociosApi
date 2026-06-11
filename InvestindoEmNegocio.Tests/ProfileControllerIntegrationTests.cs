@@ -80,6 +80,7 @@ public class ProfileControllerIntegrationTests
         builder.Services.AddControllers().AddApplicationPart(typeof(ProfileController).Assembly);
         builder.Services.AddMemoryCache();
         builder.Services.AddSingleton<IUserProfileRepository, InMemoryUserProfileRepository>();
+        builder.Services.AddSingleton<IUserRepository, InMemoryUserRepository>();
         builder.Services.AddScoped<IProfileQueryService, ProfileQueryService>();
         builder.Services.AddScoped<IProfileCommandService, ProfileCommandService>();
         builder.Services.AddSingleton<IAvatarStorageService, FakeAvatarStorageService>();
@@ -142,6 +143,34 @@ public class ProfileControllerIntegrationTests
         {
             _profiles[profile.UserId] = profile;
             return Task.CompletedTask;
+        }
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+    }
+
+    private sealed class InMemoryUserRepository : IUserRepository
+    {
+        public Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
+            => Task.FromResult<User?>(null);
+
+        public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult<User?>(new User("Henrique Santos", "henrique@test.com", "hash", "12345678901"));
+
+        public Task<IReadOnlyList<User>> ListAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<User>>([]);
+
+        public Task<bool> EmailExistsAsync(string email, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
+        public Task<bool> DocumentExistsAsync(string document, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
+        public Task AddAsync(User user, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public void Remove(User user)
+        {
         }
 
         public Task SaveChangesAsync(CancellationToken cancellationToken = default)

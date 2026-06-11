@@ -271,6 +271,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRobotSettingsRepository, RobotSettingsRepository>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IAuthRegistrationService, AuthRegistrationService>();
+        services.AddScoped<IAuthAvailabilityService, AuthAvailabilityService>();
         services.AddScoped<IAuthAccessService, AuthAccessService>();
         services.AddScoped<IAuthPasswordService, AuthPasswordService>();
         services.AddScoped<IAuthService, AuthService>();

@@ -102,7 +102,7 @@ public class ApiErrorContractIntegrationTests
             services.AddSingleton<IDataPortabilityApplicationService>(new FakeDataPortabilityApplicationService());
         });
 
-        var response = await app.GetTestClient().PostAsJsonAsync("/api/v1/auth/register", new RegisterUserRequest("User", "user@mail.com", "Password123!"));
+        var response = await app.GetTestClient().PostAsJsonAsync("/api/v1/auth/register", new RegisterUserRequest("User", "user@mail.com", "Password123!", "52998224725"));
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
@@ -345,6 +345,8 @@ public class ApiErrorContractIntegrationTests
                 .Build());
         builder.Services.AddAuthorization(AppAuthorizationPolicies.Configure);
 
+        builder.Services.AddSingleton<IAuthAvailabilityService, FakeAuthAvailabilityService>();
+
         registerFakes(builder.Services);
 
         var app = builder.Build();
@@ -376,6 +378,12 @@ public class ApiErrorContractIntegrationTests
             var ticket = new AuthenticationTicket(principal, Scheme.Name);
             return Task.FromResult(AuthenticateResult.Success(ticket));
         }
+    }
+
+    private sealed class FakeAuthAvailabilityService : IAuthAvailabilityService
+    {
+        public Task<CheckAvailabilityResponse> CheckAsync(CheckAvailabilityRequest request, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new CheckAvailabilityResponse(false, false));
     }
 
     private sealed class FakeAuthApplicationService : IAuthAccessApplicationService, IAuthRegistrationApplicationService, IAuthPasswordApplicationService

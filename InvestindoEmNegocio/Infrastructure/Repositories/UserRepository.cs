@@ -29,6 +29,12 @@ public class UserRepository(InvestDbContext context) : IUserRepository
         return await context.Users.AsNoTracking().AnyAsync(u => u.Email == email, cancellationToken);
     }
 
+    public async Task<bool> DocumentExistsAsync(string document, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(document)) return false;
+        return await context.Users.AsNoTracking().AnyAsync(u => u.Document == document, cancellationToken);
+    }
+
     public async Task AddAsync(User user, CancellationToken cancellationToken = default)
     {
         await context.Users.AddAsync(user, cancellationToken);

@@ -18,5 +18,9 @@ public class RegisterUserRequestValidator : AbstractValidator<RegisterUserReques
         RuleFor(x => x.Password)
             .NotEmpty().WithMessage("Senha é obrigatória.")
             .MinimumLength(6).WithMessage("Senha deve ter ao menos 6 caracteres.");
+
+        RuleFor(x => x.Document)
+            .NotEmpty().WithMessage("CPF é obrigatório.")
+            .Must(CpfValidation.IsValid).WithMessage("CPF inválido.");
     }
 }

@@ -22,7 +22,7 @@ public class AuthServiceTests
 
         var sut = BuildSut(userRepository: userRepository);
 
-        Func<Task> act = async () => await sut.RegisterAsync(new RegisterUserRequest("User", "user@local", "Password123!"), CancellationToken.None);
+        Func<Task> act = async () => await sut.RegisterAsync(new RegisterUserRequest("User", "user@local", "Password123!", "52998224725"), CancellationToken.None);
 
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*E-mail já está em uso*");
@@ -44,7 +44,7 @@ public class AuthServiceTests
         var sut = BuildSut(userRepository: userRepository, accountRepository: accountRepository);
 
         var response = await sut.RegisterAsync(
-            new RegisterUserRequest("User", "user@local", "Password123!"),
+            new RegisterUserRequest("User", "user@local", "Password123!", "52998224725"),
             CancellationToken.None);
 
         response.Role.Should().Be("Basic");

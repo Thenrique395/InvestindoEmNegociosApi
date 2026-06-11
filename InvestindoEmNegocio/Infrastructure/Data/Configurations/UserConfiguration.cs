@@ -21,6 +21,11 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .IsRequired()
             .HasMaxLength(200);
 
+        builder.Property(u => u.Document)
+            .IsRequired()
+            .HasMaxLength(11)
+            .HasDefaultValue(string.Empty);
+
         builder.Property(u => u.PasswordHash)
             .IsRequired()
             .HasMaxLength(500);
@@ -50,5 +55,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.HasIndex(u => u.Email)
             .IsUnique();
+
+        builder.HasIndex(u => u.Document)
+            .IsUnique()
+            .HasFilter("\"Document\" <> ''");
     }
 }

@@ -38,13 +38,18 @@ public sealed class DataPortabilityExportService(
             .ToListAsync(cancellationToken);
         var positionIds = investmentPositions.Select(x => x.Id).ToHashSet();
 
+        var userDocument = await dbContext.Users.AsNoTracking()
+            .Where(x => x.Id == userId)
+            .Select(x => x.Document)
+            .FirstOrDefaultAsync(cancellationToken) ?? string.Empty;
+
         var snapshot = new UserDataSnapshot
         {
             SourceUserId = userId,
             Profile = await dbContext.UserProfiles.AsNoTracking()
                 .Where(x => x.UserId == userId)
                 .Select(x => new UserProfileData(
-                    x.Id, x.FullName, x.Document, x.Phone, x.BirthDate, x.AvatarUrl, x.City, x.State, x.Country,
+                    x.Id, x.FullName, userDocument, x.Phone, x.BirthDate, x.AvatarUrl, x.City, x.State, x.Country,
                     x.FinancialGoal, x.CarryOverDay, x.IntelligenceMode, x.Language, x.Currency, x.NotifyUpcomingEnabled, x.NotifyOverdueEnabled, x.NotifyEmailEnabled,
                     x.NotifyInAppEnabled, x.NotifyDaysBeforeDue, x.CreatedAt, x.UpdatedAt))
                 .FirstOrDefaultAsync(cancellationToken),

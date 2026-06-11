@@ -22,8 +22,9 @@ public class ProfileQueryAndCommandServicesTests
         repository
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(profile);
+        var userRepository = new Mock<IUserRepository>();
         using var memoryCache = new MemoryCache(new MemoryCacheOptions());
-        var sut = new ProfileQueryService(repository.Object, memoryCache);
+        var sut = new ProfileQueryService(repository.Object, userRepository.Object, memoryCache);
 
         var first = await sut.GetAsync(userId);
         var second = await sut.GetAsync(userId);
@@ -44,7 +45,8 @@ public class ProfileQueryAndCommandServicesTests
             .ReturnsAsync((UserProfile?)null);
 
         using var memoryCache = new MemoryCache(new MemoryCacheOptions());
-        var sut = new ProfileCommandService(repository.Object, memoryCache, NullLogger<ProfileCommandService>.Instance);
+        var userRepository = new Mock<IUserRepository>();
+        var sut = new ProfileCommandService(repository.Object, userRepository.Object, memoryCache, NullLogger<ProfileCommandService>.Instance);
 
         var result = await sut.UpsertAsync(userId, NewRequest());
 
@@ -65,7 +67,8 @@ public class ProfileQueryAndCommandServicesTests
             .Setup(x => x.GetByUserIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((UserProfile?)null);
         using var memoryCache = new MemoryCache(new MemoryCacheOptions());
-        var sut = new ProfileCommandService(repository.Object, memoryCache, NullLogger<ProfileCommandService>.Instance);
+        var userRepository = new Mock<IUserRepository>();
+        var sut = new ProfileCommandService(repository.Object, userRepository.Object, memoryCache, NullLogger<ProfileCommandService>.Instance);
 
         Func<Task> act = async () => await sut.UpdateAvatarAsync(Guid.NewGuid(), "http://cdn/avatar.png");
 
@@ -86,7 +89,8 @@ public class ProfileQueryAndCommandServicesTests
             .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new ArgumentException("campo inválido"));
         using var memoryCache = new MemoryCache(new MemoryCacheOptions());
-        var sut = new ProfileCommandService(repository.Object, memoryCache, NullLogger<ProfileCommandService>.Instance);
+        var userRepository = new Mock<IUserRepository>();
+        var sut = new ProfileCommandService(repository.Object, userRepository.Object, memoryCache, NullLogger<ProfileCommandService>.Instance);
 
         Func<Task> act = async () => await sut.UpsertAsync(userId, NewRequest());
 
@@ -108,7 +112,8 @@ public class ProfileQueryAndCommandServicesTests
             .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new ArgumentException("avatar inválido"));
         using var memoryCache = new MemoryCache(new MemoryCacheOptions());
-        var sut = new ProfileCommandService(repository.Object, memoryCache, NullLogger<ProfileCommandService>.Instance);
+        var userRepository = new Mock<IUserRepository>();
+        var sut = new ProfileCommandService(repository.Object, userRepository.Object, memoryCache, NullLogger<ProfileCommandService>.Instance);
 
         Func<Task> act = async () => await sut.UpdateAvatarAsync(userId, "http://cdn/avatar.png");
 
@@ -125,7 +130,8 @@ public class ProfileQueryAndCommandServicesTests
         var repository = new Mock<IUserProfileRepository>();
         repository.Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(profile);
         using var memoryCache = new MemoryCache(new MemoryCacheOptions());
-        var sut = new ProfileCommandService(repository.Object, memoryCache, NullLogger<ProfileCommandService>.Instance);
+        var userRepository = new Mock<IUserRepository>();
+        var sut = new ProfileCommandService(repository.Object, userRepository.Object, memoryCache, NullLogger<ProfileCommandService>.Instance);
 
         var result = await sut.UpsertAsync(userId, NewRequest());
 
@@ -136,7 +142,6 @@ public class ProfileQueryAndCommandServicesTests
     private static UpsertUserProfileRequest NewRequest() =>
         new(
             "Henrique Santos",
-            "12345678900",
             "+55 11 999999999",
             new DateTime(1990, 1, 1),
             string.Empty,
@@ -149,5 +154,5 @@ public class ProfileQueryAndCommandServicesTests
             "C");
 
     private static UserProfile NewProfile(Guid userId) =>
-        new(userId, "Henrique Santos", "12345678900", "+55 11 999999999", new DateTime(1990, 1, 1));
+        new(userId, "Henrique Santos", "+55 11 999999999", new DateTime(1990, 1, 1));
 }

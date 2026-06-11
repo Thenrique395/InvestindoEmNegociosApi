@@ -10,6 +10,7 @@ namespace InvestindoEmNegocio.Application.Services;
 
 public sealed class ProfileCommandService(
     IUserProfileRepository profileRepository,
+    IUserRepository userRepository,
     IMemoryCache cache,
     ILogger<ProfileCommandService> logger) : IProfileCommandService
 {
@@ -17,24 +18,26 @@ public sealed class ProfileCommandService(
     {
         try
         {
+            var user = await userRepository.GetByIdAsync(userId, cancellationToken);
+            var document = user?.Document ?? string.Empty;
             var existing = await profileRepository.GetByUserIdAsync(userId, cancellationToken);
             if (existing is null)
             {
-                var profile = new UserProfile(userId, request.FullName, request.Document, request.Phone, request.BirthDate,
+                var profile = new UserProfile(userId, request.FullName, request.Phone, request.BirthDate,
                     request.AvatarUrl, request.City, request.State, request.Country, request.Language, "BRL", request.CarryOverDay, request.FinancialGoal, request.IntelligenceMode);
                 await profileRepository.AddAsync(profile, cancellationToken);
                 await profileRepository.SaveChangesAsync(cancellationToken);
                 cache.Remove(ProfileQueryService.CacheKey(userId));
                 logger.LogInformation("User profile created {UserId}", userId);
-                return ProfileDtoFactory.CreateDto(profile);
+                return ProfileDtoFactory.CreateDto(profile, document);
             }
 
-            existing.UpdateProfileData(request.FullName, request.Document, request.Phone, request.BirthDate, request.AvatarUrl,
+            existing.UpdateProfileData(request.FullName, request.Phone, request.BirthDate, request.AvatarUrl,
                 request.City, request.State, request.Country, request.Language, existing.Currency, request.CarryOverDay, request.FinancialGoal, request.IntelligenceMode);
             await profileRepository.SaveChangesAsync(cancellationToken);
             cache.Remove(ProfileQueryService.CacheKey(userId));
             logger.LogInformation("User profile updated {UserId}", userId);
-            return ProfileDtoFactory.CreateDto(existing);
+            return ProfileDtoFactory.CreateDto(existing, document);
         }
         catch (ArgumentException ex)
         {
@@ -58,7 +61,6 @@ public sealed class ProfileCommandService(
         {
             existing.UpdateProfileData(
                 existing.FullName,
-                existing.Document,
                 existing.Phone,
                 existing.BirthDate,
                 avatarUrl,
@@ -73,7 +75,8 @@ public sealed class ProfileCommandService(
             await profileRepository.SaveChangesAsync(cancellationToken);
             cache.Remove(ProfileQueryService.CacheKey(userId));
             logger.LogInformation("User avatar updated {UserId}", userId);
-            return ProfileDtoFactory.CreateDto(existing);
+            var user = await userRepository.GetByIdAsync(userId, cancellationToken);
+            return ProfileDtoFactory.CreateDto(existing, user?.Document ?? string.Empty);
         }
         catch (ArgumentException ex)
         {
