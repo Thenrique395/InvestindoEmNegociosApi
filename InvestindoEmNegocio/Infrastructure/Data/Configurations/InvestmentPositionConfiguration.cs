@@ -20,6 +20,7 @@ public class InvestmentPositionConfiguration : IEntityTypeConfiguration<Investme
         builder.Property(x => x.AvgPrice).HasPrecision(18, 2);
         builder.Property(x => x.OpenedAt).HasColumnType("date");
         builder.Property(x => x.Account).HasMaxLength(120);
+        builder.Property(x => x.InstitutionId).IsRequired(false);
         builder.Property(x => x.Category).HasMaxLength(80);
         builder.Property(x => x.Note).HasMaxLength(400);
 
@@ -30,6 +31,11 @@ public class InvestmentPositionConfiguration : IEntityTypeConfiguration<Investme
             .WithOne(x => x.Position)
             .HasForeignKey(x => x.PositionId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne<Institution>()
+            .WithMany()
+            .HasForeignKey(x => x.InstitutionId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasIndex(x => new { x.UserId, x.Asset });
     }

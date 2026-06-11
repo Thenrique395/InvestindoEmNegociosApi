@@ -12,6 +12,7 @@ public class InvestmentPosition
     public decimal AvgPrice { get; private set; }
     public DateOnly OpenedAt { get; private set; }
     public string Account { get; private set; } = string.Empty;
+    public int? InstitutionId { get; private set; }
     public string Category { get; private set; } = string.Empty;
     public string? Note { get; private set; }
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
@@ -60,6 +61,12 @@ public class InvestmentPosition
     public void ApplyMovement(InvestmentMovement movement)
     {
         Movements.Insert(0, movement);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void SetInstitution(int? institutionId)
+    {
+        InstitutionId = institutionId;
         UpdatedAt = DateTime.UtcNow;
     }
 }
