@@ -61,7 +61,14 @@ if ! pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" >/dev/nu
 fi
 
 if psql -v ON_ERROR_STOP=1 -tAc "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users'" | grep -q 1; then
-  echo "Schema already initialized for '$PGDATABASE'. Skipping bootstrap."
+  echo "Schema already bootstrapped for '$PGDATABASE'. Applying incremental compatibility section only."
+  incremental_sql="$(awk '/^-- Incremental compatibility and newer objects/{found=1} found' "$schema_path")"
+  if [ -z "$incremental_sql" ]; then
+    echo "No incremental compatibility section found in $schema_path."
+    exit 0
+  fi
+  printf '%s\n' "$incremental_sql" | psql -v ON_ERROR_STOP=1 -1 -f -
+  echo "Incremental schema changes applied to '$PGDATABASE'."
   exit 0
 fi
 
