@@ -972,13 +972,13 @@ DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'notification_settings') THEN
         ALTER TABLE notification_settings ADD COLUMN IF NOT EXISTS "Singleton" boolean NOT NULL DEFAULT FALSE;
-        UPDATE notification_settings SET "Singleton" = TRUE WHERE "Id" = (SELECT MIN("Id") FROM notification_settings) AND NOT "Singleton";
+        UPDATE notification_settings SET "Singleton" = TRUE WHERE "Id" = (SELECT "Id" FROM notification_settings ORDER BY "Id" LIMIT 1) AND NOT "Singleton";
         ALTER TABLE notification_settings ALTER COLUMN "Singleton" SET DEFAULT TRUE;
     END IF;
 
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'robot_settings') THEN
         ALTER TABLE robot_settings ADD COLUMN IF NOT EXISTS "Singleton" boolean NOT NULL DEFAULT FALSE;
-        UPDATE robot_settings SET "Singleton" = TRUE WHERE "Id" = (SELECT MIN("Id") FROM robot_settings) AND NOT "Singleton";
+        UPDATE robot_settings SET "Singleton" = TRUE WHERE "Id" = (SELECT "Id" FROM robot_settings ORDER BY "Id" LIMIT 1) AND NOT "Singleton";
         ALTER TABLE robot_settings ALTER COLUMN "Singleton" SET DEFAULT TRUE;
     END IF;
 END $$;
