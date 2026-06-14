@@ -115,6 +115,12 @@ Regra:
 - [DEPLOY_GITHUB_ENVIRONMENTS.md](./DEPLOY_GITHUB_ENVIRONMENTS.md)
   - usar para configurar `development` e `production` no GitHub sem `.env` versionado
 
+### Backlog técnico específico
+
+- [BILLING_COMMUNICATION_BACKLOG.md](./BILLING_COMMUNICATION_BACKLOG.md)
+  - usar para backlog de e-mails/notificações de billing por evento de assinatura, com status atual de implementação
+  - direção de produto (tom, janela de recuperação, downgrade) continua em `../../docs/BUSINESS_RULES.md` e `../../docs/DECISIONS/`
+
 ### Schema e persistência versionada
 
 - o SQL versionado do backend fica em `InvestindoEmNegocio/Infrastructure/Data/schema.sql`
@@ -156,6 +162,7 @@ Use:
 - quem pode acessar o quê: `AUTHORIZATION_MATRIX.md`
 - como a API deve responder erro: `API_CONTRATO_ERROS.md`
 - como configurar deploy `DEV -> PRD`: `DEPLOY_GITHUB_ENVIRONMENTS.md`
+- o que falta implementar nas comunicações de billing: `BILLING_COMMUNICATION_BACKLOG.md`
 
 ## O que não deve viver aqui
 

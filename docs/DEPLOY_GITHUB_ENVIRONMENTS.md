@@ -168,6 +168,10 @@ Alguns valores nao sao configurados no GitHub Environment porque ja estao fixos 
 - a pipeline envia `docker-compose.deploy.yml` para o servidor
 - o schema e aplicado pelo script `scripts/apply-schema-from-db-conn.sh` antes do deploy do container
 
+## Pendencia conhecida
+
+- no servidor atual, os bancos `meu_mentor_db` e `meu_mentor_prd` estao com os papeis de DEV/PRD invertidos em relacao ao nome (`meu_mentor_db` esta servindo PRD e `meu_mentor_prd` esta servindo DEV, ou vice-versa). Corrigir o `DB_CONN`/nome do banco em cada environment para alinhar nome e ambiente real, validando antes e depois com `apply-schema-from-db-conn.sh` e um deploy de smoke test em cada ambiente.
+
 ## Checklist de configuracao
 
 1. Criar `development` e `production` em `Settings > Environments`.
