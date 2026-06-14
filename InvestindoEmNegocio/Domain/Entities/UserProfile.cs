@@ -1,14 +1,9 @@
-using System.Linq;
-
 namespace InvestindoEmNegocio.Domain.Entities;
 
 public class UserProfile
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid UserId { get; private set; }
-    public string FullName { get; private set; } = string.Empty;
-    public string Phone { get; private set; } = string.Empty;
-    public DateTime? BirthDate { get; private set; }
     public int CarryOverDay { get; private set; } = 1;
     public string FinancialGoal { get; private set; } = string.Empty;
     public string IntelligenceMode { get; private set; } = "B";
@@ -26,9 +21,6 @@ public class UserProfile
 
     public UserProfile(
         Guid userId,
-        string fullName,
-        string phone,
-        DateTime? birthDate,
         string language = "pt-BR",
         string currency = "BRL",
         int carryOverDay = 1,
@@ -36,22 +28,16 @@ public class UserProfile
         string intelligenceMode = "B")
     {
         UserId = userId;
-        UpdateProfileData(fullName, phone, birthDate, language, currency, carryOverDay, financialGoal, intelligenceMode);
+        UpdateProfileData(language, currency, carryOverDay, financialGoal, intelligenceMode);
     }
 
     public void UpdateProfileData(
-        string fullName,
-        string phone,
-        DateTime? birthDate,
         string language = "pt-BR",
         string currency = "BRL",
         int carryOverDay = 1,
         string financialGoal = "",
         string intelligenceMode = "B")
     {
-        FullName = fullName.Trim();
-        Phone = SanitizePhone(phone);
-        BirthDate = NormalizeUtcDate(birthDate);
         CarryOverDay = NormalizeCarryOverDay(carryOverDay);
         FinancialGoal = financialGoal?.Trim() ?? string.Empty;
         IntelligenceMode = NormalizeIntelligenceMode(intelligenceMode);
@@ -75,26 +61,6 @@ public class UserProfile
         Language = string.IsNullOrWhiteSpace(language) ? "pt-BR" : language.Trim();
         Currency = string.IsNullOrWhiteSpace(currency) ? "BRL" : currency.Trim().ToUpperInvariant();
         UpdatedAt = DateTime.UtcNow;
-    }
-
-    private static string SanitizePhone(string phone)
-    {
-        var digits = new string(phone.Where(char.IsDigit).ToArray());
-        if (digits.Length == 13 && digits.StartsWith("55"))
-            digits = digits.Substring(2);
-
-        if (digits.Length == 11)
-            return $"({digits.Substring(0, 2)}) {digits.Substring(2, 5)}-{digits.Substring(7, 4)}";
-
-        return phone.Trim();
-    }
-
-    private static DateTime? NormalizeUtcDate(DateTime? date)
-    {
-        if (!date.HasValue) return null;
-        var dt = date.Value;
-        if (dt.Kind == DateTimeKind.Utc) return dt;
-        return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
     }
 
     private static string NormalizeIntelligenceMode(string? mode)

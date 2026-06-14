@@ -92,7 +92,7 @@ public class NotificationApplicationServicesTests
         var profileRepository = new Mock<IUserProfileRepository>();
         profileRepository
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile(userId, "User", "5511999999999", null));
+            .ReturnsAsync(new UserProfile(userId));
 
         var settingsRepository = new Mock<INotificationSettingsRepository>();
         settingsRepository
@@ -152,7 +152,7 @@ public class NotificationApplicationServicesTests
         var profileRepository = new Mock<IUserProfileRepository>();
         profileRepository
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile(userId, "User", "5511999999999", null));
+            .ReturnsAsync(new UserProfile(userId));
 
         var settingsRepository = new Mock<INotificationSettingsRepository>();
         settingsRepository
@@ -193,7 +193,7 @@ public class NotificationApplicationServicesTests
     public async Task GenerateAsync_Should_Return_Zero_When_InApp_Notifications_Are_Disabled()
     {
         var userId = Guid.NewGuid();
-        var profile = new UserProfile(userId, "User", "5511999999999", null);
+        var profile = new UserProfile(userId);
         profile.SetNotificationPreferences(upcomingEnabled: true, overdueEnabled: true, emailEnabled: true, inAppEnabled: false, daysBeforeDue: 3);
 
         var profileRepository = new Mock<IUserProfileRepository>();
@@ -216,7 +216,7 @@ public class NotificationApplicationServicesTests
         var profileRepository = new Mock<IUserProfileRepository>();
         profileRepository
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile(userId, "User", "5511999999999", null));
+            .ReturnsAsync(new UserProfile(userId));
 
         var settingsRepository = new Mock<INotificationSettingsRepository>();
         settingsRepository
@@ -269,7 +269,7 @@ public class NotificationApplicationServicesTests
         var profileRepository = new Mock<IUserProfileRepository>();
         profileRepository
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile(userId, "User", "5511999999999", null));
+            .ReturnsAsync(new UserProfile(userId));
 
         var settingsRepository = new Mock<INotificationSettingsRepository>();
         settingsRepository
@@ -335,7 +335,7 @@ public class NotificationApplicationServicesTests
         var profileRepository = new Mock<IUserProfileRepository>();
         profileRepository
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile(userId, "User", "5511999999999", null));
+            .ReturnsAsync(new UserProfile(userId));
 
         var settingsRepository = new Mock<INotificationSettingsRepository>();
         settingsRepository
@@ -422,7 +422,7 @@ public class NotificationApplicationServicesTests
         var profileRepository = new Mock<IUserProfileRepository>();
         profileRepository
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile(userId, "User", "81999999999", null, carryOverDay: CashflowCarryOverDay(today)));
+            .ReturnsAsync(new UserProfile(userId, carryOverDay: CashflowCarryOverDay(today)));
 
         var settingsRepository = new Mock<INotificationSettingsRepository>();
         settingsRepository
@@ -495,7 +495,7 @@ public class NotificationApplicationServicesTests
         var profileRepository = new Mock<IUserProfileRepository>();
         profileRepository
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile(userId, "User", "81999999999", null, carryOverDay: today.Day));
+            .ReturnsAsync(new UserProfile(userId, carryOverDay: today.Day));
 
         var settingsRepository = new Mock<INotificationSettingsRepository>();
         settingsRepository
@@ -571,7 +571,7 @@ public class NotificationApplicationServicesTests
         var profileRepository = new Mock<IUserProfileRepository>();
         profileRepository
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile(userId, "User", "81999999999", null, carryOverDay: CashflowCarryOverDay(today)));
+            .ReturnsAsync(new UserProfile(userId, carryOverDay: CashflowCarryOverDay(today)));
 
         var settingsRepository = new Mock<INotificationSettingsRepository>();
         settingsRepository
@@ -646,7 +646,7 @@ public class NotificationApplicationServicesTests
         var profileRepository = new Mock<IUserProfileRepository>();
         profileRepository
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile(userId, "User", "81999999999", null, carryOverDay: CashflowCarryOverDay(today)));
+            .ReturnsAsync(new UserProfile(userId, carryOverDay: CashflowCarryOverDay(today)));
 
         var settingsRepository = new Mock<INotificationSettingsRepository>();
         settingsRepository
@@ -732,7 +732,7 @@ public class NotificationApplicationServicesTests
         var profileRepository = new Mock<IUserProfileRepository>();
         profileRepository
             .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new UserProfile(userId, "User", "5511999999999", null));
+            .ReturnsAsync(new UserProfile(userId));
 
         var settingsRepository = new Mock<INotificationSettingsRepository>();
         settingsRepository

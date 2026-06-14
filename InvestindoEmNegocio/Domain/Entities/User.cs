@@ -13,6 +13,8 @@ public class User
     public string City { get; private set; } = string.Empty;
     public string State { get; private set; } = string.Empty;
     public string Country { get; private set; } = string.Empty;
+    public string Phone { get; private set; } = string.Empty;
+    public DateTime? BirthDate { get; private set; }
     public string PasswordHash { get; private set; }
     public UserRole Role { get; private set; } = UserRole.Basic;
     public bool IsActive { get; private set; } = true;
@@ -55,6 +57,34 @@ public class User
         State = state?.Trim() ?? string.Empty;
         Country = country?.Trim() ?? string.Empty;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void UpdateIdentityDetails(string fullName, string phone, DateTime? birthDate)
+    {
+        if (!string.IsNullOrWhiteSpace(fullName)) Name = fullName.Trim();
+        Phone = SanitizePhone(phone);
+        BirthDate = NormalizeUtcDate(birthDate);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    private static string SanitizePhone(string phone)
+    {
+        var digits = new string((phone ?? string.Empty).Where(char.IsDigit).ToArray());
+        if (digits.Length == 13 && digits.StartsWith("55"))
+            digits = digits.Substring(2);
+
+        if (digits.Length == 11)
+            return $"({digits.Substring(0, 2)}) {digits.Substring(2, 5)}-{digits.Substring(7, 4)}";
+
+        return (phone ?? string.Empty).Trim();
+    }
+
+    private static DateTime? NormalizeUtcDate(DateTime? date)
+    {
+        if (!date.HasValue) return null;
+        var dt = date.Value;
+        if (dt.Kind == DateTimeKind.Utc) return dt;
+        return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
     }
 
     public void SetRole(UserRole role)

@@ -272,6 +272,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<INotificationSettingsRepository, NotificationSettingsRepository>();
         services.AddScoped<IRobotSettingsRepository, RobotSettingsRepository>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddSingleton<IAuthCookieService, AuthCookieService>();
         services.AddScoped<IAuthRegistrationService, AuthRegistrationService>();
         services.AddScoped<IAuthAvailabilityService, AuthAvailabilityService>();
         services.AddScoped<IAuthAccessService, AuthAccessService>();
@@ -450,6 +451,20 @@ public static class ServiceCollectionExtensions
                     ValidIssuer = jwtOptions.Issuer,
                     ValidAudience = jwtOptions.Audience,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey))
+                };
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        if (string.IsNullOrEmpty(context.Token)
+                            && context.Request.Cookies.TryGetValue(AuthCookieService.AccessTokenCookie, out var accessToken)
+                            && !string.IsNullOrEmpty(accessToken))
+                        {
+                            context.Token = accessToken;
+                        }
+
+                        return Task.CompletedTask;
+                    }
                 };
             });
 

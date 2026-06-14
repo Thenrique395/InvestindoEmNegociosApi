@@ -46,6 +46,9 @@ public class ProfileQueryAndCommandServicesTests
 
         using var memoryCache = new MemoryCache(new MemoryCacheOptions());
         var userRepository = new Mock<IUserRepository>();
+        userRepository
+            .Setup(x => x.GetByIdAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new User("Henrique Santos", "henrique@teste.com", "hash"));
         var sut = new ProfileCommandService(repository.Object, userRepository.Object, memoryCache, NullLogger<ProfileCommandService>.Instance);
 
         var result = await sut.UpsertAsync(userId, NewRequest());
@@ -154,5 +157,5 @@ public class ProfileQueryAndCommandServicesTests
             "C");
 
     private static UserProfile NewProfile(Guid userId) =>
-        new(userId, "Henrique Santos", "+55 11 999999999", new DateTime(1990, 1, 1));
+        new(userId);
 }

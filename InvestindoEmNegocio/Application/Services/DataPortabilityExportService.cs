@@ -40,9 +40,12 @@ public sealed class DataPortabilityExportService(
 
         var userData = await dbContext.Users.AsNoTracking()
             .Where(x => x.Id == userId)
-            .Select(x => new { x.Document, x.AvatarUrl, x.City, x.State, x.Country })
+            .Select(x => new { x.Name, x.Document, x.Phone, x.BirthDate, x.AvatarUrl, x.City, x.State, x.Country })
             .FirstOrDefaultAsync(cancellationToken);
+        var userFullName = userData?.Name ?? string.Empty;
         var userDocument = userData?.Document ?? string.Empty;
+        var userPhone = userData?.Phone ?? string.Empty;
+        var userBirthDate = userData?.BirthDate;
         var userAvatarUrl = userData?.AvatarUrl ?? string.Empty;
         var userCity = userData?.City ?? string.Empty;
         var userState = userData?.State ?? string.Empty;
@@ -54,7 +57,7 @@ public sealed class DataPortabilityExportService(
             Profile = await dbContext.UserProfiles.AsNoTracking()
                 .Where(x => x.UserId == userId)
                 .Select(x => new UserProfileData(
-                    x.Id, x.FullName, userDocument, x.Phone, x.BirthDate, userAvatarUrl, userCity, userState, userCountry,
+                    x.Id, userFullName, userDocument, userPhone, userBirthDate, userAvatarUrl, userCity, userState, userCountry,
                     x.FinancialGoal, x.CarryOverDay, x.IntelligenceMode, x.Language, x.Currency, x.NotifyUpcomingEnabled, x.NotifyOverdueEnabled, x.NotifyEmailEnabled,
                     x.NotifyInAppEnabled, x.NotifyDaysBeforeDue, x.CreatedAt, x.UpdatedAt))
                 .FirstOrDefaultAsync(cancellationToken),

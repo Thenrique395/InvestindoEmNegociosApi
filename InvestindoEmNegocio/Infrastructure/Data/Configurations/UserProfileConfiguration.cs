@@ -11,15 +11,6 @@ public class UserProfileConfiguration : IEntityTypeConfiguration<UserProfile>
         builder.ToTable("user_profiles");
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.FullName)
-            .IsRequired()
-            .HasMaxLength(200);
-
-        builder.Property(x => x.Phone)
-            .IsRequired()
-            .HasMaxLength(30);
-
-        builder.Property(x => x.BirthDate);
         builder.Property(x => x.FinancialGoal)
             .IsRequired(false)
             .HasMaxLength(80);

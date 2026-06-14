@@ -48,12 +48,12 @@ public sealed class DataPortabilityImportService(
             var existingProfile = await dbContext.UserProfiles.FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken);
             if (existingProfile is null)
             {
-                var profile = DataPortabilityImportHydrator.CreateUserProfile(userId, p, fullName);
+                var profile = DataPortabilityImportHydrator.CreateUserProfile(userId, p);
                 await dbContext.UserProfiles.AddAsync(profile, cancellationToken);
             }
             else
             {
-                DataPortabilityImportHydrator.UpdateUserProfile(existingProfile, p, fullName);
+                DataPortabilityImportHydrator.UpdateUserProfile(existingProfile, p);
             }
 
             var user = await dbContext.Users.FirstOrDefaultAsync(x => x.Id == userId, cancellationToken);
@@ -63,6 +63,7 @@ public sealed class DataPortabilityImportService(
                     user.SetDocument(p.Document);
 
                 user.UpdateProfileDetails(p.AvatarUrl ?? string.Empty, p.City ?? string.Empty, p.State ?? string.Empty, p.Country ?? string.Empty);
+                user.UpdateIdentityDetails(fullName, p.Phone ?? string.Empty, p.BirthDate);
             }
 
             importedRecords++;

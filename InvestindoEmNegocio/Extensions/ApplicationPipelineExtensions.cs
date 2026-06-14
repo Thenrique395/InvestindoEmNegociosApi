@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using InvestindoEmNegocio.Infrastructure.Auth;
 using InvestindoEmNegocio.Infrastructure.Logging;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Scalar.AspNetCore;
@@ -44,6 +45,7 @@ public static class ApplicationPipelineExtensions
         app.UseCors(corsPolicy);
         app.UseRateLimiter();
         app.UseAuthentication();
+        app.UseMiddleware<CsrfValidationMiddleware>();
         app.UseAuthorization();
 
         return app;

@@ -179,9 +179,6 @@ CREATE TABLE user_onboarding (
 CREATE TABLE user_profiles (
     "Id" uuid NOT NULL,
     "UserId" uuid NOT NULL,
-    "FullName" character varying(200) NOT NULL,
-    "Phone" character varying(30) NOT NULL,
-    "BirthDate" timestamp with time zone,
     "FinancialGoal" character varying(80),
     "CarryOverDay" integer NOT NULL DEFAULT 1,
     "IntelligenceMode" character varying(1) NOT NULL DEFAULT 'B',
@@ -206,6 +203,8 @@ CREATE TABLE users (
     "City" character varying(120),
     "State" character varying(80),
     "Country" character varying(120),
+    "Phone" character varying(30) NOT NULL DEFAULT '',
+    "BirthDate" timestamp with time zone,
     "PasswordHash" character varying(500) NOT NULL,
     "Role" character varying(30) NOT NULL DEFAULT 'Basic',
     "IsActive" boolean NOT NULL DEFAULT TRUE,
@@ -852,6 +851,37 @@ BEGIN
         ALTER TABLE user_profiles DROP COLUMN "City";
         ALTER TABLE user_profiles DROP COLUMN "State";
         ALTER TABLE user_profiles DROP COLUMN "Country";
+    END IF;
+END $$;
+
+-- Move FullName/Phone/BirthDate from user_profiles to users (centralized identity data).
+-- FullName is consolidated into the existing users."Name" column.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'users'
+    ) THEN
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS "Phone" character varying(30) NOT NULL DEFAULT '';
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS "BirthDate" timestamp with time zone;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'user_profiles' AND column_name = 'FullName'
+    ) THEN
+        UPDATE users
+        SET "Name" = COALESCE(NULLIF(TRIM(up."FullName"), ''), users."Name"),
+            "Phone" = up."Phone",
+            "BirthDate" = up."BirthDate"
+        FROM user_profiles up
+        WHERE up."UserId" = users."Id";
+
+        ALTER TABLE user_profiles DROP COLUMN "FullName";
+        ALTER TABLE user_profiles DROP COLUMN "Phone";
+        ALTER TABLE user_profiles DROP COLUMN "BirthDate";
     END IF;
 END $$;
 

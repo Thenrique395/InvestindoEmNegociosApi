@@ -22,13 +22,14 @@ public sealed class ProfileCommandService(
             if (user is not null)
             {
                 user.UpdateProfileDetails(request.AvatarUrl, request.City, request.State, request.Country);
+                user.UpdateIdentityDetails(request.FullName, request.Phone, request.BirthDate);
                 await userRepository.SaveChangesAsync(cancellationToken);
             }
 
             var existing = await profileRepository.GetByUserIdAsync(userId, cancellationToken);
             if (existing is null)
             {
-                var profile = new UserProfile(userId, request.FullName, request.Phone, request.BirthDate,
+                var profile = new UserProfile(userId,
                     request.Language, "BRL", request.CarryOverDay, request.FinancialGoal, request.IntelligenceMode);
                 await profileRepository.AddAsync(profile, cancellationToken);
                 await profileRepository.SaveChangesAsync(cancellationToken);
@@ -37,8 +38,7 @@ public sealed class ProfileCommandService(
                 return ProfileDtoFactory.CreateDto(profile, user);
             }
 
-            existing.UpdateProfileData(request.FullName, request.Phone, request.BirthDate,
-                request.Language, existing.Currency, request.CarryOverDay, request.FinancialGoal, request.IntelligenceMode);
+            existing.UpdateProfileData(request.Language, existing.Currency, request.CarryOverDay, request.FinancialGoal, request.IntelligenceMode);
             await profileRepository.SaveChangesAsync(cancellationToken);
             cache.Remove(ProfileQueryService.CacheKey(userId));
             logger.LogInformation("User profile updated {UserId}", userId);

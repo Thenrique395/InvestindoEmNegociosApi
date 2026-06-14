@@ -5,13 +5,10 @@ namespace InvestindoEmNegocio.Application.Services;
 
 internal static class DataPortabilityImportHydrator
 {
-    internal static UserProfile CreateUserProfile(Guid userId, UserProfileData data, string fullName)
+    internal static UserProfile CreateUserProfile(Guid userId, UserProfileData data)
     {
         var profile = new UserProfile(
             userId,
-            fullName,
-            data.Phone ?? string.Empty,
-            data.BirthDate,
             string.IsNullOrWhiteSpace(data.Language) ? "pt-BR" : data.Language,
             string.IsNullOrWhiteSpace(data.Currency) ? "BRL" : data.Currency,
             data.CarryOverDay,
@@ -28,12 +25,9 @@ internal static class DataPortabilityImportHydrator
         return profile;
     }
 
-    internal static void UpdateUserProfile(UserProfile existingProfile, UserProfileData data, string fullName)
+    internal static void UpdateUserProfile(UserProfile existingProfile, UserProfileData data)
     {
         existingProfile.UpdateProfileData(
-            fullName,
-            data.Phone ?? string.Empty,
-            data.BirthDate,
             string.IsNullOrWhiteSpace(data.Language) ? "pt-BR" : data.Language,
             string.IsNullOrWhiteSpace(data.Currency) ? "BRL" : data.Currency,
             data.CarryOverDay,

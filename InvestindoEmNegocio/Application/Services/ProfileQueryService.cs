@@ -17,7 +17,12 @@ public sealed class ProfileQueryService(
             return cached;
 
         var profile = await profileRepository.GetByUserIdAsync(userId, cancellationToken);
-        if (profile is null) return null;
+        if (profile is null)
+        {
+            var fallbackUser = await userRepository.GetByIdAsync(userId, cancellationToken);
+            if (fallbackUser is null) return null;
+            return ProfileDtoFactory.CreateDefaultDto(fallbackUser);
+        }
 
         var user = await userRepository.GetByIdAsync(userId, cancellationToken);
         var mapped = ProfileDtoFactory.CreateDto(profile, user);
