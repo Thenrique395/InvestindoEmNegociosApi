@@ -170,7 +170,20 @@ Alguns valores nao sao configurados no GitHub Environment porque ja estao fixos 
 
 ## Pendencia conhecida
 
-- no servidor atual, os bancos `meu_mentor_db` e `meu_mentor_prd` estao com os papeis de DEV/PRD invertidos em relacao ao nome (`meu_mentor_db` esta servindo PRD e `meu_mentor_prd` esta servindo DEV, ou vice-versa). Corrigir o `DB_CONN`/nome do banco em cada environment para alinhar nome e ambiente real, validando antes e depois com `apply-schema-from-db-conn.sh` e um deploy de smoke test em cada ambiente.
+- no servidor atual, os bancos `meu_mentor_db` e `meu_mentor_prd` estao com os papeis de DEV/PRD invertidos em relacao ao nome (`meu_mentor_db` esta servindo PRD e `meu_mentor_prd` esta servindo DEV, ou vice-versa).
+
+### Checklist sugerido para corrigir
+
+1. Confirmar, em cada ambiente (`development` e `production`), qual banco (`meu_mentor_db` ou `meu_mentor_prd`) esta realmente sendo usado hoje (via `DB_CONN` efetivo do container e/ou consulta direta ao Postgres).
+2. Registrar o estado atual (qual nome de banco esta em qual ambiente) antes de qualquer mudanca, para permitir rollback.
+3. Decidir a estrategia de correcao:
+   - renomear os bancos no Postgres para que o nome reflita o ambiente real (`ALTER DATABASE ... RENAME TO ...`), ou
+   - ajustar `DB_CONN`/`POSTGRES_DB` em cada `GitHub Environment` para apontar para o banco correto, sem renomear.
+4. Fazer backup dos dois bancos antes de qualquer alteracao.
+5. Aplicar a mudanca escolhida primeiro em `development`, validar a aplicacao subindo normalmente e respondendo health check.
+6. Aplicar a mesma mudanca em `production` em janela de baixo uso, com plano de rollback pronto.
+7. Validar `production` com smoke test (login, leitura de dados existentes) antes de considerar concluido.
+8. Atualizar este documento e `../../docs/ROADMAP.md` (secao 2.3) removendo a pendencia apos a correcao confirmada.
 
 ## Checklist de configuracao
 
