@@ -37,11 +37,6 @@ public sealed record SubscriptionChangeResponse(
     AuthResponse Session,
     IReadOnlyList<string> Notes);
 
-public sealed record SubscriptionChangeApiResponse(
-    CurrentSubscriptionResponse Current,
-    AuthSessionResponse Session,
-    IReadOnlyList<string> Notes);
-
 public sealed record SecuritySummaryDto(
     int ActiveSessions,
     int FailedLoginAttempts,

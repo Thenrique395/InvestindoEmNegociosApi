@@ -346,7 +346,6 @@ public class ApiErrorContractIntegrationTests
         builder.Services.AddAuthorization(AppAuthorizationPolicies.Configure);
 
         builder.Services.AddSingleton<IAuthAvailabilityService, FakeAuthAvailabilityService>();
-        builder.Services.AddSingleton<IAuthCookieService, AuthCookieService>();
 
         registerFakes(builder.Services);
 
