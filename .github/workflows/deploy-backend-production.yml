@@ -7,6 +7,10 @@ on:
         description: "Imagem GHCR para publicar em PRD. Vazio usa o SHA selecionado no workflow."
         required: false
         type: string
+      confirm:
+        description: 'Ambiente PRD pausado temporariamente (ver docs/DECISIONS/2026-06-15-pausar-ambiente-prd-focar-dev.md). Digite "DEPLOY" para liberar este deploy.'
+        required: true
+        type: string
 
 concurrency:
   group: backend-production-delivery
@@ -44,6 +48,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: resolve-image
     environment: production
+    # Ambiente PRD pausado temporariamente — ver docs/DECISIONS/2026-06-15-pausar-ambiente-prd-focar-dev.md.
+    # Exige digitar "DEPLOY" no input `confirm` para liberar este job.
+    if: ${{ inputs.confirm == 'DEPLOY' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
