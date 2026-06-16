@@ -373,7 +373,7 @@ public class AccountAnalyticsService(
             "month" => "month",
             "quarter" => "quarter",
             "year" => "year",
-            _ => throw new ArgumentException("Invalid period. Use month, quarter ou year.")
+            _ => throw new ArgumentException("Período inválido. Use month, quarter ou year.")
         };
     }
 
