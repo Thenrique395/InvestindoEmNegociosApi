@@ -3,6 +3,7 @@ using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace InvestindoEmNegocio.Application.Services;
 
@@ -20,8 +21,19 @@ public class AccountAnalyticsService(
     ICashflowProjectionEngine cashflowProjectionEngine,
     IRiskBotService riskBotService,
     IInsightEngineService insightEngineService,
-    IRecommendationEngineService recommendationEngineService) : IAccountAnalyticsService
+    IRecommendationEngineService recommendationEngineService,
+    IMemoryCache cache) : IAccountAnalyticsService
 {
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(5);
+
+    private static string CacheKey(Guid userId, string method, string? period = null, DateOnly? date = null, int? months = null)
+    {
+        var key = $"analytics:{userId}:{method}";
+        if (period is not null) key += $":{period}";
+        if (date is not null) key += $":{date:yyyy-MM-dd}";
+        if (months is not null) key += $":{months}";
+        return key;
+    }
     public async Task<RealAvailableBalanceResponse> GetRealAvailableBalanceAsync(
         Guid userId,
         string period = "month",
@@ -29,6 +41,9 @@ public class AccountAnalyticsService(
         CancellationToken cancellationToken = default)
     {
         var normalizedPeriod = NormalizeAnalyticsPeriod(period);
+        var cacheKey = CacheKey(userId, "real-balance", normalizedPeriod, referenceDate);
+        if (cache.TryGetValue(cacheKey, out RealAvailableBalanceResponse? cached) && cached is not null)
+            return cached;
         var anchorDate = referenceDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
         var (periodStart, periodEnd) = ResolvePeriodRange(anchorDate, normalizedPeriod);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -77,7 +92,7 @@ public class AccountAnalyticsService(
             .Sum(i => i.Amount)
             + openLoanItems.Where(i => i.DueDate >= today && i.DueDate <= dueSoonLimit).Sum(i => i.TotalAmount);
 
-        return new RealAvailableBalanceResponse(
+        var result = new RealAvailableBalanceResponse(
             normalizedPeriod,
             anchorDate,
             periodStart,
@@ -92,6 +107,8 @@ public class AccountAnalyticsService(
             overdueExpensesAmount,
             overdueExpensesCount,
             dueSoonExpensesAmount);
+        cache.Set(cacheKey, result, CacheTtl);
+        return result;
     }
 
     public async Task<DebtSummaryResponse> GetDebtSummaryAsync(
@@ -99,6 +116,10 @@ public class AccountAnalyticsService(
         DateOnly? referenceDate = null,
         CancellationToken cancellationToken = default)
     {
+        var cacheKey = CacheKey(userId, "debts", date: referenceDate);
+        if (cache.TryGetValue(cacheKey, out DebtSummaryResponse? cached) && cached is not null)
+            return cached;
+
         var anchorDate = referenceDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var dueSoonLimit = today.AddDays(7);
@@ -111,7 +132,7 @@ public class AccountAnalyticsService(
             new("overdue", "Em atraso", items.Where(i => i.DueDate < today).Sum(i => i.OpenAmount), items.Count(i => i.DueDate < today))
         };
 
-        return new DebtSummaryResponse(
+        var result = new DebtSummaryResponse(
             anchorDate,
             items.Sum(i => i.OpenAmount),
             items.Where(i => i.Family == "card").Sum(i => i.OpenAmount),
@@ -125,6 +146,8 @@ public class AccountAnalyticsService(
                 .ThenByDescending(i => i.OpenAmount)
                 .Take(6)
                 .ToList());
+        cache.Set(cacheKey, result, CacheTtl);
+        return result;
     }
 
     public async Task<NetWorthSummaryResponse> GetNetWorthSummaryAsync(
@@ -132,6 +155,10 @@ public class AccountAnalyticsService(
         DateOnly? referenceDate = null,
         CancellationToken cancellationToken = default)
     {
+        var cacheKey = CacheKey(userId, "net-worth", date: referenceDate);
+        if (cache.TryGetValue(cacheKey, out NetWorthSummaryResponse? cached) && cached is not null)
+            return cached;
+
         var anchorDate = referenceDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
         var accounts = await accountRepository.ListByUserAsync(userId, cancellationToken);
         decimal accountsBalance = 0m;
@@ -154,7 +181,7 @@ public class AccountAnalyticsService(
         var otherOpenLiabilities = Math.Max(totalLiabilities - cardDebt, 0m);
         var totalAssets = accountsBalance + investmentsBalance + tangibleAssetsBalance;
 
-        return new NetWorthSummaryResponse(
+        var result = new NetWorthSummaryResponse(
             anchorDate,
             new WealthAssetBreakdownResponse(accountsBalance, investmentsBalance, tangibleAssetsBalance, totalAssets),
             new WealthLiabilityBreakdownResponse(cardDebt, otherOpenLiabilities, totalLiabilities),
@@ -162,6 +189,8 @@ public class AccountAnalyticsService(
             activePositions.Count,
             openLiabilities.Count,
             anchorDate.ToString("MM/yyyy"));
+        cache.Set(cacheKey, result, CacheTtl);
+        return result;
     }
 
     public async Task<NetWorthHistoryResponse> GetNetWorthHistoryAsync(
@@ -172,6 +201,10 @@ public class AccountAnalyticsService(
     {
         if (months is < 3 or > 24)
             throw new ArgumentException("Quantidade de meses inválida. Use um valor entre 3 e 24.");
+
+        var cacheKey = CacheKey(userId, "net-worth-history", date: referenceDate, months: months);
+        if (cache.TryGetValue(cacheKey, out NetWorthHistoryResponse? cached) && cached is not null)
+            return cached;
 
         var anchorDate = referenceDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
         var accounts = await accountRepository.ListByUserAsync(userId, cancellationToken);
@@ -269,12 +302,14 @@ public class AccountAnalyticsService(
             notes.Add("Imóveis e veículos entram como ativos patrimoniais manuais, valorizados pelo saldo atual informado no cadastro.");
         }
 
-        return new NetWorthHistoryResponse(
+        var result = new NetWorthHistoryResponse(
             anchorDate,
             months,
             hasEstimatedPoints,
             notes,
             points);
+        cache.Set(cacheKey, result, CacheTtl);
+        return result;
     }
 
     public async Task<CashflowProjectionResponse> GetProjectionAsync(
@@ -282,28 +317,52 @@ public class AccountAnalyticsService(
         string period = "month",
         DateOnly? referenceDate = null,
         CancellationToken cancellationToken = default)
-        => await cashflowProjectionEngine.ProjectAsync(userId, period, referenceDate, cancellationToken);
+    {
+        var key = CacheKey(userId, "projection", period, referenceDate);
+        if (cache.TryGetValue(key, out CashflowProjectionResponse? c1) && c1 is not null) return c1;
+        var result = await cashflowProjectionEngine.ProjectAsync(userId, period, referenceDate, cancellationToken);
+        cache.Set(key, result, CacheTtl);
+        return result;
+    }
 
     public async Task<RiskBotAssessmentResponse> GetRiskAssessmentAsync(
         Guid userId,
         string period = "month",
         DateOnly? referenceDate = null,
         CancellationToken cancellationToken = default)
-        => await riskBotService.AssessAsync(userId, period, referenceDate, cancellationToken);
+    {
+        var key = CacheKey(userId, "risk", period, referenceDate);
+        if (cache.TryGetValue(key, out RiskBotAssessmentResponse? c2) && c2 is not null) return c2;
+        var result = await riskBotService.AssessAsync(userId, period, referenceDate, cancellationToken);
+        cache.Set(key, result, CacheTtl);
+        return result;
+    }
 
     public async Task<InsightEngineResponse> GetInsightsAsync(
         Guid userId,
         string period = "month",
         DateOnly? referenceDate = null,
         CancellationToken cancellationToken = default)
-        => await insightEngineService.BuildAsync(userId, period, referenceDate, cancellationToken);
+    {
+        var key = CacheKey(userId, "insights", period, referenceDate);
+        if (cache.TryGetValue(key, out InsightEngineResponse? c3) && c3 is not null) return c3;
+        var result = await insightEngineService.BuildAsync(userId, period, referenceDate, cancellationToken);
+        cache.Set(key, result, CacheTtl);
+        return result;
+    }
 
     public async Task<RecommendationEngineResponse> GetRecommendationsAsync(
         Guid userId,
         string period = "month",
         DateOnly? referenceDate = null,
         CancellationToken cancellationToken = default)
-        => await recommendationEngineService.BuildAsync(userId, period, referenceDate, cancellationToken);
+    {
+        var key = CacheKey(userId, "recommendations", period, referenceDate);
+        if (cache.TryGetValue(key, out RecommendationEngineResponse? c4) && c4 is not null) return c4;
+        var result = await recommendationEngineService.BuildAsync(userId, period, referenceDate, cancellationToken);
+        cache.Set(key, result, CacheTtl);
+        return result;
+    }
 
     private static string NormalizeAnalyticsPeriod(string? period)
     {

@@ -26,6 +26,35 @@ public class AccountTransactionRepository(InvestDbContext context) : IAccountTra
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<(List<AccountTransaction> Items, int TotalCount)> ListByAccountPagedAsync(
+        Guid accountId,
+        Guid userId,
+        DateTime? fromUtc = null,
+        DateTime? toUtc = null,
+        int page = 1,
+        int pageSize = 50,
+        CancellationToken cancellationToken = default)
+    {
+        pageSize = Math.Clamp(pageSize, 1, 200);
+        page = Math.Max(page, 1);
+
+        var query = context.AccountTransactions.AsNoTracking()
+            .Where(t => t.AccountId == accountId && t.UserId == userId);
+
+        if (fromUtc.HasValue) query = query.Where(t => t.OccurredAt >= fromUtc.Value);
+        if (toUtc.HasValue) query = query.Where(t => t.OccurredAt <= toUtc.Value);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(t => t.OccurredAt)
+            .ThenByDescending(t => t.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
     public async Task<decimal> SumSignedAmountByAccountAsync(Guid accountId, Guid userId, CancellationToken cancellationToken = default)
     {
         var signedAmounts = await context.AccountTransactions

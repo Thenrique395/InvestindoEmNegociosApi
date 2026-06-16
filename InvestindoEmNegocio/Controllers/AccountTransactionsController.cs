@@ -16,9 +16,20 @@ public class AccountTransactionsController(IAccountTransactionQueryService accou
         Guid id,
         [FromQuery] DateTime? fromUtc,
         [FromQuery] DateTime? toUtc,
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize,
         CancellationToken cancellationToken)
     {
         var userId = GetUserId();
+
+        if (page.HasValue || pageSize.HasValue)
+        {
+            var paged = await accountTransactionQueryService.ListTransactionsPagedAsync(
+                userId, id, fromUtc, toUtc, page ?? 1, pageSize ?? 50, cancellationToken);
+            if (paged is null) return NotFound();
+            return Ok(paged);
+        }
+
         var data = await accountTransactionQueryService.ListTransactionsAsync(userId, id, fromUtc, toUtc, cancellationToken);
         if (data is null) return NotFound();
         return Ok(data);
