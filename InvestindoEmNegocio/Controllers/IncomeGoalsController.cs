@@ -31,6 +31,6 @@ public class IncomeGoalsController(IGoalsService goalsService) : AuthenticatedCo
         {
             var goal = await goalsService.UpsertIncomeGoalAsync(userId, request, cancellationToken);
             return Ok(goal);
-        }, "Invalid goal");
+        }, "Meta inválida");
     }
 }

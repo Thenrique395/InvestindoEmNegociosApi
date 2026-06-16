@@ -24,7 +24,7 @@ public class AccountInsightsController(IAccountAnalyticsService accountAnalytics
             var userId = GetUserId();
             var summary = await accountAnalyticsService.GetRiskAssessmentAsync(userId, period ?? "month", referenceDate, cancellationToken);
             return Ok(summary);
-        }, "Invalid period");
+        }, "Período inválido");
     }
 
     [HttpGet("insights")]
@@ -38,7 +38,7 @@ public class AccountInsightsController(IAccountAnalyticsService accountAnalytics
             var userId = GetUserId();
             var summary = await accountAnalyticsService.GetInsightsAsync(userId, period ?? "month", referenceDate, cancellationToken);
             return Ok(summary);
-        }, "Invalid period");
+        }, "Período inválido");
     }
 
     [HttpGet("recommendations")]
@@ -52,6 +52,6 @@ public class AccountInsightsController(IAccountAnalyticsService accountAnalytics
             var userId = GetUserId();
             var summary = await accountAnalyticsService.GetRecommendationsAsync(userId, period ?? "month", referenceDate, cancellationToken);
             return Ok(summary);
-        }, "Invalid period");
+        }, "Período inválido");
     }
 }

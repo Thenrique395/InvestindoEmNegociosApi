@@ -27,7 +27,7 @@ public class LoansController(ILoansService loansService) : AuthenticatedControll
         {
             var userId = GetUserId();
             return Ok(await loansService.SimulateAsync(userId, request, cancellationToken));
-        }, "Invalid loan");
+        }, "Contrato inválido");
     }
 
     [HttpPost]
@@ -37,7 +37,7 @@ public class LoansController(ILoansService loansService) : AuthenticatedControll
         {
             var userId = GetUserId();
             return Ok(await loansService.CreateAsync(userId, request, cancellationToken));
-        }, "Invalid loan");
+        }, "Contrato inválido");
     }
 
 }

@@ -45,7 +45,7 @@ public class AccountImportsController(
             await using var stream = file.OpenReadStream();
             var result = await ofxImportService.ExtractAsync(userId, request.AccountId, stream, cancellationToken);
             return Ok(result);
-        }, "Invalid OFX file", invalidOperationTitle: "Rejected OFX import", invalidOperationStatusCode: StatusCodes.Status422UnprocessableEntity);
+        }, "Arquivo OFX inválido", invalidOperationTitle: "Importação OFX rejeitada", invalidOperationStatusCode: StatusCodes.Status422UnprocessableEntity);
     }
 
     [HttpPost("ofx/import")]
@@ -56,7 +56,7 @@ public class AccountImportsController(
             var userId = GetUserId();
             var result = await ofxImportService.ImportAsync(userId, request, cancellationToken);
             return Ok(result);
-        }, "Invalid OFX import", invalidOperationTitle: "Rejected OFX import", invalidOperationStatusCode: StatusCodes.Status422UnprocessableEntity);
+        }, "Importação OFX inválida", invalidOperationTitle: "Importação OFX rejeitada", invalidOperationStatusCode: StatusCodes.Status422UnprocessableEntity);
     }
 
     [HttpPost("csv/extract")]
@@ -88,7 +88,7 @@ public class AccountImportsController(
             await using var stream = file.OpenReadStream();
             var result = await csvImportService.ExtractAsync(userId, request.AccountId, stream, cancellationToken);
             return Ok(result);
-        }, "Invalid CSV file", invalidOperationTitle: "Rejected CSV import", invalidOperationStatusCode: StatusCodes.Status422UnprocessableEntity);
+        }, "Arquivo CSV inválido", invalidOperationTitle: "Importação CSV rejeitada", invalidOperationStatusCode: StatusCodes.Status422UnprocessableEntity);
     }
 
     [HttpPost("csv/import")]
@@ -99,6 +99,6 @@ public class AccountImportsController(
             var userId = GetUserId();
             var result = await csvImportService.ImportAsync(userId, request, cancellationToken);
             return Ok(result);
-        }, "Invalid CSV import", invalidOperationTitle: "Rejected CSV import", invalidOperationStatusCode: StatusCodes.Status422UnprocessableEntity);
+        }, "Importação CSV inválida", invalidOperationTitle: "Importação CSV rejeitada", invalidOperationStatusCode: StatusCodes.Status422UnprocessableEntity);
     }
 }

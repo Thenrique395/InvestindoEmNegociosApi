@@ -22,6 +22,6 @@ public class AccountTransfersController(IAccountTransferService accountTransferS
             var transfer = await accountTransferService.TransferAsync(userId, request, cancellationToken);
             if (transfer is null) return NotFound();
             return Ok(transfer);
-        }, "Invalid transfer");
+        }, "Transferência inválida");
     }
 }

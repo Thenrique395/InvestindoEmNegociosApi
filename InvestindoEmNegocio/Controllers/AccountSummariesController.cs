@@ -24,7 +24,7 @@ public class AccountSummariesController(IAccountAnalyticsService accountAnalytic
             var userId = GetUserId();
             var summary = await accountAnalyticsService.GetRealAvailableBalanceAsync(userId, period ?? "month", referenceDate, cancellationToken);
             return Ok(summary);
-        }, "Invalid period");
+        }, "Período inválido");
     }
 
     [HttpGet("debts")]
@@ -58,7 +58,7 @@ public class AccountSummariesController(IAccountAnalyticsService accountAnalytic
             var userId = GetUserId();
             var summary = await accountAnalyticsService.GetNetWorthHistoryAsync(userId, months ?? 12, referenceDate, cancellationToken);
             return Ok(summary);
-        }, "Invalid parameter");
+        }, "Parâmetro inválido");
     }
 
     [HttpGet("projection")]
@@ -72,7 +72,7 @@ public class AccountSummariesController(IAccountAnalyticsService accountAnalytic
             var userId = GetUserId();
             var summary = await accountAnalyticsService.GetProjectionAsync(userId, period ?? "month", referenceDate, cancellationToken);
             return Ok(summary);
-        }, "Invalid period");
+        }, "Período inválido");
     }
 
 }

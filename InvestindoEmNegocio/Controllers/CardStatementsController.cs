@@ -25,6 +25,6 @@ public class CardStatementsController(ICardsService cardsService) : Authenticate
             var cycles = await cardsService.ListStatementCyclesAsync(userId, id, year, month, cancellationToken);
             if (cycles is null) return NotFound();
             return Ok(cycles);
-        }, "Invalid statement filter");
+        }, "Filtro de fatura inválido");
     }
 }

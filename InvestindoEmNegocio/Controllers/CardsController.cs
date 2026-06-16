@@ -51,7 +51,7 @@ public class CardsController(ICardsService cardsService, IAuditService auditServ
             var userId = GetUserId();
             var card = await cardsService.CreateAsync(userId, request, cancellationToken);
             return CreatedAtAction(nameof(List), card);
-        }, "Invalid card");
+        }, "Cartão inválido");
     }
 
     [HttpPut("{id:guid}")]
@@ -65,7 +65,7 @@ public class CardsController(ICardsService cardsService, IAuditService auditServ
             var updated = await cardsService.UpdateAsync(userId, id, request, cancellationToken);
             if (updated is null) return NotFound();
             return Ok(updated);
-        }, "Invalid card");
+        }, "Cartão inválido");
     }
 
     [HttpDelete("{id:guid}")]

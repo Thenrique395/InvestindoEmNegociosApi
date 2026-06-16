@@ -62,7 +62,7 @@ public class GoalsController(IGoalsService goalsService, IAuditService auditServ
         {
             var goal = await goalsService.CreateAsync(userId, request, cancellationToken);
             return Ok(goal);
-        }, "Invalid goal");
+        }, "Meta inválida");
     }
 
     [HttpPut("{id:guid}")]
@@ -75,7 +75,7 @@ public class GoalsController(IGoalsService goalsService, IAuditService auditServ
             var goal = await goalsService.UpdateAsync(userId, id, request, cancellationToken);
             if (goal is null) return NotFound();
             return Ok(goal);
-        }, "Invalid goal");
+        }, "Meta inválida");
     }
 
     [HttpDelete("{id:guid}")]

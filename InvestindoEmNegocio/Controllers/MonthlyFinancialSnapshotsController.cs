@@ -27,7 +27,7 @@ public class MonthlyFinancialSnapshotsController(IMonthlyFinancialSnapshotServic
         {
             var userId = GetUserId();
             return Ok(await snapshotService.GenerateAsync(userId, request.Year, request.Month, cancellationToken));
-        }, "Invalid snapshot");
+        }, "Snapshot inválido");
     }
 
 }
