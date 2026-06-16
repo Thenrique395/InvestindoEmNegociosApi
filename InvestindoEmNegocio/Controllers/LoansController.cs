@@ -36,7 +36,7 @@ public class LoansController(ILoansService loansService) : AuthenticatedControll
         return await ExecuteWithProblemMappingAsync(async () =>
         {
             var userId = GetUserId();
-            return Ok(await loansService.CreateAsync(userId, request, cancellationToken));
+            return Created("", await loansService.CreateAsync(userId, request, cancellationToken));
         }, "Contrato inválido");
     }
 

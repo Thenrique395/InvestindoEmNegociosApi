@@ -44,7 +44,7 @@ public class GoalContributionsController(IGoalContributionsService contributions
         {
             var contrib = await contributionsService.CreateAsync(userId, goalId, request, cancellationToken);
             if (contrib is null) return NotFound();
-            return Ok(contrib);
+            return Created("", contrib);
         }, "Contribuição inválida", invalidOperationTitle: "Contribuição inválida", invalidOperationStatusCode: StatusCodes.Status400BadRequest);
     }
 

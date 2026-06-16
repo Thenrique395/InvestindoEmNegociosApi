@@ -61,7 +61,7 @@ public class GoalsController(IGoalsService goalsService, IAuditService auditServ
         return await ExecuteWithProblemMappingAsync(async () =>
         {
             var goal = await goalsService.CreateAsync(userId, request, cancellationToken);
-            return Ok(goal);
+            return Created("", goal);
         }, "Meta inválida");
     }
 

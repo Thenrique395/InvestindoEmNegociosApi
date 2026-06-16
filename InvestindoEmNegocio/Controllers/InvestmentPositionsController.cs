@@ -1,4 +1,5 @@
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Infrastructure.Api;
 using InvestindoEmNegocio.Infrastructure.Auth;
@@ -56,9 +57,12 @@ public class InvestmentPositionsController(
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateInvestmentPositionRequest request, CancellationToken cancellationToken)
     {
-        var userId = GetUserId();
-        var position = await investmentsApplicationService.CreatePositionAsync(userId, request, cancellationToken);
-        return Ok(position);
+        return await ExecuteWithProblemMappingAsync(async () =>
+        {
+            var userId = GetUserId();
+            var position = await investmentsApplicationService.CreatePositionAsync(userId, request, cancellationToken);
+            return Created("", position);
+        }, "Posição inválida");
     }
 
     [HttpPut("{id:guid}")]
@@ -81,8 +85,11 @@ public class InvestmentPositionsController(
     [HttpPost("{id:guid}/movements")]
     public async Task<IActionResult> AddMovement(Guid id, [FromBody] CreateInvestmentMovementRequest request, CancellationToken cancellationToken)
     {
-        var userId = GetUserId();
-        var movement = await investmentsApplicationService.AddMovementAsync(userId, id, request, cancellationToken);
-        return Ok(movement);
+        return await ExecuteWithProblemMappingAsync(async () =>
+        {
+            var userId = GetUserId();
+            var movement = await investmentsApplicationService.AddMovementAsync(userId, id, request, cancellationToken);
+            return Ok(movement);
+        }, "Movimentação inválida");
     }
 }

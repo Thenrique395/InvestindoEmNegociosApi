@@ -1,7 +1,9 @@
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
@@ -83,7 +85,7 @@ public class InvestmentPositionService(
     public async Task<InvestmentMovementDto> AddMovementAsync(Guid userId, Guid positionId, CreateInvestmentMovementRequest request, CancellationToken cancellationToken = default)
     {
         var position = await positionRepository.GetByIdAsync(positionId, userId, cancellationToken)
-                       ?? throw new ArgumentException("Position not found.");
+                       ?? throw new AppProblemException("Posição não encontrada", "A posição de investimento especificada não foi encontrada.", StatusCodes.Status404NotFound);
 
         if (request.Quantity <= 0 || request.Price <= 0)
             throw new ArgumentException("Quantidade e preço devem ser maiores que zero.");

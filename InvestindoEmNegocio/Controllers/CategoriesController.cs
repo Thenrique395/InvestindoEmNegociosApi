@@ -47,7 +47,7 @@ public class CategoriesController(ICategoriesService categoriesService, IAuditSe
         return await ExecuteWithProblemMappingAsync(async () =>
         {
             var created = await categoriesService.CreateAsync(userId, request, cancellationToken);
-            return Ok(created);
+            return Created("", created);
         }, "Categoria inválida", invalidOperationTitle: "Conflito de categoria");
     }
 
