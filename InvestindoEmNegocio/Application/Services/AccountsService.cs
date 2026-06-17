@@ -32,6 +32,16 @@ public class AccountsService(
         CancellationToken cancellationToken = default) =>
         accountTransactionQueryService.ListTransactionsAsync(userId, accountId, fromUtc, toUtc, cancellationToken);
 
+    public Task<PagedResult<AccountTransactionResponse>?> ListTransactionsPagedAsync(
+        Guid userId,
+        Guid accountId,
+        DateTime? fromUtc = null,
+        DateTime? toUtc = null,
+        int page = 1,
+        int pageSize = 50,
+        CancellationToken cancellationToken = default) =>
+        accountTransactionQueryService.ListTransactionsPagedAsync(userId, accountId, fromUtc, toUtc, page, pageSize, cancellationToken);
+
     public Task<AccountTransferResponse?> TransferAsync(Guid userId, AccountTransferRequest request, CancellationToken cancellationToken = default) =>
         accountTransferService.TransferAsync(userId, request, cancellationToken);
 }

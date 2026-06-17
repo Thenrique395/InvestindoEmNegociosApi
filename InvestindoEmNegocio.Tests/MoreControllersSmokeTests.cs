@@ -113,7 +113,7 @@ public class MoreControllersSmokeTests
         (await insightsController.Risk("month", new DateOnly(2026, 3, 9), CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
         (await insightsController.Insights("month", new DateOnly(2026, 3, 9), CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
         (await insightsController.Recommendations("month", new DateOnly(2026, 3, 9), CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
-        (await transactionsController.List(accountId, null, null, CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await transactionsController.List(accountId, null, null, null, null, CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await transfersController.Create(new AccountTransferRequest(Guid.NewGuid(), Guid.NewGuid(), 50), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
     }
 
@@ -130,7 +130,7 @@ public class MoreControllersSmokeTests
         SetAuth(c);
 
         (await c.List(null, new ListQuery(1, 10, null, null), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
-        (await c.Create(new UpsertCategoryRequest("Cat", MoneyType.Expense), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await c.Create(new UpsertCategoryRequest("Cat", MoneyType.Expense), CancellationToken.None)).Should().BeOfType<CreatedResult>();
         (await c.Update(Guid.NewGuid(), new UpsertCategoryRequest("Cat", MoneyType.Expense), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await c.Delete(Guid.NewGuid(), CancellationToken.None)).Should().BeOfType<NoContentResult>();
 
@@ -361,7 +361,7 @@ public class MoreControllersSmokeTests
         var contribController = new GoalContributionsController(contrib.Object);
         SetAuth(contribController);
         (await contribController.List(Guid.NewGuid(), new ListQuery(1, 10, null, null), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
-        (await contribController.Create(Guid.NewGuid(), new GoalContributionRequest(10m, DateOnly.FromDateTime(DateTime.UtcNow), null), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await contribController.Create(Guid.NewGuid(), new GoalContributionRequest(10m, DateOnly.FromDateTime(DateTime.UtcNow), null), CancellationToken.None)).Should().BeOfType<CreatedResult>();
 
         contrib.Setup(x => x.CreateAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<GoalContributionRequest>(), It.IsAny<CancellationToken>())).ThrowsAsync(new ArgumentException("bad"));
         Func<Task> createBad = async () => await contribController.Create(Guid.NewGuid(), new GoalContributionRequest(10m, DateOnly.FromDateTime(DateTime.UtcNow), null), CancellationToken.None);

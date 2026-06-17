@@ -22,6 +22,11 @@ public sealed class UserSubscriptionRepository(InvestDbContext context) : IUserS
             .Where(x => x.Status == UserSubscriptionStatus.Active && !x.AutoRenew && x.RenewsAt <= nowUtc)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<UserSubscription>> ListPastDueExpiredGraceAsync(DateTime graceCutoffUtc, CancellationToken cancellationToken = default)
+        => await context.UserSubscriptions
+            .Where(x => x.Status == UserSubscriptionStatus.PastDue && x.RenewsAt <= graceCutoffUtc)
+            .ToListAsync(cancellationToken);
+
     public Task AddAsync(UserSubscription subscription, CancellationToken cancellationToken = default)
         => context.UserSubscriptions.AddAsync(subscription, cancellationToken).AsTask();
 

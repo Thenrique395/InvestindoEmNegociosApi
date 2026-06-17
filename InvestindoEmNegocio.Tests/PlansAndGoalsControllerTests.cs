@@ -93,7 +93,7 @@ public class PlansAndGoalsControllerTests
         (await incomeController.Upsert(new UpsertIncomeGoalRequest(2026, 100m), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await controller.List(2026, null, new ListQuery(1, 10, "title", "asc"), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await controller.GetById(goalId, CancellationToken.None)).Should().BeOfType<OkObjectResult>();
-        (await controller.Create(request, CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await controller.Create(request, CancellationToken.None)).Should().BeOfType<CreatedResult>();
         (await controller.Update(goalId, request, CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await controller.Delete(goalId, CancellationToken.None)).Should().BeOfType<NoContentResult>();
 

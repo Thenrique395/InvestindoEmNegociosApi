@@ -82,7 +82,7 @@ public class InvestmentControllersTests
         var update = await controller.Update(position.Id, new CreateInvestmentPositionRequest(InvestmentType.ACOES, "PETR4", 15, 21, DateOnly.FromDateTime(DateTime.UtcNow), "B3", "Acoes", null), CancellationToken.None);
         var delete = await controller.Delete(position.Id, CancellationToken.None);
 
-        create.Should().BeOfType<OkObjectResult>();
+        create.Should().BeOfType<CreatedResult>();
         update.Should().BeOfType<OkObjectResult>();
         delete.Should().BeOfType<NoContentResult>();
     }

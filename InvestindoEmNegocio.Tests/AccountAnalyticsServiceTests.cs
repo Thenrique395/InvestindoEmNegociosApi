@@ -5,6 +5,7 @@ using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.Extensions.Caching.Memory;
 using Moq;
 
 namespace InvestindoEmNegocio.Tests;
@@ -300,7 +301,8 @@ public class AccountAnalyticsServiceTests
             projectionEngine?.Object ?? Mock.Of<ICashflowProjectionEngine>(),
             riskBotService?.Object ?? Mock.Of<IRiskBotService>(),
             insightEngineService?.Object ?? Mock.Of<IInsightEngineService>(),
-            recommendationEngineService?.Object ?? Mock.Of<IRecommendationEngineService>());
+            recommendationEngineService?.Object ?? Mock.Of<IRecommendationEngineService>(),
+            new MemoryCache(new MemoryCacheOptions()));
     }
 
     private static MoneyInstallment BuildInstallment(Guid userId, Guid planId, DateOnly dueDate, decimal amount, InstallmentStatus status)

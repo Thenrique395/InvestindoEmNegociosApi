@@ -295,7 +295,7 @@ public class ApiErrorContractIntegrationTests
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         Assert.NotNull(problem);
-        Assert.Equal("Rejected OFX import", problem!.Title);
+        Assert.Equal("Importação OFX rejeitada", problem!.Title);
         Assert.Equal("Importação OFX rejeitada.", problem.Detail);
     }
 
@@ -455,6 +455,9 @@ public class ApiErrorContractIntegrationTests
 
         public Task<IReadOnlyList<AccountTransactionResponse>?> ListTransactionsAsync(Guid userId, Guid accountId, DateTime? fromUtc = null, DateTime? toUtc = null, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<AccountTransactionResponse>?>([]);
+
+        public Task<PagedResult<AccountTransactionResponse>?> ListTransactionsPagedAsync(Guid userId, Guid accountId, DateTime? fromUtc = null, DateTime? toUtc = null, int page = 1, int pageSize = 50, CancellationToken cancellationToken = default) =>
+            Task.FromResult<PagedResult<AccountTransactionResponse>?>(null);
 
         public Task<AccountTransferResponse?> TransferAsync(Guid userId, AccountTransferRequest request, CancellationToken cancellationToken = default) =>
             Task.FromResult<AccountTransferResponse?>(null);

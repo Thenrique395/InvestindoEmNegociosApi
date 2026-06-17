@@ -225,6 +225,7 @@ public class AccountsControllerSqliteIntegrationTests
             builder.Services.AddScoped<IAccountTransactionQueryService, AccountTransactionQueryService>();
             builder.Services.AddScoped<IAccountTransferService, AccountTransferService>();
             builder.Services.AddScoped<IAccountsService, AccountsService>();
+            builder.Services.AddMemoryCache();
             builder.Services.AddScoped<IAccountAnalyticsService, AccountAnalyticsService>();
             builder.Services.AddSingleton<IOfxImportService, NoOpOfxImportService>();
             builder.Services.AddSingleton<ICsvImportService, NoOpCsvImportService>();

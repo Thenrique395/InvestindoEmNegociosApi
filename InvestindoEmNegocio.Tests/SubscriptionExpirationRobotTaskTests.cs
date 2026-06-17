@@ -80,6 +80,69 @@ public class SubscriptionExpirationRobotTaskTests
         result.ZeroItemsReasonCode.Should().Be("NO_SUBSCRIPTIONS_DUE");
     }
 
+    [Fact]
+    public async Task RunAsync_Should_Expire_PastDue_Subscriptions_After_Grace_Period()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var user = new User("PastDue", "pastdue@teste.com", "hash");
+        user.SetRole(UserRole.Advanced);
+
+        // RenewsAt 8 days ago → past 7-day grace period
+        var renewsAt = DateTime.UtcNow.AddDays(-8);
+        var subscription = new UserSubscription(
+            user.Id, "advanced", UserRole.Advanced, SubscriptionBillingCycle.Monthly,
+            59.90m, "BRL", DateTime.UtcNow.AddMonths(-1), renewsAt);
+        subscription.Activate("advanced", UserRole.Advanced, SubscriptionBillingCycle.Monthly, 59.90m, "BRL", DateTime.UtcNow.AddMonths(-1), renewsAt);
+        subscription.MarkPastDue(DateTime.UtcNow.AddDays(-8));
+
+        await dbContext.Users.AddAsync(user);
+        await dbContext.UserSubscriptions.AddAsync(subscription);
+        await dbContext.SaveChangesAsync();
+
+        var result = await new SubscriptionExpirationRobotTask(
+            new UserRepository(dbContext),
+            new UserSubscriptionRepository(dbContext)).RunAsync();
+
+        result.ItemsGenerated.Should().Be(1);
+
+        var updated = await dbContext.UserSubscriptions.SingleAsync(x => x.UserId == user.Id);
+        updated.Status.Should().Be(UserSubscriptionStatus.Expired);
+        (await dbContext.Users.SingleAsync(x => x.Id == user.Id)).Role.Should().Be(UserRole.Basic);
+    }
+
+    [Fact]
+    public async Task RunAsync_Should_NOT_Expire_PastDue_Subscriptions_Within_Grace_Period()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var user = new User("PastDueGrace", "pastduegrace@teste.com", "hash");
+        user.SetRole(UserRole.Advanced);
+
+        // RenewsAt 3 days ago → still within 7-day grace period
+        var renewsAt = DateTime.UtcNow.AddDays(-3);
+        var subscription = new UserSubscription(
+            user.Id, "advanced", UserRole.Advanced, SubscriptionBillingCycle.Monthly,
+            59.90m, "BRL", DateTime.UtcNow.AddMonths(-1), renewsAt);
+        subscription.Activate("advanced", UserRole.Advanced, SubscriptionBillingCycle.Monthly, 59.90m, "BRL", DateTime.UtcNow.AddMonths(-1), renewsAt);
+        subscription.MarkPastDue(DateTime.UtcNow.AddDays(-3));
+
+        await dbContext.Users.AddAsync(user);
+        await dbContext.UserSubscriptions.AddAsync(subscription);
+        await dbContext.SaveChangesAsync();
+
+        var result = await new SubscriptionExpirationRobotTask(
+            new UserRepository(dbContext),
+            new UserSubscriptionRepository(dbContext)).RunAsync();
+
+        result.ItemsGenerated.Should().Be(0);
+        result.ZeroItemsReasonCode.Should().Be("NO_SUBSCRIPTIONS_DUE");
+
+        var updated = await dbContext.UserSubscriptions.SingleAsync(x => x.UserId == user.Id);
+        updated.Status.Should().Be(UserSubscriptionStatus.PastDue);
+        (await dbContext.Users.SingleAsync(x => x.Id == user.Id)).Role.Should().Be(UserRole.Advanced);
+    }
+
     private static InvestDbContext CreateDbContext()
     {
         var connection = new SqliteConnection("DataSource=:memory:");
