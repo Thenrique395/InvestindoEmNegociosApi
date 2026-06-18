@@ -88,8 +88,12 @@ public sealed class BillingSubscriptionSyncService(
                 localSubscription.MarkPastDue(DateTime.UtcNow);
                 if (checkout is not null)
                 {
+                    var isRenewalFailure = checkout.Status == BillingCheckoutStatus.Paid;
                     checkout.MarkFailed("Pagamento pendente ou não aprovado.", status, eventType, DateTime.UtcNow);
-                    await billingNotificationService.NotifyFailedAsync(localSubscription.UserId, checkout, cancellationToken);
+                    var failureMessage = isRenewalFailure
+                        ? "Tivemos um problema ao renovar sua assinatura. Atualize sua forma de pagamento para continuar com todos os recursos premium."
+                        : null;
+                    await billingNotificationService.NotifyFailedAsync(localSubscription.UserId, checkout, cancellationToken, failureMessage);
                 }
                 break;
 
