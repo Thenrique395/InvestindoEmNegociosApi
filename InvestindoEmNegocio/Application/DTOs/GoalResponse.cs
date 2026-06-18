@@ -13,4 +13,5 @@ public record GoalResponse(
     DateTime CreatedAt,
     DateTime UpdatedAt,
     decimal ExpectedMonthly,
-    DateOnly? TargetDate);
+    DateOnly? TargetDate,
+    GoalKind Kind = GoalKind.General);

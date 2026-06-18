@@ -14,12 +14,13 @@ public class Goal
     public DateOnly? TargetDate { get; private set; }
     public string? Description { get; private set; }
     public GoalStatus Status { get; private set; } = GoalStatus.Planned;
+    public GoalKind Kind { get; private set; } = GoalKind.General;
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
 
     private Goal() { }
 
-    public Goal(Guid userId, string title, decimal targetAmount, int year, string? description = null, GoalStatus status = GoalStatus.Planned, decimal currentAmount = 0, decimal expectedMonthly = 0, DateOnly? targetDate = null)
+    public Goal(Guid userId, string title, decimal targetAmount, int year, string? description = null, GoalStatus status = GoalStatus.Planned, decimal currentAmount = 0, decimal expectedMonthly = 0, DateOnly? targetDate = null, GoalKind kind = GoalKind.General)
     {
         UserId = userId;
         Title = title;
@@ -30,9 +31,10 @@ public class Goal
         CurrentAmount = currentAmount;
         ExpectedMonthly = expectedMonthly;
         TargetDate = targetDate;
+        Kind = kind;
     }
 
-    public void Update(string title, decimal targetAmount, int year, string? description, GoalStatus status, decimal currentAmount, decimal expectedMonthly, DateOnly? targetDate)
+    public void Update(string title, decimal targetAmount, int year, string? description, GoalStatus status, decimal currentAmount, decimal expectedMonthly, DateOnly? targetDate, GoalKind kind = GoalKind.General)
     {
         Title = title;
         TargetAmount = targetAmount;
@@ -42,6 +44,7 @@ public class Goal
         CurrentAmount = currentAmount;
         ExpectedMonthly = expectedMonthly;
         TargetDate = targetDate;
+        Kind = kind;
         UpdatedAt = DateTime.UtcNow;
     }
 

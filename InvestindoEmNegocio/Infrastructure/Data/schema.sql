@@ -53,6 +53,7 @@ CREATE TABLE goals (
     "TargetDate" date,
     "Description" character varying(1000),
     "Status" text NOT NULL,
+    "Kind" text NOT NULL DEFAULT 'General',
     "CreatedAt" timestamp with time zone NOT NULL,
     "UpdatedAt" timestamp with time zone NOT NULL,
     CONSTRAINT "PK_goals" PRIMARY KEY ("Id")
@@ -1064,5 +1065,24 @@ BEGIN
         SELECT 1 FROM pg_indexes WHERE tablename = 'cards' AND indexname = 'IX_cards_UserId_BrandId_Last4'
     ) THEN
         CREATE UNIQUE INDEX "IX_cards_UserId_BrandId_Last4" ON cards ("UserId", "BrandId", "Last4");
+    END IF;
+END $$;
+
+-- Add Kind column to goals and backfill from [TIPO:...] tag stored in Description.
+-- After backfill, strips the tag so Description holds only user-entered text.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'goals' AND column_name = 'Kind'
+    ) THEN
+        ALTER TABLE goals ADD COLUMN "Kind" text NOT NULL DEFAULT 'General';
+
+        UPDATE goals SET "Kind" = 'Expense'    WHERE "Description" LIKE '%[TIPO:DESPESA]%';
+        UPDATE goals SET "Kind" = 'Income'     WHERE "Description" LIKE '%[TIPO:RECEITA]%';
+        UPDATE goals SET "Kind" = 'Investment' WHERE "Description" LIKE '%[TIPO:INVESTIMENTO]%';
+
+        UPDATE goals
+        SET "Description" = NULLIF(TRIM(REGEXP_REPLACE("Description", '\[TIPO:[A-Z]+\]\s*', '', 'gi')), '');
     END IF;
 END $$;

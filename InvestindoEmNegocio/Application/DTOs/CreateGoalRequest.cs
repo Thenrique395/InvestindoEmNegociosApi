@@ -10,4 +10,5 @@ public record CreateGoalRequest(
     GoalStatus Status,
     decimal CurrentAmount,
     decimal ExpectedMonthly,
-    DateOnly? TargetDate);
+    DateOnly? TargetDate,
+    GoalKind Kind = GoalKind.General);

@@ -51,7 +51,8 @@ public class GoalsService(IGoalRepository goalRepository, ILogger<GoalsService> 
                 GoalStatus.Planned,
                 0,
                 request.ExpectedMonthly,
-                null);
+                null,
+                GoalKind.Income);
             await goalRepository.AddAsync(goal, cancellationToken);
             await goalRepository.SaveChangesAsync(cancellationToken);
             _logger.LogInformation("Income goal created {UserId} {GoalId}", userId, goal.Id);
@@ -75,7 +76,7 @@ public class GoalsService(IGoalRepository goalRepository, ILogger<GoalsService> 
     public async Task<GoalResponse> CreateAsync(Guid userId, CreateGoalRequest request, CancellationToken cancellationToken = default)
     {
         Validate(request);
-        var goal = new Goal(userId, request.Title.Trim(), request.TargetAmount, request.Year, request.Description, GoalStatus.Planned, request.CurrentAmount, request.ExpectedMonthly, request.TargetDate);
+        var goal = new Goal(userId, request.Title.Trim(), request.TargetAmount, request.Year, request.Description, GoalStatus.Planned, request.CurrentAmount, request.ExpectedMonthly, request.TargetDate, request.Kind);
         await goalRepository.AddAsync(goal, cancellationToken);
         await goalRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Goal created {UserId} {GoalId}", userId, goal.Id);
@@ -88,7 +89,7 @@ public class GoalsService(IGoalRepository goalRepository, ILogger<GoalsService> 
         var goal = await goalRepository.GetByIdAsync(id, userId, cancellationToken);
         if (goal is null) return null;
 
-        goal.Update(request.Title.Trim(), request.TargetAmount, request.Year, request.Description, request.Status, request.CurrentAmount, request.ExpectedMonthly, request.TargetDate);
+        goal.Update(request.Title.Trim(), request.TargetAmount, request.Year, request.Description, request.Status, request.CurrentAmount, request.ExpectedMonthly, request.TargetDate, request.Kind);
         await goalRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Goal updated {UserId} {GoalId}", userId, goal.Id);
         return CreateGoalResponse(goal);
@@ -113,5 +114,5 @@ public class GoalsService(IGoalRepository goalRepository, ILogger<GoalsService> 
     }
 
     private static GoalResponse CreateGoalResponse(Goal g) =>
-        new(g.Id, g.Title, g.TargetAmount, g.CurrentAmount, g.Year, g.Description, g.Status, g.CreatedAt, g.UpdatedAt, g.ExpectedMonthly, g.TargetDate);
+        new(g.Id, g.Title, g.TargetAmount, g.CurrentAmount, g.Year, g.Description, g.Status, g.CreatedAt, g.UpdatedAt, g.ExpectedMonthly, g.TargetDate, g.Kind);
 }

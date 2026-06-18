@@ -39,6 +39,11 @@ public class GoalConfiguration : IEntityTypeConfiguration<Goal>
             .HasConversion<string>()
             .IsRequired();
 
+        builder.Property(g => g.Kind)
+            .HasConversion<string>()
+            .IsRequired()
+            .HasDefaultValue(InvestindoEmNegocio.Domain.Enums.GoalKind.General);
+
         builder.Property(g => g.CreatedAt).IsRequired();
         builder.Property(g => g.UpdatedAt).IsRequired();
 
