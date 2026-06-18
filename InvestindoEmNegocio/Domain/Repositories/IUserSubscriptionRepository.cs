@@ -9,6 +9,7 @@ public interface IUserSubscriptionRepository
     Task<UserSubscription?> GetByExternalCustomerIdAsync(string externalCustomerId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<UserSubscription>> ListDueForExpirationAsync(DateTime nowUtc, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<UserSubscription>> ListPastDueExpiredGraceAsync(DateTime graceCutoffUtc, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<UserSubscription>> ListPastDueApproachingGraceEndAsync(DateTime fromRenewsAtUtc, DateTime toRenewsAtUtc, CancellationToken cancellationToken = default);
     Task AddAsync(UserSubscription subscription, CancellationToken cancellationToken = default);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

@@ -7,7 +7,8 @@ namespace InvestindoEmNegocio.Application.Services;
 
 public sealed class SubscriptionExpirationRobotTask(
     IUserRepository userRepository,
-    IUserSubscriptionRepository userSubscriptionRepository) : IRobotTask
+    IUserSubscriptionRepository userSubscriptionRepository,
+    IBillingNotificationService billingNotificationService) : IRobotTask
 {
     public string Name => "RoboExpiracaoAssinaturas";
 
@@ -22,10 +23,26 @@ public sealed class SubscriptionExpirationRobotTask(
         var graceCutoff = now.AddDays(-GracePeriodDays);
         var pastDueExpired = await userSubscriptionRepository.ListPastDueExpiredGraceAsync(graceCutoff, cancellationToken);
 
-        if (dueSubscriptions.Count == 0 && pastDueExpired.Count == 0)
+        // Subscriptions in last 24h of grace period (RenewsAt between now-7d and now-6d) → reminder
+        var reminderFrom = now.AddDays(-GracePeriodDays);
+        var reminderTo = now.AddDays(-(GracePeriodDays - 1));
+        var approachingExpiry = await userSubscriptionRepository.ListPastDueApproachingGraceEndAsync(reminderFrom, reminderTo, cancellationToken);
+
+        if (dueSubscriptions.Count == 0 && pastDueExpired.Count == 0 && approachingExpiry.Count == 0)
             return new RobotTaskExecutionResult(0, ZeroItemsReasonCode: "NO_SUBSCRIPTIONS_DUE");
 
         var processed = 0;
+
+        foreach (var subscription in approachingExpiry)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var user = await userRepository.GetByIdAsync(subscription.UserId, cancellationToken);
+            if (user is null || user.Role == UserRole.Admin)
+                continue;
+
+            var graceEndsAt = subscription.RenewsAt.AddDays(GracePeriodDays);
+            await billingNotificationService.NotifyGracePeriodReminderAsync(subscription.UserId, subscription.PlanCode, graceEndsAt, cancellationToken);
+        }
 
         foreach (var subscription in dueSubscriptions)
         {
@@ -48,6 +65,7 @@ public sealed class SubscriptionExpirationRobotTask(
 
             subscription.MarkExpired(now);
             user.SetRole(UserRole.Basic);
+            await billingNotificationService.NotifyDowngradedAsync(subscription.UserId, subscription.PlanCode, cancellationToken);
             processed++;
         }
 

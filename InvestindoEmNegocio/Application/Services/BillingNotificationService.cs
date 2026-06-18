@@ -49,6 +49,71 @@ public sealed class BillingNotificationService(
         await billingCheckoutRepository.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task NotifyRenewalApprovedAsync(Guid userId, BillingCheckout checkout, CancellationToken cancellationToken = default)
+    {
+        var user = await GetUserOrThrowAsync(userId, cancellationToken);
+        var referenceKey = $"billing:{checkout.Id}:{NotificationKind.BillingRenewalApproved}:{DateTime.UtcNow:yyyyMM}";
+        if (await notificationRepository.ExistsAsync(userId, referenceKey, cancellationToken))
+            return;
+
+        var msg = $"Sua assinatura do plano {checkout.PlanCode} foi renovada com sucesso.";
+        await notificationRepository.AddRangeAsync(
+            [new UserNotification(userId, NotificationKind.BillingRenewalApproved, "Assinatura renovada", msg, referenceKey,
+                payloadJson: $$"""{"checkoutId":"{{checkout.Id}}","planCode":"{{checkout.PlanCode}}"}""")],
+            cancellationToken);
+        await notificationRepository.SaveChangesAsync(cancellationToken);
+        await TrySendEmailAsync(user.Email, "Assinatura renovada", BuildEmailHtml("Assinatura renovada", msg), cancellationToken);
+    }
+
+    public async Task NotifyReactivatedAsync(Guid userId, BillingCheckout checkout, CancellationToken cancellationToken = default)
+    {
+        var user = await GetUserOrThrowAsync(userId, cancellationToken);
+        var referenceKey = $"billing:{checkout.Id}:{NotificationKind.BillingReactivated}";
+        if (await notificationRepository.ExistsAsync(userId, referenceKey, cancellationToken))
+            return;
+
+        const string msg = "Tudo certo novamente. Seu pagamento foi confirmado e seu plano premium já está ativo.";
+        await notificationRepository.AddRangeAsync(
+            [new UserNotification(userId, NotificationKind.BillingReactivated, "Plano reativado", msg, referenceKey,
+                payloadJson: $$"""{"checkoutId":"{{checkout.Id}}","planCode":"{{checkout.PlanCode}}"}""")],
+            cancellationToken);
+        await notificationRepository.SaveChangesAsync(cancellationToken);
+        await TrySendEmailAsync(user.Email, "Plano premium reativado", BuildEmailHtml("Plano reativado", msg), cancellationToken);
+    }
+
+    public async Task NotifyGracePeriodReminderAsync(Guid userId, string planCode, DateTime gracePeriodEndsAtUtc, CancellationToken cancellationToken = default)
+    {
+        var user = await GetUserOrThrowAsync(userId, cancellationToken);
+        var referenceKey = $"billing:{userId}:{NotificationKind.BillingGracePeriodReminder}:{gracePeriodEndsAtUtc:yyyyMMdd}";
+        if (await notificationRepository.ExistsAsync(userId, referenceKey, cancellationToken))
+            return;
+
+        var endsLabel = gracePeriodEndsAtUtc.ToString("dd/MM/yyyy");
+        var msg = $"Seu acesso premium está quase sendo interrompido. Regularize o pagamento até {endsLabel} para continuar usando seu plano sem perder o ritmo.";
+        await notificationRepository.AddRangeAsync(
+            [new UserNotification(userId, NotificationKind.BillingGracePeriodReminder, "Acesso premium em risco", msg, referenceKey,
+                payloadJson: $$"""{"planCode":"{{planCode}}","gracePeriodEndsAt":"{{gracePeriodEndsAtUtc:O}}"}""")],
+            cancellationToken);
+        await notificationRepository.SaveChangesAsync(cancellationToken);
+        await TrySendEmailAsync(user.Email, "Seu acesso premium está em risco", BuildEmailHtml("Acesso premium em risco", msg), cancellationToken);
+    }
+
+    public async Task NotifyDowngradedAsync(Guid userId, string planCode, CancellationToken cancellationToken = default)
+    {
+        var user = await GetUserOrThrowAsync(userId, cancellationToken);
+        var referenceKey = $"billing:{userId}:{NotificationKind.BillingDowngraded}:{DateTime.UtcNow:yyyyMMdd}";
+        if (await notificationRepository.ExistsAsync(userId, referenceKey, cancellationToken))
+            return;
+
+        const string msg = "Como não conseguimos confirmar o pagamento, seu acesso voltou para o plano Essencial. Você pode reativar seu plano premium a qualquer momento.";
+        await notificationRepository.AddRangeAsync(
+            [new UserNotification(userId, NotificationKind.BillingDowngraded, "Plano atualizado para Essencial", msg, referenceKey,
+                payloadJson: $$"""{"planCode":"{{planCode}}"}""")],
+            cancellationToken);
+        await notificationRepository.SaveChangesAsync(cancellationToken);
+        await TrySendEmailAsync(user.Email, "Acesso premium encerrado", BuildEmailHtml("Plano atualizado para Essencial", msg), cancellationToken);
+    }
+
     private async Task<User> GetUserOrThrowAsync(Guid userId, CancellationToken cancellationToken)
         => await userRepository.GetByIdAsync(userId, cancellationToken)
            ?? throw new Application.Exceptions.AppProblemException("Usuário não encontrado", "Usuário não encontrado.", StatusCodes.Status404NotFound);

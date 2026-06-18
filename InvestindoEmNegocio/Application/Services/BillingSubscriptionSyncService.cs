@@ -58,6 +58,7 @@ public sealed class BillingSubscriptionSyncService(
         {
             case "active":
             case "trialing":
+                var previousStatus = localSubscription.Status;
                 localSubscription.Activate(
                     checkout?.PlanCode ?? localSubscription.PlanCode,
                     checkout?.RoleRequested ?? localSubscription.RoleGranted,
@@ -73,7 +74,12 @@ public sealed class BillingSubscriptionSyncService(
                 if (checkout is not null)
                 {
                     checkout.MarkPaid(status, eventType, DateTime.UtcNow);
-                    await billingNotificationService.NotifyApprovedAsync(localSubscription.UserId, checkout, cancellationToken);
+                    if (previousStatus == UserSubscriptionStatus.PastDue)
+                        await billingNotificationService.NotifyReactivatedAsync(localSubscription.UserId, checkout, cancellationToken);
+                    else if (previousStatus == UserSubscriptionStatus.Active)
+                        await billingNotificationService.NotifyRenewalApprovedAsync(localSubscription.UserId, checkout, cancellationToken);
+                    else
+                        await billingNotificationService.NotifyApprovedAsync(localSubscription.UserId, checkout, cancellationToken);
                 }
                 break;
 

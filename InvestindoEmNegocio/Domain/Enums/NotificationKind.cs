@@ -17,5 +17,9 @@ public enum NotificationKind
     CashflowInsight = 12,
     BillingPending = 13,
     BillingApproved = 14,
-    BillingFailed = 15
+    BillingFailed = 15,
+    BillingRenewalApproved = 16,
+    BillingGracePeriodReminder = 17,
+    BillingDowngraded = 18,
+    BillingReactivated = 19
 }

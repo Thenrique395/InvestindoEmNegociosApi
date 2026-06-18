@@ -1,6 +1,8 @@
 using FluentAssertions;
+using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Entities;
+using Moq;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Infrastructure.Data;
 using InvestindoEmNegocio.Infrastructure.Repositories;
@@ -52,7 +54,8 @@ public class SubscriptionExpirationRobotTaskTests
 
         var sut = new SubscriptionExpirationRobotTask(
             new UserRepository(dbContext),
-            new UserSubscriptionRepository(dbContext));
+            new UserSubscriptionRepository(dbContext),
+            Mock.Of<IBillingNotificationService>());
 
         var result = await sut.RunAsync();
 
