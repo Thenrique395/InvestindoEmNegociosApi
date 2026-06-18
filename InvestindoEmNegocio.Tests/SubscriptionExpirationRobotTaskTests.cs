@@ -77,7 +77,8 @@ public class SubscriptionExpirationRobotTaskTests
 
         var result = await new SubscriptionExpirationRobotTask(
             new UserRepository(dbContext),
-            new UserSubscriptionRepository(dbContext)).RunAsync();
+            new UserSubscriptionRepository(dbContext),
+            Mock.Of<IBillingNotificationService>()).RunAsync();
 
         result.ItemsGenerated.Should().Be(0);
         result.ZeroItemsReasonCode.Should().Be("NO_SUBSCRIPTIONS_DUE");
@@ -105,7 +106,8 @@ public class SubscriptionExpirationRobotTaskTests
 
         var result = await new SubscriptionExpirationRobotTask(
             new UserRepository(dbContext),
-            new UserSubscriptionRepository(dbContext)).RunAsync();
+            new UserSubscriptionRepository(dbContext),
+            Mock.Of<IBillingNotificationService>()).RunAsync();
 
         result.ItemsGenerated.Should().Be(1);
 
@@ -136,7 +138,8 @@ public class SubscriptionExpirationRobotTaskTests
 
         var result = await new SubscriptionExpirationRobotTask(
             new UserRepository(dbContext),
-            new UserSubscriptionRepository(dbContext)).RunAsync();
+            new UserSubscriptionRepository(dbContext),
+            Mock.Of<IBillingNotificationService>()).RunAsync();
 
         result.ItemsGenerated.Should().Be(0);
         result.ZeroItemsReasonCode.Should().Be("NO_SUBSCRIPTIONS_DUE");

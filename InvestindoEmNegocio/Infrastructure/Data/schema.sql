@@ -391,7 +391,7 @@ CREATE UNIQUE INDEX "IX_card_brands_Code" ON card_brands ("Code");
 
 CREATE INDEX "IX_cards_BrandId" ON cards ("BrandId");
 
-CREATE UNIQUE INDEX "IX_cards_UserId_Nickname" ON cards ("UserId", "Nickname");
+CREATE UNIQUE INDEX "IX_cards_UserId_BrandId_Last4" ON cards ("UserId", "BrandId", "Last4");
 
 CREATE UNIQUE INDEX "IX_accounts_UserId_Name" ON accounts ("UserId", "Name");
 
@@ -1048,4 +1048,21 @@ BEGIN
         ALTER TABLE investment_positions ADD CONSTRAINT "FK_investment_positions_institutions_InstitutionId" FOREIGN KEY ("InstitutionId") REFERENCES institutions ("Id") ON DELETE SET NULL;
     EXCEPTION WHEN duplicate_object THEN NULL; WHEN OTHERS THEN RAISE NOTICE 'Skipping FK_investment_positions_institutions_InstitutionId: %', SQLERRM;
     END;
+END $$;
+
+-- Replace unique constraint on cards: (UserId, Nickname) → (UserId, BrandId, Last4)
+-- Allows the same user to have multiple cards of the same brand (e.g. two Visas).
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_indexes WHERE tablename = 'cards' AND indexname = 'IX_cards_UserId_Nickname'
+    ) THEN
+        DROP INDEX "IX_cards_UserId_Nickname";
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes WHERE tablename = 'cards' AND indexname = 'IX_cards_UserId_BrandId_Last4'
+    ) THEN
+        CREATE UNIQUE INDEX "IX_cards_UserId_BrandId_Last4" ON cards ("UserId", "BrandId", "Last4");
+    END IF;
 END $$;

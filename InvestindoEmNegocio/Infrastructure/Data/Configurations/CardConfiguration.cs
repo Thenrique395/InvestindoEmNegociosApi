@@ -41,6 +41,6 @@ public class CardConfiguration : IEntityTypeConfiguration<Card>
             .HasForeignKey(c => c.BrandId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasIndex(c => new { c.UserId, c.Nickname }).IsUnique();
+        builder.HasIndex(c => new { c.UserId, c.BrandId, c.Last4 }).IsUnique();
     }
 }
