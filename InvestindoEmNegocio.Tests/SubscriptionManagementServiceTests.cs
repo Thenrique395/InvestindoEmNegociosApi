@@ -1,6 +1,7 @@
 using FluentAssertions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Application.Services;
+using InvestindoEmNegocio.Domain.Repositories;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Infrastructure.Data;
@@ -32,6 +33,7 @@ public class SubscriptionManagementServiceTests
         var sut = new SubscriptionManagementService(
             new UserRepository(dbContext),
             new UserSubscriptionRepository(dbContext),
+            Mock.Of<IBillingCheckoutRepository>(),
             userSessionService,
             Mock.Of<IStripeBillingGateway>(),
             Options.Create(new StripeOptions()));
@@ -73,6 +75,7 @@ public class SubscriptionManagementServiceTests
         var sut = new SubscriptionManagementService(
             new UserRepository(dbContext),
             new UserSubscriptionRepository(dbContext),
+            Mock.Of<IBillingCheckoutRepository>(),
             userSessionService,
             Mock.Of<IStripeBillingGateway>(),
             Options.Create(new StripeOptions()));

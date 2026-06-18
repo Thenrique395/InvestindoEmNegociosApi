@@ -44,6 +44,7 @@ internal static class SubscriptionResponseFactory
             subscription.AutoRenew,
             subscription.StartedAt,
             subscription.RenewsAt,
-            subscription.CancelledAt);
+            subscription.CancelledAt,
+            subscription.IsTrial);
     }
 }

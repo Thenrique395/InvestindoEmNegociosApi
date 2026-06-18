@@ -43,4 +43,11 @@ public class AdminUsersController(IAdminUsersService adminUsersService) : Authen
         return NoContent();
     }
 
+    [HttpPost("{id:guid}/trial")]
+    public async Task<IActionResult> GrantTrial(Guid id, [FromBody] GrantTrialRequest request, CancellationToken cancellationToken)
+    {
+        var response = await adminUsersService.GrantTrialAsync(id, request, cancellationToken);
+        return Ok(response);
+    }
+
 }

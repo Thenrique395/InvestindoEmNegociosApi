@@ -12,6 +12,7 @@ namespace InvestindoEmNegocio.Application.Services;
 public sealed class SubscriptionManagementService(
     IUserRepository userRepository,
     IUserSubscriptionRepository userSubscriptionRepository,
+    IBillingCheckoutRepository billingCheckoutRepository,
     IUserSessionService userSessionService,
     IStripeBillingGateway stripeBillingGateway,
     IOptions<StripeOptions> stripeOptions) : ISubscriptionManagementService
@@ -92,6 +93,72 @@ public sealed class SubscriptionManagementService(
 
         await userSubscriptionRepository.SaveChangesAsync(cancellationToken);
         var session = await userSessionService.ReissueAsync(user, DateTime.UtcNow, cancellationToken);
+        return new SubscriptionChangeResponse(SubscriptionResponseFactory.BuildCurrent(user, subscription), session, SubscriptionResponseFactory.Notes);
+    }
+
+    public async Task<SubscriptionChangeResponse> RequestRefundAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await GetUserOrThrowAsync(userId, cancellationToken);
+        if (user.Role == UserRole.Admin)
+            throw new AppProblemException("Ação indisponível", "Usuários Admin não podem solicitar reembolso.", StatusCodes.Status400BadRequest);
+
+        var subscription = await userSubscriptionRepository.GetByUserIdAsync(userId, cancellationToken);
+        if (subscription is null || subscription.PlanCode == "basic" || subscription.Status == UserSubscriptionStatus.Refunded)
+            throw new AppProblemException("Sem assinatura paga", "Não há assinatura ativa elegível para reembolso.", StatusCodes.Status400BadRequest);
+
+        var now = DateTime.UtcNow;
+        var graceDays = 7;
+        if ((now - subscription.StartedAt).TotalDays > graceDays)
+            throw new AppProblemException("Prazo expirado", $"O direito de arrependimento é válido por {graceDays} dias após a contratação.", StatusCodes.Status400BadRequest);
+
+        if (!string.IsNullOrWhiteSpace(subscription.ExternalSubscriptionId) && !string.IsNullOrWhiteSpace(_stripeOptions.SecretKey))
+        {
+            await stripeBillingGateway.CancelImmediatelyAsync(subscription.ExternalSubscriptionId, cancellationToken);
+
+            var checkout = await billingCheckoutRepository.GetByProviderSubscriptionIdAsync(subscription.ExternalSubscriptionId, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(checkout?.ProviderPaymentIntentId))
+                await stripeBillingGateway.RefundPaymentIntentAsync(checkout.ProviderPaymentIntentId, cancellationToken);
+        }
+
+        subscription.MarkRefunded(now);
+        user.SetRole(UserRole.Basic);
+        await userRepository.SaveChangesAsync(cancellationToken);
+        await userSubscriptionRepository.SaveChangesAsync(cancellationToken);
+
+        var session = await userSessionService.ReissueAsync(user, now, cancellationToken);
+        return new SubscriptionChangeResponse(SubscriptionResponseFactory.BuildCurrent(user, subscription), session, SubscriptionResponseFactory.Notes);
+    }
+
+    public async Task<SubscriptionChangeResponse> RequestTrialAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await GetUserOrThrowAsync(userId, cancellationToken);
+        if (user.Role == UserRole.Admin)
+            throw new AppProblemException("Ação indisponível", "Usuários Admin não precisam de período de teste.", StatusCodes.Status400BadRequest);
+
+        if (user.TrialUsedAt.HasValue)
+            throw new AppProblemException("Trial já utilizado", "Sua conta já utilizou o período de teste gratuito.", StatusCodes.Status400BadRequest);
+
+        var subscription = await userSubscriptionRepository.GetByUserIdAsync(userId, cancellationToken);
+        if (subscription is not null && subscription.Status == UserSubscriptionStatus.Active && !subscription.IsTrial)
+            throw new AppProblemException("Assinatura ativa", "Você já possui uma assinatura ativa. O período de teste é para contas sem plano.", StatusCodes.Status400BadRequest);
+
+        var now = DateTime.UtcNow;
+        var trialPlan = SubscriptionPlanCatalog.GetByCodeOrThrow("advanced");
+        var trialDays = 7;
+
+        if (subscription is null)
+        {
+            subscription = new UserSubscription(userId, trialPlan.Code, trialPlan.Role, SubscriptionBillingCycle.Monthly, 0m, "BRL", now, now.AddDays(trialDays));
+            await userSubscriptionRepository.AddAsync(subscription, cancellationToken);
+        }
+
+        subscription.ActivateTrial(trialPlan.Code, trialPlan.Role, now, now.AddDays(trialDays));
+        user.SetRole(trialPlan.Role);
+        user.MarkTrialUsed(now);
+        await userRepository.SaveChangesAsync(cancellationToken);
+        await userSubscriptionRepository.SaveChangesAsync(cancellationToken);
+
+        var session = await userSessionService.ReissueAsync(user, now, cancellationToken);
         return new SubscriptionChangeResponse(SubscriptionResponseFactory.BuildCurrent(user, subscription), session, SubscriptionResponseFactory.Notes);
     }
 

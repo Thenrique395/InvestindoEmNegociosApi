@@ -23,7 +23,10 @@ public sealed record CurrentSubscriptionResponse(
     bool AutoRenew,
     DateTime StartedAt,
     DateTime? RenewsAt,
-    DateTime? CancelledAt);
+    DateTime? CancelledAt,
+    bool IsTrial = false);
+
+public sealed record GrantTrialRequest(string PlanCode, int Days);
 
 public sealed record SubscriptionCatalogResponse(
     CurrentSubscriptionResponse Current,

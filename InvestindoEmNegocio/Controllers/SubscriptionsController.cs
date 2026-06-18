@@ -35,4 +35,18 @@ public class SubscriptionsController(
         return Ok(response);
     }
 
+    [HttpPost("refund")]
+    public async Task<IActionResult> Refund(CancellationToken cancellationToken = default)
+    {
+        var response = await subscriptionManagementService.RequestRefundAsync(GetUserId(), cancellationToken);
+        return Ok(response);
+    }
+
+    [HttpPost("request-trial")]
+    public async Task<IActionResult> RequestTrial(CancellationToken cancellationToken = default)
+    {
+        var response = await subscriptionManagementService.RequestTrialAsync(GetUserId(), cancellationToken);
+        return Ok(response);
+    }
+
 }

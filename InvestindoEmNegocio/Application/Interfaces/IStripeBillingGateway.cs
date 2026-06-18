@@ -19,4 +19,6 @@ public interface IStripeBillingGateway
     Event ConstructWebhookEvent(string payload, string signatureHeader);
     Task<Subscription> GetSubscriptionAsync(string subscriptionId, CancellationToken cancellationToken = default);
     Task ScheduleCancellationAsync(string subscriptionId, CancellationToken cancellationToken = default);
+    Task CancelImmediatelyAsync(string subscriptionId, CancellationToken cancellationToken = default);
+    Task RefundPaymentIntentAsync(string paymentIntentId, CancellationToken cancellationToken = default);
 }

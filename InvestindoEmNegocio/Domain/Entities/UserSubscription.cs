@@ -18,6 +18,7 @@ public class UserSubscription
     public string? ExternalPriceId { get; private set; }
     public DateTime StartedAt { get; private set; } = DateTime.UtcNow;
     public DateTime RenewsAt { get; private set; }
+    public bool IsTrial { get; private set; }
     public DateTime? CancelledAt { get; private set; }
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
 
@@ -133,6 +134,23 @@ public class UserSubscription
     {
         Status = UserSubscriptionStatus.Refunded;
         AutoRenew = false;
+        UpdatedAt = nowUtc;
+    }
+
+    public void ActivateTrial(string planCode, UserRole roleGranted, DateTime nowUtc, DateTime endsAtUtc)
+    {
+        PlanCode = planCode;
+        RoleGranted = roleGranted;
+        Status = UserSubscriptionStatus.Active;
+        AutoRenew = false;
+        IsTrial = true;
+        PriceAmount = 0m;
+        StartedAt = nowUtc;
+        RenewsAt = endsAtUtc;
+        ExternalCustomerId = null;
+        ExternalSubscriptionId = null;
+        ExternalPriceId = null;
+        CancelledAt = null;
         UpdatedAt = nowUtc;
     }
 }

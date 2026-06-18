@@ -24,4 +24,5 @@ public interface IAdminUsersService
         string? userAgent,
         CancellationToken cancellationToken);
     Task DeleteAsync(Guid id, Guid currentUserId, CancellationToken cancellationToken);
+    Task<SubscriptionChangeResponse> GrantTrialAsync(Guid id, GrantTrialRequest request, CancellationToken cancellationToken);
 }

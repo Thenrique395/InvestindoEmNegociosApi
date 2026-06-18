@@ -75,6 +75,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasDefaultValue(0);
 
         builder.Property(u => u.LockoutUntil);
+        builder.Property(u => u.TrialUsedAt);
 
         builder.HasIndex(u => u.Email)
             .IsUnique();

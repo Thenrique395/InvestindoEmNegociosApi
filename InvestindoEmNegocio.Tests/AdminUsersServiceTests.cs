@@ -15,7 +15,7 @@ public class AdminUsersServiceTests
     [Fact]
     public async Task UpdateRoleAsync_Should_Throw_When_Role_Is_Invalid()
     {
-        var sut = new AdminUsersService(Mock.Of<IUserRepository>(), Mock.Of<IUserFeatureOverrideRepository>(), Mock.Of<IAuditService>());
+        var sut = new AdminUsersService(Mock.Of<IUserRepository>(), Mock.Of<IUserSubscriptionRepository>(), Mock.Of<IUserFeatureOverrideRepository>(), Mock.Of<IUserSessionService>(), Mock.Of<IAuditService>());
 
         Func<Task> act = async () => await sut.UpdateRoleAsync(Guid.NewGuid(), "invalid", CancellationToken.None);
 
@@ -27,7 +27,7 @@ public class AdminUsersServiceTests
     public async Task UpdateStatusAsync_Should_Throw_When_User_Tries_To_Block_Himself()
     {
         var userId = Guid.NewGuid();
-        var sut = new AdminUsersService(Mock.Of<IUserRepository>(), Mock.Of<IUserFeatureOverrideRepository>(), Mock.Of<IAuditService>());
+        var sut = new AdminUsersService(Mock.Of<IUserRepository>(), Mock.Of<IUserSubscriptionRepository>(), Mock.Of<IUserFeatureOverrideRepository>(), Mock.Of<IUserSessionService>(), Mock.Of<IAuditService>());
 
         Func<Task> act = async () => await sut.UpdateStatusAsync(userId, false, userId, CancellationToken.None);
 
@@ -45,7 +45,7 @@ public class AdminUsersServiceTests
             .Setup(x => x.GetByIdAsync(targetUser.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(targetUser);
 
-        var sut = new AdminUsersService(repository.Object, Mock.Of<IUserFeatureOverrideRepository>(), Mock.Of<IAuditService>());
+        var sut = new AdminUsersService(repository.Object, Mock.Of<IUserSubscriptionRepository>(), Mock.Of<IUserFeatureOverrideRepository>(), Mock.Of<IUserSessionService>(), Mock.Of<IAuditService>());
 
         await sut.DeleteAsync(targetUser.Id, currentUserId, CancellationToken.None);
 
@@ -60,7 +60,7 @@ public class AdminUsersServiceTests
         repository
             .Setup(x => x.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((User?)null);
-        var sut = new AdminUsersService(repository.Object, Mock.Of<IUserFeatureOverrideRepository>(), Mock.Of<IAuditService>());
+        var sut = new AdminUsersService(repository.Object, Mock.Of<IUserSubscriptionRepository>(), Mock.Of<IUserFeatureOverrideRepository>(), Mock.Of<IUserSessionService>(), Mock.Of<IAuditService>());
 
         Func<Task> act = async () => await sut.UpdateRoleAsync(Guid.NewGuid(), "Admin", CancellationToken.None);
 
@@ -75,7 +75,7 @@ public class AdminUsersServiceTests
         repository
             .Setup(x => x.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((User?)null);
-        var sut = new AdminUsersService(repository.Object, Mock.Of<IUserFeatureOverrideRepository>(), Mock.Of<IAuditService>());
+        var sut = new AdminUsersService(repository.Object, Mock.Of<IUserSubscriptionRepository>(), Mock.Of<IUserFeatureOverrideRepository>(), Mock.Of<IUserSessionService>(), Mock.Of<IAuditService>());
 
         Func<Task> act = async () => await sut.UpdateStatusAsync(Guid.NewGuid(), true, Guid.NewGuid(), CancellationToken.None);
 
@@ -87,7 +87,7 @@ public class AdminUsersServiceTests
     public async Task DeleteAsync_Should_Throw_When_Current_User_Tries_To_Delete_Himself()
     {
         var userId = Guid.NewGuid();
-        var sut = new AdminUsersService(Mock.Of<IUserRepository>(), Mock.Of<IUserFeatureOverrideRepository>(), Mock.Of<IAuditService>());
+        var sut = new AdminUsersService(Mock.Of<IUserRepository>(), Mock.Of<IUserSubscriptionRepository>(), Mock.Of<IUserFeatureOverrideRepository>(), Mock.Of<IUserSessionService>(), Mock.Of<IAuditService>());
 
         Func<Task> act = async () => await sut.DeleteAsync(userId, userId, CancellationToken.None);
 
@@ -103,7 +103,7 @@ public class AdminUsersServiceTests
         repository
             .Setup(x => x.ListAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync([user]);
-        var sut = new AdminUsersService(repository.Object, Mock.Of<IUserFeatureOverrideRepository>(), Mock.Of<IAuditService>());
+        var sut = new AdminUsersService(repository.Object, Mock.Of<IUserSubscriptionRepository>(), Mock.Of<IUserFeatureOverrideRepository>(), Mock.Of<IUserSessionService>(), Mock.Of<IAuditService>());
 
         var result = await sut.ListAsync(CancellationToken.None);
 
@@ -119,7 +119,7 @@ public class AdminUsersServiceTests
         var repository = new Mock<IUserRepository>();
         repository.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         repository.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new DbUpdateException("db error"));
-        var sut = new AdminUsersService(repository.Object, Mock.Of<IUserFeatureOverrideRepository>(), Mock.Of<IAuditService>());
+        var sut = new AdminUsersService(repository.Object, Mock.Of<IUserSubscriptionRepository>(), Mock.Of<IUserFeatureOverrideRepository>(), Mock.Of<IUserSessionService>(), Mock.Of<IAuditService>());
 
         Func<Task> act = async () => await sut.UpdateRoleAsync(user.Id, "Admin", CancellationToken.None);
 
@@ -135,7 +135,7 @@ public class AdminUsersServiceTests
         var repository = new Mock<IUserRepository>();
         repository.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         repository.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new DbUpdateException("db error"));
-        var sut = new AdminUsersService(repository.Object, Mock.Of<IUserFeatureOverrideRepository>(), Mock.Of<IAuditService>());
+        var sut = new AdminUsersService(repository.Object, Mock.Of<IUserSubscriptionRepository>(), Mock.Of<IUserFeatureOverrideRepository>(), Mock.Of<IUserSessionService>(), Mock.Of<IAuditService>());
 
         Func<Task> act = async () => await sut.DeleteAsync(user.Id, currentUserId, CancellationToken.None);
 
@@ -158,7 +158,7 @@ public class AdminUsersServiceTests
                 new UserFeatureOverride(user.Id, "accounts.manage", false)
             ]);
 
-        var sut = new AdminUsersService(userRepository.Object, overridesRepository.Object, Mock.Of<IAuditService>());
+        var sut = new AdminUsersService(userRepository.Object, Mock.Of<IUserSubscriptionRepository>(), overridesRepository.Object, Mock.Of<IUserSessionService>(), Mock.Of<IAuditService>());
 
         var result = await sut.ListFeaturesAsync(user.Id, CancellationToken.None);
 
@@ -185,7 +185,7 @@ public class AdminUsersServiceTests
             ]);
 
         var auditService = new Mock<IAuditService>();
-        var sut = new AdminUsersService(userRepository.Object, overridesRepository.Object, auditService.Object);
+        var sut = new AdminUsersService(userRepository.Object, Mock.Of<IUserSubscriptionRepository>(), overridesRepository.Object, Mock.Of<IUserSessionService>(), auditService.Object);
 
         var result = await sut.SetFeatureOverrideAsync(
             user.Id,
@@ -229,7 +229,7 @@ public class AdminUsersServiceTests
             .ReturnsAsync([]);
 
         var auditService = new Mock<IAuditService>();
-        var sut = new AdminUsersService(userRepository.Object, overridesRepository.Object, auditService.Object);
+        var sut = new AdminUsersService(userRepository.Object, Mock.Of<IUserSubscriptionRepository>(), overridesRepository.Object, Mock.Of<IUserSessionService>(), auditService.Object);
 
         await sut.ClearFeatureOverrideAsync(
             user.Id,

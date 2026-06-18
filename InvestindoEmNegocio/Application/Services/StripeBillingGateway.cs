@@ -146,6 +146,24 @@ public sealed class StripeBillingGateway(IOptions<StripeOptions> stripeOptions) 
             cancellationToken: cancellationToken);
     }
 
+    public async Task CancelImmediatelyAsync(string subscriptionId, CancellationToken cancellationToken = default)
+    {
+        EnsureSecretConfigured();
+        StripeConfiguration.ApiKey = _options.SecretKey;
+        var subService = new SubscriptionService();
+        await subService.CancelAsync(subscriptionId, cancellationToken: cancellationToken);
+    }
+
+    public async Task RefundPaymentIntentAsync(string paymentIntentId, CancellationToken cancellationToken = default)
+    {
+        EnsureSecretConfigured();
+        StripeConfiguration.ApiKey = _options.SecretKey;
+        var refundService = new RefundService();
+        await refundService.CreateAsync(
+            new RefundCreateOptions { PaymentIntent = paymentIntentId },
+            cancellationToken: cancellationToken);
+    }
+
     private void EnsureSecretConfigured()
     {
         if (string.IsNullOrWhiteSpace(_options.SecretKey))

@@ -23,6 +23,7 @@ public class User
     public DateTime? LastLoginAt { get; private set; }
     public int FailedLoginAttempts { get; private set; }
     public DateTime? LockoutUntil { get; private set; }
+    public DateTime? TrialUsedAt { get; private set; }
 
     private User()
     {
@@ -91,6 +92,12 @@ public class User
     {
         Role = role;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void MarkTrialUsed(DateTime nowUtc)
+    {
+        TrialUsedAt = nowUtc;
+        UpdatedAt = nowUtc;
     }
 
     public void UpdateLastLogin(DateTime lastLoginAtUtc)

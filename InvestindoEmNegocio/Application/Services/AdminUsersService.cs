@@ -13,7 +13,9 @@ namespace InvestindoEmNegocio.Application.Services;
 
 public sealed class AdminUsersService(
     IUserRepository userRepository,
+    IUserSubscriptionRepository userSubscriptionRepository,
     IUserFeatureOverrideRepository featureOverrideRepository,
+    IUserSessionService userSessionService,
     IAuditService auditService) : IAdminUsersService
 {
     public async Task<IReadOnlyList<UserSummaryResponse>> ListAsync(CancellationToken cancellationToken)
@@ -182,6 +184,36 @@ public sealed class AdminUsersService(
                 "Não foi possível excluir o usuário no momento.",
                 StatusCodes.Status409Conflict);
         }
+    }
+
+    public async Task<SubscriptionChangeResponse> GrantTrialAsync(Guid id, GrantTrialRequest request, CancellationToken cancellationToken)
+    {
+        if (request.Days <= 0 || request.Days > 365)
+            throw new AppProblemException("Parâmetro inválido", "O número de dias deve ser entre 1 e 365.", StatusCodes.Status400BadRequest);
+
+        var plan = SubscriptionPlanCatalog.GetByCodeOrThrow(request.PlanCode);
+        if (plan.Role == UserRole.Admin || plan.Code == "basic")
+            throw new AppProblemException("Plano inválido", "O trial deve ser de um plano pago (intermediate ou advanced).", StatusCodes.Status400BadRequest);
+
+        var user = await userRepository.GetByIdAsync(id, cancellationToken)
+            ?? throw new AppProblemException("Usuário não encontrado", "Usuário não encontrado.", StatusCodes.Status404NotFound);
+
+        var now = DateTime.UtcNow;
+        var subscription = await userSubscriptionRepository.GetByUserIdAsync(id, cancellationToken);
+
+        if (subscription is null)
+        {
+            subscription = new UserSubscription(id, plan.Code, plan.Role, SubscriptionBillingCycle.Monthly, 0m, "BRL", now, now.AddDays(request.Days));
+            await userSubscriptionRepository.AddAsync(subscription, cancellationToken);
+        }
+
+        subscription.ActivateTrial(plan.Code, plan.Role, now, now.AddDays(request.Days));
+        user.SetRole(plan.Role);
+        await userRepository.SaveChangesAsync(cancellationToken);
+        await userSubscriptionRepository.SaveChangesAsync(cancellationToken);
+
+        var session = await userSessionService.ReissueAsync(user, now, cancellationToken);
+        return new SubscriptionChangeResponse(SubscriptionResponseFactory.BuildCurrent(user, subscription), session, SubscriptionResponseFactory.Notes);
     }
 
     private static IReadOnlyList<UserFeatureAccessResponse> BuildFeatureAccessResponse(UserRole role, IReadOnlyList<UserFeatureOverride> overrides)
