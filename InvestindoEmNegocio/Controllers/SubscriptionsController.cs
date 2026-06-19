@@ -49,4 +49,11 @@ public class SubscriptionsController(
         return Ok(response);
     }
 
+    [HttpPost("retry-payment")]
+    public async Task<IActionResult> RetryPayment(CancellationToken cancellationToken = default)
+    {
+        await subscriptionManagementService.RetryPaymentAsync(GetUserId(), cancellationToken);
+        return NoContent();
+    }
+
 }

@@ -21,4 +21,6 @@ public interface IStripeBillingGateway
     Task ScheduleCancellationAsync(string subscriptionId, CancellationToken cancellationToken = default);
     Task CancelImmediatelyAsync(string subscriptionId, CancellationToken cancellationToken = default);
     Task RefundPaymentIntentAsync(string paymentIntentId, CancellationToken cancellationToken = default);
+    Task<Invoice?> GetLatestOpenInvoiceAsync(string subscriptionId, CancellationToken cancellationToken = default);
+    Task PayInvoiceAsync(string invoiceId, CancellationToken cancellationToken = default);
 }

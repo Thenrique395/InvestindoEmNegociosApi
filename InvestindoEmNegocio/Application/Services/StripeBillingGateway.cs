@@ -164,6 +164,25 @@ public sealed class StripeBillingGateway(IOptions<StripeOptions> stripeOptions) 
             cancellationToken: cancellationToken);
     }
 
+    public async Task<Invoice?> GetLatestOpenInvoiceAsync(string subscriptionId, CancellationToken cancellationToken = default)
+    {
+        EnsureSecretConfigured();
+        StripeConfiguration.ApiKey = _options.SecretKey;
+        var service = new InvoiceService();
+        var invoices = await service.ListAsync(
+            new InvoiceListOptions { Subscription = subscriptionId, Status = "open", Limit = 1 },
+            cancellationToken: cancellationToken);
+        return invoices.Data.FirstOrDefault();
+    }
+
+    public async Task PayInvoiceAsync(string invoiceId, CancellationToken cancellationToken = default)
+    {
+        EnsureSecretConfigured();
+        StripeConfiguration.ApiKey = _options.SecretKey;
+        var service = new InvoiceService();
+        await service.PayAsync(invoiceId, cancellationToken: cancellationToken);
+    }
+
     private void EnsureSecretConfigured()
     {
         if (string.IsNullOrWhiteSpace(_options.SecretKey))

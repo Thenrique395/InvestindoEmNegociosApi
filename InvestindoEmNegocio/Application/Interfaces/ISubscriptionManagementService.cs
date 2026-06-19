@@ -8,4 +8,5 @@ public interface ISubscriptionManagementService
     Task<SubscriptionChangeResponse> CancelAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<SubscriptionChangeResponse> RequestRefundAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<SubscriptionChangeResponse> RequestTrialAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task RetryPaymentAsync(Guid userId, CancellationToken cancellationToken = default);
 }

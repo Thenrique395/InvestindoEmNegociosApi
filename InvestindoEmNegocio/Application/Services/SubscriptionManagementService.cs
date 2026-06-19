@@ -162,6 +162,29 @@ public sealed class SubscriptionManagementService(
         return new SubscriptionChangeResponse(SubscriptionResponseFactory.BuildCurrent(user, subscription), session, SubscriptionResponseFactory.Notes);
     }
 
+    public async Task RetryPaymentAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await GetUserOrThrowAsync(userId, cancellationToken);
+        if (user.Role == UserRole.Admin)
+            throw new AppProblemException("Ação indisponível", "Usuários Admin não precisam de retry de pagamento.", StatusCodes.Status400BadRequest);
+
+        var subscription = await userSubscriptionRepository.GetByUserIdAsync(userId, cancellationToken);
+        if (subscription is null || subscription.Status != UserSubscriptionStatus.PastDue)
+            throw new AppProblemException("Retry indisponível", "Só é possível tentar novamente quando há pagamento em atraso.", StatusCodes.Status400BadRequest);
+
+        if (string.IsNullOrWhiteSpace(subscription.ExternalSubscriptionId))
+            throw new AppProblemException("Retry indisponível", "Assinatura sem vínculo com provedor de pagamento.", StatusCodes.Status400BadRequest);
+
+        if (string.IsNullOrWhiteSpace(_stripeOptions.SecretKey))
+            throw new AppProblemException("Cobrança indisponível", "Stripe não está configurado neste ambiente.", StatusCodes.Status503ServiceUnavailable);
+
+        var invoice = await stripeBillingGateway.GetLatestOpenInvoiceAsync(subscription.ExternalSubscriptionId, cancellationToken);
+        if (invoice is null)
+            throw new AppProblemException("Fatura não encontrada", "Não há fatura em aberto para esta assinatura.", StatusCodes.Status404NotFound);
+
+        await stripeBillingGateway.PayInvoiceAsync(invoice.Id, cancellationToken);
+    }
+
     private async Task<User> GetUserOrThrowAsync(Guid userId, CancellationToken cancellationToken)
     {
         return await userRepository.GetByIdAsync(userId, cancellationToken)
