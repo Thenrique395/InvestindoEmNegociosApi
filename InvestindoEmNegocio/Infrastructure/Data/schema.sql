@@ -1086,3 +1086,23 @@ BEGIN
         SET "Description" = NULLIF(TRIM(REGEXP_REPLACE("Description", '\[TIPO:[A-Z]+\]\s*', '', 'gi')), '');
     END IF;
 END $$;
+
+-- monthly_budget_items: orçamento mensal planejado por categoria (Intermediate+)
+CREATE TABLE IF NOT EXISTS monthly_budget_items (
+    "Id" uuid NOT NULL,
+    "UserId" uuid NOT NULL,
+    "Year" integer NOT NULL,
+    "Month" integer NOT NULL,
+    "CategoryName" character varying(200) NOT NULL,
+    "PlannedAmount" numeric(14,2) NOT NULL,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    "UpdatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_monthly_budget_items" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_monthly_budget_items_users_UserId" FOREIGN KEY ("UserId") REFERENCES users ("Id") ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS "IX_monthly_budget_items_UserId_Year_Month"
+    ON monthly_budget_items ("UserId", "Year", "Month");
+
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_monthly_budget_items_UserId_Year_Month_CategoryName"
+    ON monthly_budget_items ("UserId", "Year", "Month", "CategoryName");

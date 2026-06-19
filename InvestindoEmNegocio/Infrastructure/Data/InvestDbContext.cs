@@ -41,6 +41,7 @@ public class InvestDbContext(DbContextOptions<InvestDbContext> options) : DbCont
     public DbSet<NotificationSettings> NotificationSettings => Set<NotificationSettings>();
     public DbSet<RobotSettings> RobotSettings => Set<RobotSettings>();
     public DbSet<RobotExecutionLog> RobotExecutionLogs => Set<RobotExecutionLog>();
+    public DbSet<MonthlyBudgetItem> MonthlyBudgetItems => Set<MonthlyBudgetItem>();
 
     public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default) =>
         Database.BeginTransactionAsync(cancellationToken);

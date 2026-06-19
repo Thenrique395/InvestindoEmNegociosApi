@@ -9,4 +9,5 @@ public interface ILoansService
     Task<LoanContractResponse> UpdateAsync(Guid userId, Guid contractId, LoanContractRequest request, CancellationToken cancellationToken = default);
     Task DeleteAsync(Guid userId, Guid contractId, CancellationToken cancellationToken = default);
     Task<LoanSimulationResponse> SimulateAsync(Guid userId, LoanContractRequest request, CancellationToken cancellationToken = default);
+    Task<LoanInstallmentResponse> PayInstallmentAsync(Guid userId, Guid contractId, Guid installmentId, CancellationToken cancellationToken = default);
 }

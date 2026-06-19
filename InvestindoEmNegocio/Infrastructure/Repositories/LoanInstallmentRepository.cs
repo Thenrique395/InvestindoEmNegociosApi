@@ -22,6 +22,10 @@ public class LoanInstallmentRepository(InvestDbContext context) : ILoanInstallme
             .OrderBy(x => x.InstallmentNo)
             .ToListAsync(cancellationToken);
 
+    public async Task<LoanInstallment?> GetByIdAsync(Guid installmentId, Guid userId, CancellationToken cancellationToken = default)
+        => await context.LoanInstallments
+            .FirstOrDefaultAsync(x => x.Id == installmentId && x.UserId == userId, cancellationToken);
+
     public async Task AddRangeAsync(IEnumerable<LoanInstallment> installments, CancellationToken cancellationToken = default)
         => await context.LoanInstallments.AddRangeAsync(installments, cancellationToken);
 

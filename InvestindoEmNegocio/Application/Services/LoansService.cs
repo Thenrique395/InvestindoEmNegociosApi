@@ -93,6 +93,36 @@ public class LoansService(
         await loanContractRepository.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<LoanInstallmentResponse> PayInstallmentAsync(Guid userId, Guid contractId, Guid installmentId, CancellationToken cancellationToken = default)
+    {
+        var contract = await loanContractRepository.GetByIdAsync(contractId, userId, cancellationToken)
+            ?? throw new AppProblemException("Contrato não encontrado", "O contrato informado não existe ou não pertence ao usuário.", StatusCodes.Status404NotFound);
+
+        var installment = await loanInstallmentRepository.GetByIdAsync(installmentId, userId, cancellationToken)
+            ?? throw new AppProblemException("Parcela não encontrada", "A parcela informada não existe ou não pertence ao usuário.", StatusCodes.Status404NotFound);
+
+        if (installment.ContractId != contract.Id)
+            throw new AppProblemException("Parcela inválida", "A parcela não pertence ao contrato informado.", StatusCodes.Status400BadRequest);
+
+        if (installment.Status == LoanInstallmentStatus.Paid)
+            throw new InvalidOperationException("A parcela já foi paga.");
+
+        installment.MarkPaid(DateTime.UtcNow);
+        await loanInstallmentRepository.SaveChangesAsync(cancellationToken);
+
+        return new LoanInstallmentResponse(
+            installment.Id,
+            installment.InstallmentNo,
+            installment.DueDate,
+            installment.BeginningBalance,
+            installment.PrincipalAmount,
+            installment.InterestAmount,
+            installment.TotalAmount,
+            installment.EndingBalance,
+            installment.Status,
+            installment.PaidAt);
+    }
+
     public Task<LoanSimulationResponse> SimulateAsync(Guid userId, LoanContractRequest request, CancellationToken cancellationToken = default)
     {
         Validate(request);

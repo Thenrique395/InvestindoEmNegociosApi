@@ -283,8 +283,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEmailSender, SmtpEmailSender>();
         services.AddScoped<IImportIdentityEngine, ImportIdentityEngine>();
         services.AddScoped<IBankStatementImportEngine, BankStatementImportEngine>();
+        services.AddScoped<IMonthlyBudgetRepository, MonthlyBudgetRepository>();
         services.AddScoped<IRobotTask, ReminderRobotTask>();
         services.AddScoped<IRobotTask, SubscriptionExpirationRobotTask>();
+        services.AddScoped<IRobotTask, MonthlySnapshotRobotTask>();
         services.AddScoped<IRobotRunner, RobotRunner>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IProfileQueryService, ProfileQueryService>();
@@ -314,6 +316,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAccountsService, AccountsService>();
         services.AddScoped<IAccountAnalyticsService, AccountAnalyticsService>();
         services.AddScoped<ILoansService, LoansService>();
+        services.AddScoped<IBudgetService, BudgetService>();
+        services.AddScoped<IScenariosService, ScenariosService>();
+        services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IMonthlyFinancialSnapshotService, MonthlyFinancialSnapshotService>();
         services.AddScoped<IFinancialAssistantService, FinancialAssistantService>();
         services.AddScoped<IUserAccountBootstrapService, UserAccountBootstrapService>();

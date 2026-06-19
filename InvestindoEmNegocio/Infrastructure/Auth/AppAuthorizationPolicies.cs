@@ -44,6 +44,9 @@ public static class AppAuthorizationPolicies
     public const string FeatureFinancialAssistantAccess = "feature.financial-assistant.access";
     public const string FeatureMonthlySnapshotsAccess = "feature.monthly-snapshots.access";
     public const string FeatureLoansAccess = "feature.loans.access";
+    public const string FeatureBudgetAccess = "feature.budget.access";
+    public const string FeatureScenariosAccess = "feature.scenarios.access";
+    public const string FeatureReportsAccess = "feature.reports.access";
     public const string FeatureAdminUsersManage = "feature.admin.users.manage";
     public const string FeatureAdminParametersManage = "feature.admin.parameters.manage";
     public const string FeatureAdminRobotsManage = "feature.admin.robots.manage";
@@ -108,6 +111,9 @@ public static class AppAuthorizationPolicies
         AddFeaturePolicy(options, FeatureFinancialAssistantAccess, AppFeatureKeys.FinancialAssistantAccess);
         AddFeaturePolicy(options, FeatureMonthlySnapshotsAccess, AppFeatureKeys.MonthlySnapshotsAccess);
         AddFeaturePolicy(options, FeatureLoansAccess, AppFeatureKeys.LoansAccess);
+        AddFeaturePolicy(options, FeatureBudgetAccess, AppFeatureKeys.BudgetAccess);
+        AddFeaturePolicy(options, FeatureScenariosAccess, AppFeatureKeys.ScenariosAccess);
+        AddFeaturePolicy(options, FeatureReportsAccess, AppFeatureKeys.ReportsAccess);
         AddFeaturePolicy(options, FeatureAdminUsersManage, AppFeatureKeys.AdminUsersManage);
         AddFeaturePolicy(options, FeatureAdminParametersManage, AppFeatureKeys.AdminParametersManage);
         AddFeaturePolicy(options, FeatureAdminRobotsManage, AppFeatureKeys.AdminRobotsManage);

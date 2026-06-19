@@ -65,7 +65,10 @@ public static class AppFeatureMatrix
                 AppFeatureKeys.InvoiceImportAccess,
                 AppFeatureKeys.FinancialAssistantAccess,
                 AppFeatureKeys.MonthlySnapshotsAccess,
-                AppFeatureKeys.LoansAccess
+                AppFeatureKeys.LoansAccess,
+                AppFeatureKeys.BudgetAccess,
+                AppFeatureKeys.ScenariosAccess,
+                AppFeatureKeys.ReportsAccess
             },
             [UserRole.Advanced] = new(StringComparer.OrdinalIgnoreCase)
             {
@@ -101,7 +104,10 @@ public static class AppFeatureMatrix
                 AppFeatureKeys.FinancialAssistantAccess,
                 AppFeatureKeys.MonthlySnapshotsAccess,
                 AppFeatureKeys.LoansAccess,
-                AppFeatureKeys.InvestmentsAccess
+                AppFeatureKeys.InvestmentsAccess,
+                AppFeatureKeys.BudgetAccess,
+                AppFeatureKeys.ScenariosAccess,
+                AppFeatureKeys.ReportsAccess
             },
             [UserRole.Admin] = new(StringComparer.OrdinalIgnoreCase)
             {

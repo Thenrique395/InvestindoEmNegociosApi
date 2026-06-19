@@ -35,6 +35,9 @@ public static class AppFeatureKeys
     public const string FinancialAssistantAccess = "financial-assistant.access";
     public const string MonthlySnapshotsAccess = "monthly-snapshots.access";
     public const string LoansAccess = "loans.access";
+    public const string BudgetAccess = "budget.access";
+    public const string ScenariosAccess = "scenarios.access";
+    public const string ReportsAccess = "reports.access";
     public const string AdminUsersManage = "admin.users.manage";
     public const string AdminParametersManage = "admin.parameters.manage";
     public const string AdminRobotsManage = "admin.robots.manage";
@@ -75,6 +78,9 @@ public static class AppFeatureKeys
         FinancialAssistantAccess,
         MonthlySnapshotsAccess,
         LoansAccess,
+        BudgetAccess,
+        ScenariosAccess,
+        ReportsAccess,
         AdminUsersManage,
         AdminParametersManage,
         AdminRobotsManage,

@@ -58,4 +58,14 @@ public class LoansController(ILoansService loansService) : AuthenticatedControll
         return NoContent();
     }
 
+    [HttpPost("{contractId:guid}/installments/{installmentId:guid}/pay")]
+    public async Task<IActionResult> PayInstallment(Guid contractId, Guid installmentId, CancellationToken cancellationToken)
+    {
+        return await ExecuteWithProblemMappingAsync(async () =>
+        {
+            var userId = GetUserId();
+            return Ok(await loansService.PayInstallmentAsync(userId, contractId, installmentId, cancellationToken));
+        }, "Pagamento inválido", invalidOperationTitle: "Parcela já paga", invalidOperationStatusCode: StatusCodes.Status409Conflict);
+    }
+
 }
