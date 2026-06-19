@@ -4,6 +4,7 @@ using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using Stripe;
 using Stripe.Checkout;
 
@@ -14,7 +15,8 @@ public sealed class BillingSubscriptionSyncService(
     IUserSubscriptionRepository userSubscriptionRepository,
     IBillingCheckoutRepository billingCheckoutRepository,
     IStripeBillingGateway stripeBillingGateway,
-    IBillingNotificationService billingNotificationService) : IBillingSubscriptionSyncService
+    IBillingNotificationService billingNotificationService,
+    ILogger<BillingSubscriptionSyncService> logger) : IBillingSubscriptionSyncService
 {
     public async Task SyncByExternalSubscriptionAsync(string subscriptionId, BillingCheckout? checkout, CancellationToken cancellationToken = default)
     {
@@ -54,6 +56,9 @@ public sealed class BillingSubscriptionSyncService(
         var renewsAt = ResolveRenewalAt(subscription);
         var priceId = subscription.Items?.Data?.FirstOrDefault()?.Price?.Id;
 
+        logger.LogInformation("Syncing subscription {SubscriptionId} status={Status} event={EventType} for user {UserId}",
+            subscription.Id, status, eventType, checkout?.UserId ?? localSubscription?.UserId);
+
         switch (status)
         {
             case "active":
@@ -75,16 +80,26 @@ public sealed class BillingSubscriptionSyncService(
                 {
                     checkout.MarkPaid(status, eventType, DateTime.UtcNow);
                     if (previousStatus == UserSubscriptionStatus.PastDue)
+                    {
+                        logger.LogInformation("Subscription {SubscriptionId} reactivated for user {UserId} (was PastDue)", subscription.Id, localSubscription.UserId);
                         await billingNotificationService.NotifyReactivatedAsync(localSubscription.UserId, checkout, cancellationToken);
+                    }
                     else if (previousStatus == UserSubscriptionStatus.Active)
+                    {
+                        logger.LogInformation("Subscription {SubscriptionId} renewed for user {UserId}", subscription.Id, localSubscription.UserId);
                         await billingNotificationService.NotifyRenewalApprovedAsync(localSubscription.UserId, checkout, cancellationToken);
+                    }
                     else
+                    {
+                        logger.LogInformation("Subscription {SubscriptionId} activated for user {UserId}, plan {PlanCode}", subscription.Id, localSubscription.UserId, localSubscription.PlanCode);
                         await billingNotificationService.NotifyApprovedAsync(localSubscription.UserId, checkout, cancellationToken);
+                    }
                 }
                 break;
 
             case "past_due":
             case "unpaid":
+                logger.LogWarning("Subscription {SubscriptionId} marked past_due for user {UserId}", subscription.Id, localSubscription.UserId);
                 localSubscription.MarkPastDue(DateTime.UtcNow);
                 if (checkout is not null)
                 {
@@ -98,6 +113,7 @@ public sealed class BillingSubscriptionSyncService(
                 break;
 
             case "canceled":
+                logger.LogInformation("Subscription {SubscriptionId} canceled for user {UserId} — downgrading to Basic", subscription.Id, localSubscription.UserId);
                 localSubscription.CancelNow(DateTime.UtcNow);
                 if (checkout is not null)
                     checkout.MarkCancelled(eventType, DateTime.UtcNow);
@@ -182,6 +198,7 @@ public sealed class BillingSubscriptionSyncService(
 
     public async Task DowngradeUserAfterRefundAsync(BillingCheckout checkout, CancellationToken cancellationToken = default)
     {
+        logger.LogInformation("Downgrading user {UserId} after refund, checkout {CheckoutId}", checkout.UserId, checkout.Id);
         var subscription = await userSubscriptionRepository.GetByUserIdAsync(checkout.UserId, cancellationToken);
         if (subscription is not null)
         {

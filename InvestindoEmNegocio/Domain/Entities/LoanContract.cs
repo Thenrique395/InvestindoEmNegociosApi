@@ -48,6 +48,31 @@ public class LoanContract
         TotalInterest = totalInterest;
     }
 
+    public void Update(
+        string title,
+        decimal principalAmount,
+        decimal annualInterestRate,
+        int termMonths,
+        LoanAmortizationType amortizationType,
+        DateOnly startDate,
+        int paymentDay,
+        decimal monthlyPayment,
+        decimal totalCost,
+        decimal totalInterest)
+    {
+        Title = title;
+        PrincipalAmount = principalAmount;
+        AnnualInterestRate = annualInterestRate;
+        TermMonths = termMonths;
+        AmortizationType = amortizationType;
+        StartDate = startDate;
+        PaymentDay = paymentDay;
+        MonthlyPayment = monthlyPayment;
+        TotalCost = totalCost;
+        TotalInterest = totalInterest;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void MarkClosed()
     {
         Status = LoanStatus.Closed;

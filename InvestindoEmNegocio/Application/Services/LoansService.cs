@@ -1,4 +1,5 @@
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
@@ -54,6 +55,42 @@ public class LoansService(
         await loanContractRepository.SaveChangesAsync(cancellationToken);
 
         return CreateLoanContractResponse(contract, installments);
+    }
+
+    public async Task<LoanContractResponse> UpdateAsync(Guid userId, Guid contractId, LoanContractRequest request, CancellationToken cancellationToken = default)
+    {
+        var contract = await loanContractRepository.GetByIdAsync(contractId, userId, cancellationToken)
+            ?? throw new AppProblemException("Contrato não encontrado", "O contrato informado não existe ou não pertence ao usuário.", StatusCodes.Status404NotFound);
+
+        var existing = await loanInstallmentRepository.ListByContractAsync(contractId, userId, cancellationToken);
+        if (existing.Any(x => x.Status == LoanInstallmentStatus.Paid))
+            throw new InvalidOperationException("Contratos com parcelas já pagas não podem ser editados.");
+
+        Validate(request);
+        var simulation = BuildSimulation(request);
+        contract.Update(request.Title.Trim(), request.PrincipalAmount, request.AnnualInterestRate, request.TermMonths,
+            request.AmortizationType, request.StartDate, request.PaymentDay,
+            simulation.MonthlyPayment, simulation.TotalCost, simulation.TotalInterest);
+
+        await loanInstallmentRepository.RemoveByContractAsync(contractId, userId, cancellationToken);
+        var newInstallments = simulation.Installments
+            .Select(item => new LoanInstallment(contract.Id, userId, item.InstallmentNo, item.DueDate,
+                item.BeginningBalance, item.PrincipalAmount, item.InterestAmount, item.TotalAmount, item.EndingBalance))
+            .ToList();
+        await loanInstallmentRepository.AddRangeAsync(newInstallments, cancellationToken);
+        await loanContractRepository.SaveChangesAsync(cancellationToken);
+
+        return CreateLoanContractResponse(contract, newInstallments);
+    }
+
+    public async Task DeleteAsync(Guid userId, Guid contractId, CancellationToken cancellationToken = default)
+    {
+        var contract = await loanContractRepository.GetByIdAsync(contractId, userId, cancellationToken)
+            ?? throw new AppProblemException("Contrato não encontrado", "O contrato informado não existe ou não pertence ao usuário.", StatusCodes.Status404NotFound);
+
+        await loanInstallmentRepository.RemoveByContractAsync(contractId, userId, cancellationToken);
+        loanContractRepository.Remove(contract);
+        await loanContractRepository.SaveChangesAsync(cancellationToken);
     }
 
     public Task<LoanSimulationResponse> SimulateAsync(Guid userId, LoanContractRequest request, CancellationToken cancellationToken = default)

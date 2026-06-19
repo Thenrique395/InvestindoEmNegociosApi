@@ -20,6 +20,9 @@ public class LoanContractRepository(InvestDbContext context) : ILoanContractRepo
     public async Task AddAsync(LoanContract contract, CancellationToken cancellationToken = default)
         => await context.LoanContracts.AddAsync(contract, cancellationToken);
 
+    public void Remove(LoanContract contract)
+        => context.LoanContracts.Remove(contract);
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => await context.SaveChangesAsync(cancellationToken);
 }

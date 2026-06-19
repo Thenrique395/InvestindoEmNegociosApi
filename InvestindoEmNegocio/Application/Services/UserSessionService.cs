@@ -4,12 +4,14 @@ using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Application.Services;
 
 public sealed class UserSessionService(
     IRefreshTokenRepository refreshTokenRepository,
-    IJwtTokenGenerator jwtTokenGenerator) : IUserSessionService
+    IJwtTokenGenerator jwtTokenGenerator,
+    ILogger<UserSessionService> logger) : IUserSessionService
 {
     public async Task<AuthResponse> IssueAsync(User user, CancellationToken cancellationToken = default)
     {
@@ -56,12 +58,14 @@ public sealed class UserSessionService(
 
         stored.Revoke(now);
         await refreshTokenRepository.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Session token revoked for user {UserId}", stored.UserId);
     }
 
     public async Task RevokeActiveAsync(Guid userId, DateTime nowUtc, CancellationToken cancellationToken = default)
     {
         await refreshTokenRepository.RevokeActiveByUserAsync(userId, nowUtc, cancellationToken);
         await refreshTokenRepository.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("All active session tokens revoked for user {UserId}", userId);
     }
 
     private static string HashToken(string token)

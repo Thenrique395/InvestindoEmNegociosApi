@@ -4,6 +4,7 @@ using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.Extensions.Logging;
 using Moq;
 
 namespace InvestindoEmNegocio.Tests;
@@ -20,7 +21,7 @@ public class UserSessionServiceTests
             .Setup(x => x.Generate(user))
             .Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
 
-        var sut = new UserSessionService(refreshTokenRepository.Object, jwtTokenGenerator.Object);
+        var sut = new UserSessionService(refreshTokenRepository.Object, jwtTokenGenerator.Object, Mock.Of<ILogger<UserSessionService>>());
 
         var result = await sut.IssueAsync(user);
 
@@ -40,7 +41,7 @@ public class UserSessionServiceTests
             .Setup(x => x.Generate(user))
             .Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
 
-        var sut = new UserSessionService(refreshTokenRepository.Object, jwtTokenGenerator.Object);
+        var sut = new UserSessionService(refreshTokenRepository.Object, jwtTokenGenerator.Object, Mock.Of<ILogger<UserSessionService>>());
 
         var result = await sut.ReissueAsync(user, DateTime.UtcNow);
 
@@ -62,7 +63,7 @@ public class UserSessionServiceTests
             .Setup(x => x.Generate(user))
             .Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
 
-        var sut = new UserSessionService(refreshTokenRepository.Object, jwtTokenGenerator.Object);
+        var sut = new UserSessionService(refreshTokenRepository.Object, jwtTokenGenerator.Object, Mock.Of<ILogger<UserSessionService>>());
 
         var result = await sut.RotateAsync(user, currentToken, DateTime.UtcNow);
 

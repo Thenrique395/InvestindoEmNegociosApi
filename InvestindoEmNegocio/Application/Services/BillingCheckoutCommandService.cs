@@ -5,6 +5,7 @@ using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Application.Services;
 
@@ -13,7 +14,8 @@ public sealed class BillingCheckoutCommandService(
     IUserSubscriptionRepository userSubscriptionRepository,
     IBillingCheckoutRepository billingCheckoutRepository,
     IStripeBillingGateway stripeBillingGateway,
-    IBillingNotificationService billingNotificationService) : IBillingCheckoutCommandService
+    IBillingNotificationService billingNotificationService,
+    ILogger<BillingCheckoutCommandService> logger) : IBillingCheckoutCommandService
 {
     public async Task<StartBillingCheckoutResponse> StartCheckoutAsync(Guid userId, StartBillingCheckoutRequest request, CancellationToken cancellationToken = default)
     {
@@ -46,6 +48,9 @@ public sealed class BillingCheckoutCommandService(
         checkout.Start(session.Id, session.Url ?? string.Empty, session.ExpiresAt, session.PaymentStatus, now);
         checkout.AttachProviderObjects(session.CustomerId, session.SubscriptionId, session.PaymentIntentId, now);
         await billingCheckoutRepository.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Checkout {CheckoutId} started for user {UserId}, plan {PlanCode} ({BillingCycle}), Stripe session {SessionId}",
+            checkout.Id, userId, plan.Code, cycle, session.Id);
 
         await billingNotificationService.NotifyPendingAsync(user, checkout, cancellationToken);
 

@@ -48,6 +48,9 @@ public sealed class AuthAccessApplicationService(
         }
     }
 
-    public Task LogoutAsync(RefreshTokenRequest request, CancellationToken cancellationToken = default) =>
-        authAccessService.LogoutAsync(request, cancellationToken);
+    public async Task LogoutAsync(RefreshTokenRequest request, CancellationToken cancellationToken = default)
+    {
+        await authAccessService.LogoutAsync(request, cancellationToken);
+        logger.LogInformation("User logged out");
+    }
 }

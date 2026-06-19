@@ -40,4 +40,22 @@ public class LoansController(ILoansService loansService) : AuthenticatedControll
         }, "Contrato inválido");
     }
 
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] LoanContractRequest request, CancellationToken cancellationToken)
+    {
+        return await ExecuteWithProblemMappingAsync(async () =>
+        {
+            var userId = GetUserId();
+            return Ok(await loansService.UpdateAsync(userId, id, request, cancellationToken));
+        }, "Contrato inválido", invalidOperationTitle: "Edição não permitida", invalidOperationStatusCode: StatusCodes.Status422UnprocessableEntity);
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        await loansService.DeleteAsync(userId, id, cancellationToken);
+        return NoContent();
+    }
+
 }

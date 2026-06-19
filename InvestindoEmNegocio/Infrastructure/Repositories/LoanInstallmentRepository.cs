@@ -25,6 +25,14 @@ public class LoanInstallmentRepository(InvestDbContext context) : ILoanInstallme
     public async Task AddRangeAsync(IEnumerable<LoanInstallment> installments, CancellationToken cancellationToken = default)
         => await context.LoanInstallments.AddRangeAsync(installments, cancellationToken);
 
+    public async Task RemoveByContractAsync(Guid contractId, Guid userId, CancellationToken cancellationToken = default)
+    {
+        var items = await context.LoanInstallments
+            .Where(x => x.ContractId == contractId && x.UserId == userId)
+            .ToListAsync(cancellationToken);
+        context.LoanInstallments.RemoveRange(items);
+    }
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => await context.SaveChangesAsync(cancellationToken);
 }

@@ -8,48 +8,76 @@ tom acolhedor/comercial) já está consolidada e não deve ser repetida aqui —
 [../../docs/DECISIONS/2026-03-24-commercial-offer-and-billing-rules.md](../../docs/DECISIONS/2026-03-24-commercial-offer-and-billing-rules.md)
 (seção "Comunicação") e [../../docs/BUSINESS_RULES.md](../../docs/BUSINESS_RULES.md).
 
-Este documento cobre apenas o que falta implementar tecnicamente.
+Este documento cobre o estado de implementação das comunicações e os textos finais aprovados.
 
 ## Status por evento
 
 | # | Evento | Status | Observação |
 |---|---|---|---|
-| 1 | Compra aprovada | ✅ Implementado | `BillingNotificationService.NotifyApprovedAsync` + `NotificationKind.BillingApproved` (e-mail + in-app) |
-| 2 | Renovação aprovada | ✅ Implementado | `NotifyRenewalApprovedAsync` + `NotificationKind.BillingRenewalApproved`; acionado em `SyncAsync` quando `previousStatus == Active` |
-| 3 | Primeira falha de renovação | ✅ Implementado | `NotifyFailedAsync` com copy contextual: quando `checkout.Status == Paid` (renovação), usa "Atualize sua forma de pagamento"; caso contrário, usa copy genérico de falha de checkout |
-| 4 | Lembrete antes do fim da janela de recuperação | ✅ Implementado | `NotifyGracePeriodReminderAsync` + `NotificationKind.BillingGracePeriodReminder`; acionado pelo `RoboExpiracaoAssinaturas` quando `RenewsAt` está nas últimas 24h da janela de graça |
-| 5 | Downgrade para `basic` | ✅ Implementado | `NotifyDowngradedAsync` + `NotificationKind.BillingDowngraded`; acionado pelo `RoboExpiracaoAssinaturas` após `MarkExpired` |
-| 6 | Pagamento regularizado | ✅ Implementado | `NotifyReactivatedAsync` + `NotificationKind.BillingReactivated`; acionado em `SyncAsync` quando `previousStatus == PastDue` e Stripe confirma pagamento |
+| 1 | Compra aprovada | ✅ Implementado | `NotifyApprovedAsync` — assunto: "Bem-vindo ao plano {Nome}!"; CTA: "Acessar o app" → `/dashboard` |
+| 2 | Renovação aprovada | ✅ Implementado | `NotifyRenewalApprovedAsync` — assunto: "Assinatura do plano {Nome} renovada"; sem CTA (notificação discreta) |
+| 3 | Falha de pagamento | ✅ Implementado | `NotifyFailedAsync` — assunto: "Problema na confirmação do pagamento" (primeira compra) ou "Problema ao renovar sua assinatura" (renovação); CTA: "Atualizar pagamento" → `/assinatura` |
+| 4 | Lembrete de janela de recuperação | ✅ Implementado | `NotifyGracePeriodReminderAsync` — assunto: "Seu acesso premium está em risco"; CTA: "Atualizar pagamento" → `/assinatura` |
+| 5 | Downgrade para `basic` | ✅ Implementado | `NotifyDowngradedAsync` — assunto: "Acesso premium encerrado"; CTA: "Reativar plano" → `/assinatura` |
+| 6 | Pagamento regularizado | ✅ Implementado | `NotifyReactivatedAsync` — assunto: "Seu acesso premium está restaurado"; CTA: "Acessar o app" → `/dashboard` |
 
-## Dados mínimos por template
+## Copy final por evento
 
-- nome do usuário
-- nome do plano
-- status atual da assinatura
-- data da próxima tentativa ou da suspensão, quando aplicável
-- CTA principal
-- link do portal ou da atualização de pagamento
+### 1. Compra aprovada
 
-## Exemplos de copy aprovados como direção
+- Assunto: `Bem-vindo ao plano {Nome}!`
+- Título: `Plano {Nome} ativado`
+- Corpo: `Ótimo! Seu pagamento foi aprovado e o plano {Nome} já está disponível na sua conta. Acesse o app e aproveite todos os recursos.`
+- CTA: `Acessar o app` → `{frontendBase}/dashboard`
 
-### Falha de cobrança
+### 2. Renovação aprovada
 
-- "Tivemos um problema ao renovar sua assinatura. Atualize sua forma de pagamento para
-  continuar com todos os recursos premium."
+- Assunto: `Assinatura do plano {Nome} renovada`
+- Título: `Assinatura renovada`
+- Corpo: `Tudo certo! Sua assinatura do plano {Nome} foi renovada automaticamente. Nenhuma ação necessária.`
+- CTA: nenhum (notificação discreta)
 
-### Lembrete
+### 3. Falha de pagamento (primeira compra)
 
-- "Seu acesso premium está quase sendo interrompido. Regularize o pagamento e continue
-  usando seu plano sem perder o ritmo."
+- Assunto: `Problema na confirmação do pagamento`
+- Título: `Falha na cobrança`
+- Corpo: `A cobrança não foi aprovada. Atualize sua forma de pagamento para continuar com acesso ao plano.`
+- CTA: `Atualizar pagamento` → `{frontendBase}/assinatura`
 
-### Downgrade para `basic`
+### 3b. Falha de pagamento (renovação — `checkout.Status == Paid`)
 
-- "Como não conseguimos confirmar o pagamento, seu acesso voltou para o plano BASIC. Você
-  pode reativar seu plano premium a qualquer momento."
+- Assunto: `Problema ao renovar sua assinatura`
+- Título: `Falha na cobrança`
+- Corpo: `Tivemos um problema ao renovar sua assinatura. Atualize sua forma de pagamento para continuar com todos os recursos premium.`
+- CTA: `Atualizar pagamento` → `{frontendBase}/assinatura`
 
-### Reativação
+### 4. Lembrete de janela de recuperação
 
-- "Tudo certo novamente. Seu pagamento foi confirmado e seu plano premium já está ativo."
+- Assunto: `Seu acesso premium está em risco`
+- Título: `Acesso premium em risco`
+- Corpo: `Seu acesso premium está quase sendo interrompido. Regularize o pagamento até {data} para continuar usando seu plano sem perder o ritmo.`
+- CTA: `Atualizar pagamento` → `{frontendBase}/assinatura`
+
+### 5. Downgrade para `basic`
+
+- Assunto: `Acesso premium encerrado`
+- Título: `Plano atualizado para Essencial`
+- Corpo: `Como não conseguimos confirmar o pagamento, seu acesso voltou para o plano Essencial. Você pode reativar seu plano premium a qualquer momento.`
+- CTA: `Reativar plano` → `{frontendBase}/assinatura`
+
+### 6. Pagamento regularizado
+
+- Assunto: `Seu acesso premium está restaurado`
+- Título: `Plano reativado`
+- Corpo: `Tudo certo novamente. Seu pagamento foi confirmado e seu plano premium já está ativo.`
+- CTA: `Acessar o app` → `{frontendBase}/dashboard`
+
+## Dados disponíveis nos templates
+
+- nome do usuário (`user.Name`)
+- nome amigável do plano (`PlanDisplayName(checkout.PlanCode)`)
+- CTA via `StripeOptions.FrontendBaseUrl` (configurado por ambiente)
+- data limite da janela de graça (passada para `NotifyGracePeriodReminderAsync`)
 
 ## O que não deve entrar em implementação
 
@@ -61,7 +89,7 @@ Este documento cobre apenas o que falta implementar tecnicamente.
 ## Critérios de aceite
 
 - cada evento relevante de billing gera a comunicação correta no canal correto
-- não há duplicação indevida de mensagens
+- não há duplicação indevida de mensagens (idempotência via `referenceKey`)
 - o usuário consegue sair da mensagem e chegar ao fluxo certo de regularização
 - downgrade e reativação ficam claros para o usuário
 - o tom final permanece acolhedor/comercial

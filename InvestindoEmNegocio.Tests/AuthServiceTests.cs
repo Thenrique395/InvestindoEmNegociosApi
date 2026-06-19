@@ -271,7 +271,8 @@ public class AuthServiceTests
     {
         var sessionService = new UserSessionService(
             refreshTokenRepository?.Object ?? Mock.Of<IRefreshTokenRepository>(),
-            jwtTokenGenerator?.Object ?? CreateDefaultTokenGenerator().Object);
+            jwtTokenGenerator?.Object ?? CreateDefaultTokenGenerator().Object,
+            NullLogger<UserSessionService>.Instance);
         var bootstrapService = new UserAccountBootstrapService(
             accountRepository?.Object ?? Mock.Of<IAccountRepository>(),
             NullLogger<UserAccountBootstrapService>.Instance);
