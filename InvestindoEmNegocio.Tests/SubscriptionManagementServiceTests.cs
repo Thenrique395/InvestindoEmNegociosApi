@@ -88,6 +88,49 @@ public class SubscriptionManagementServiceTests
     }
 
     [Fact]
+    public async Task CancelAsync_Should_Retry_And_Succeed_When_Concurrent_Webhook_Updates_Subscription()
+    {
+        var connection = new SqliteConnection("DataSource=:memory:");
+        connection.Open();
+        var options = new DbContextOptionsBuilder<InvestDbContext>().UseSqlite(connection).Options;
+
+        await using var dbContext1 = new InvestDbContext(options);
+        await dbContext1.Database.EnsureCreatedAsync();
+
+        var user = new User("Teste", "concurrency@teste.com", "hash");
+        user.SetRole(UserRole.Advanced);
+        var renewsAt = DateTime.UtcNow.AddDays(20);
+        var subscription = new UserSubscription(
+            user.Id, "advanced", UserRole.Advanced, SubscriptionBillingCycle.Monthly,
+            59.90m, "BRL", DateTime.UtcNow.AddMonths(-1), renewsAt);
+        subscription.Activate("advanced", UserRole.Advanced, SubscriptionBillingCycle.Monthly, 59.90m, "BRL",
+            DateTime.UtcNow.AddMonths(-1), renewsAt);
+        await dbContext1.Users.AddAsync(user);
+        await dbContext1.UserSubscriptions.AddAsync(subscription);
+        await dbContext1.SaveChangesAsync();
+
+        // dbContext1 mantém a entidade rastreada com a Version pré-corrida. Um segundo
+        // DbContext simula um webhook concorrente avançando a Version no banco antes do
+        // cancelamento de dbContext1 conseguir salvar — deve disparar
+        // DbUpdateConcurrencyException e o retry de CancelAsync deve recarregar e reaplicar.
+        await using var dbContext2 = new InvestDbContext(options);
+        var subscriptionFromWebhook = await dbContext2.UserSubscriptions.SingleAsync(x => x.Id == subscription.Id);
+        subscriptionFromWebhook.MarkPastDue(DateTime.UtcNow);
+        await dbContext2.SaveChangesAsync();
+
+        var jwt = new Mock<IJwtTokenGenerator>();
+        jwt.Setup(x => x.Generate(It.IsAny<User>())).Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
+
+        var result = await CreateSut(dbContext1, jwt.Object).CancelAsync(user.Id);
+
+        result.Current.AutoRenew.Should().BeFalse();
+
+        await using var verifyContext = new InvestDbContext(options);
+        var stored = await verifyContext.UserSubscriptions.SingleAsync(x => x.Id == subscription.Id);
+        stored.AutoRenew.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task CancelAsync_Should_Cancel_Preapproval_When_Subscription_Is_MercadoPago()
     {
         await using var dbContext = CreateDbContext();

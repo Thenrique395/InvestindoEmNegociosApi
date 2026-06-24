@@ -37,4 +37,7 @@ public sealed class UserSubscriptionRepository(InvestDbContext context) : IUserS
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => context.SaveChangesAsync(cancellationToken);
+
+    public Task ReloadAsync(UserSubscription subscription, CancellationToken cancellationToken = default)
+        => context.Entry(subscription).ReloadAsync(cancellationToken);
 }

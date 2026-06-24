@@ -1166,3 +1166,23 @@ BEGIN
 
     CREATE UNIQUE INDEX IF NOT EXISTS "IX_cards_UserId_BrandId_Last4" ON cards ("UserId", "BrandId", "Last4") WHERE "DeletedAt" IS NULL;
 END $$;
+
+-- Concorrência otimista (Version) em UserSubscription e LoanInstallment: protege contra
+-- duas escritas concorrentes na mesma linha (ex.: webhook de billing vs. cancelamento pelo
+-- usuário; duplo clique/retry de rede no pagamento de parcela) — o EF Core inclui
+-- WHERE "Version" = @valorLido em todo UPDATE e lança DbUpdateConcurrencyException se a
+-- linha já tiver sido alterada por outra escrita entre a leitura e o save.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_subscriptions'
+    ) THEN
+        ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS "Version" integer NOT NULL DEFAULT 0;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'loan_installments'
+    ) THEN
+        ALTER TABLE loan_installments ADD COLUMN IF NOT EXISTS "Version" integer NOT NULL DEFAULT 0;
+    END IF;
+END $$;

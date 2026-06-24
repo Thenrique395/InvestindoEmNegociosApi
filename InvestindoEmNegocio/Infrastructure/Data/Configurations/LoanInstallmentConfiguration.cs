@@ -19,6 +19,7 @@ public class LoanInstallmentConfiguration : IEntityTypeConfiguration<LoanInstall
         builder.Property(x => x.Status).HasConversion<string>().IsRequired();
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired();
+        builder.Property(x => x.Version).IsConcurrencyToken();
 
         builder.HasIndex(x => new { x.UserId, x.DueDate });
         builder.HasIndex(x => new { x.ContractId, x.InstallmentNo }).IsUnique();

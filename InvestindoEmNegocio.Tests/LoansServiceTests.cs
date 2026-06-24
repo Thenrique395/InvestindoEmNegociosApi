@@ -4,6 +4,7 @@ using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 
 namespace InvestindoEmNegocio.Tests;
@@ -64,6 +65,32 @@ public class LoansServiceTests
         contractRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         result.Installments.Should().HaveCount(6);
         result.OpenInstallments.Should().Be(6);
+    }
+
+    [Fact]
+    public async Task PayInstallmentAsync_Should_Throw_AlreadyPaid_When_Concurrent_Write_Wins_The_Race()
+    {
+        var userId = Guid.NewGuid();
+        var contract = new LoanContract(
+            userId, "Crédito", 5000m, 10m, 2, LoanAmortizationType.Price,
+            new DateOnly(2026, 1, 10), 10, 2600m, 5200m, 200m);
+        var installment = new LoanInstallment(contract.Id, userId, 1, new DateOnly(2026, 1, 10), 5000m, 2500m, 100m, 2600m, 2500m);
+
+        var contractRepository = new Mock<ILoanContractRepository>();
+        contractRepository.Setup(x => x.GetByIdAsync(contract.Id, userId, It.IsAny<CancellationToken>())).ReturnsAsync(contract);
+        var installmentRepository = new Mock<ILoanInstallmentRepository>();
+        installmentRepository.Setup(x => x.GetByIdAsync(installment.Id, userId, It.IsAny<CancellationToken>())).ReturnsAsync(installment);
+        // Simula uma segunda requisição (duplo clique/retry de rede) já tendo salvo a mesma
+        // parcela como paga entre a leitura e este SaveChangesAsync — exatamente o que o
+        // token de concorrência (Version) detecta de verdade contra um banco real.
+        installmentRepository.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateConcurrencyException());
+
+        var sut = new LoansService(contractRepository.Object, installmentRepository.Object);
+
+        await sut.Invoking(x => x.PayInstallmentAsync(userId, contract.Id, installment.Id))
+            .Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("A parcela já foi paga.");
     }
 
     [Fact]

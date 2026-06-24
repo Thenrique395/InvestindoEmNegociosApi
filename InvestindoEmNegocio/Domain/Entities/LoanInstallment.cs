@@ -18,6 +18,7 @@ public class LoanInstallment
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime? PaidAt { get; private set; }
+    public int Version { get; private set; }
 
     private LoanInstallment() { }
 
@@ -48,5 +49,6 @@ public class LoanInstallment
         Status = LoanInstallmentStatus.Paid;
         PaidAt = paidAtUtc;
         UpdatedAt = DateTime.UtcNow;
+        Version++;
     }
 }

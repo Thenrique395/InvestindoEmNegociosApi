@@ -61,6 +61,43 @@ public class BillingSubscriptionSyncServiceTests
     }
 
     [Fact]
+    public async Task SyncAsync_Should_Propagate_DbUpdateConcurrencyException_When_Subscription_Changed_Concurrently()
+    {
+        var connection = new SqliteConnection("DataSource=:memory:");
+        connection.Open();
+        var options = new DbContextOptionsBuilder<InvestDbContext>().UseSqlite(connection).Options;
+
+        await using var dbContext = new InvestDbContext(options);
+        await dbContext.Database.EnsureCreatedAsync();
+
+        var user = new User("Teste", "sync-concurrency@teste.com", "hash");
+        var localSubscription = new UserSubscription(
+            user.Id, "advanced", UserRole.Advanced, SubscriptionBillingCycle.Monthly,
+            59.90m, "BRL", DateTime.UtcNow.AddMonths(-1), DateTime.UtcNow.AddDays(10));
+        localSubscription.Activate("advanced", UserRole.Advanced, SubscriptionBillingCycle.Monthly, 59.90m, "BRL",
+            DateTime.UtcNow.AddMonths(-1), DateTime.UtcNow.AddDays(10), "cus_test", "sub_concurrency", null);
+
+        await dbContext.Users.AddAsync(user);
+        await dbContext.UserSubscriptions.AddAsync(localSubscription);
+        await dbContext.SaveChangesAsync();
+
+        // dbContext mantém localSubscription rastreada com a Version pré-corrida. Um segundo
+        // DbContext simula um cancelamento do usuário avançando a Version no banco antes do
+        // webhook (SyncAsync) conseguir salvar — deve propagar DbUpdateConcurrencyException
+        // sem ser engolida, conforme a decisão deliberada de não reter aqui (ver plano).
+        await using var dbContextFromCancel = new InvestDbContext(options);
+        var subscriptionFromCancel = await dbContextFromCancel.UserSubscriptions.SingleAsync(x => x.Id == localSubscription.Id);
+        subscriptionFromCancel.ScheduleCancellation(DateTime.UtcNow);
+        await dbContextFromCancel.SaveChangesAsync();
+
+        var sut = CreateSut(dbContext);
+        var subscriptionSnapshot = new ProviderSubscriptionSnapshot("sub_concurrency", "cus_test", "active", null, null, null, null);
+
+        await sut.Invoking(x => x.SyncAsync(subscriptionSnapshot, EventTypes.CustomerSubscriptionUpdated))
+            .Should().ThrowAsync<DbUpdateConcurrencyException>();
+    }
+
+    [Fact]
     public async Task SyncAsync_Should_MarkPastDue_And_NotifyFailed_When_Status_Is_PastDue()
     {
         await using var dbContext = CreateDbContext();

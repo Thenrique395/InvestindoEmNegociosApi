@@ -4,6 +4,7 @@ using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace InvestindoEmNegocio.Application.Services;
 
@@ -108,7 +109,14 @@ public class LoansService(
             throw new InvalidOperationException("A parcela já foi paga.");
 
         installment.MarkPaid(DateTime.UtcNow);
-        await loanInstallmentRepository.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await loanInstallmentRepository.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new InvalidOperationException("A parcela já foi paga.");
+        }
 
         return new LoanInstallmentResponse(
             installment.Id,

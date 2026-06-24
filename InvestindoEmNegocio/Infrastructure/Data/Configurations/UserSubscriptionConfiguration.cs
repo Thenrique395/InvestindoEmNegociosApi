@@ -19,6 +19,7 @@ public sealed class UserSubscriptionConfiguration : IEntityTypeConfiguration<Use
         builder.Property(x => x.ExternalSubscriptionId).HasMaxLength(120);
         builder.Property(x => x.ExternalPriceId).HasMaxLength(120);
         builder.Property(x => x.IsTrial).HasDefaultValue(false);
+        builder.Property(x => x.Version).IsConcurrencyToken();
 
         builder.HasIndex(x => x.UserId).IsUnique();
         builder.HasIndex(x => x.ExternalSubscriptionId);

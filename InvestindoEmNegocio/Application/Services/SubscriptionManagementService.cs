@@ -5,6 +5,7 @@ using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -103,7 +104,23 @@ public sealed class SubscriptionManagementService(
             subscription.ScheduleCancellation(DateTime.UtcNow);
         }
 
-        await userSubscriptionRepository.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await userSubscriptionRepository.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // A chamada ao gateway (Stripe/MP) já aconteceu e é idempotente — em vez de
+            // devolver erro pro usuário por uma corrida rara com um webhook concorrente,
+            // descarta os valores em memória, recarrega do banco e reaplica o cancelamento.
+            // Não usa GetByUserIdAsync de novo: a entidade já está rastreada neste DbContext,
+            // então uma query normal devolveria a mesma instância com os valores antigos
+            // (resolução de identidade do EF) em vez de buscar o estado atual do banco.
+            await userSubscriptionRepository.ReloadAsync(subscription, cancellationToken);
+            subscription.ScheduleCancellation(DateTime.UtcNow);
+            await userSubscriptionRepository.SaveChangesAsync(cancellationToken);
+        }
+
         var session = await userSessionService.ReissueAsync(user, DateTime.UtcNow, cancellationToken);
         return new SubscriptionChangeResponse(SubscriptionResponseFactory.BuildCurrent(user, subscription), session, SubscriptionResponseFactory.Notes);
     }

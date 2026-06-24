@@ -22,6 +22,7 @@ public class UserSubscription
     public bool IsTrial { get; private set; }
     public DateTime? CancelledAt { get; private set; }
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
+    public int Version { get; private set; }
 
     private UserSubscription()
     {
@@ -75,6 +76,7 @@ public class UserSubscription
         if (!string.IsNullOrWhiteSpace(externalSubscriptionId)) ExternalSubscriptionId = externalSubscriptionId;
         if (!string.IsNullOrWhiteSpace(externalPriceId)) ExternalPriceId = externalPriceId;
         UpdatedAt = nowUtc;
+        Version++;
     }
 
     public void MarkPendingActivation(
@@ -102,6 +104,7 @@ public class UserSubscription
         if (!string.IsNullOrWhiteSpace(externalSubscriptionId)) ExternalSubscriptionId = externalSubscriptionId;
         if (!string.IsNullOrWhiteSpace(externalPriceId)) ExternalPriceId = externalPriceId;
         UpdatedAt = nowUtc;
+        Version++;
     }
 
     public void SetProvider(string provider)
@@ -114,6 +117,7 @@ public class UserSubscription
     {
         AutoRenew = false;
         UpdatedAt = nowUtc;
+        Version++;
     }
 
     public void CancelNow(DateTime nowUtc)
@@ -122,12 +126,14 @@ public class UserSubscription
         Status = UserSubscriptionStatus.Cancelled;
         CancelledAt = nowUtc;
         UpdatedAt = nowUtc;
+        Version++;
     }
 
     public void MarkPastDue(DateTime nowUtc)
     {
         Status = UserSubscriptionStatus.PastDue;
         UpdatedAt = nowUtc;
+        Version++;
     }
 
     public void MarkExpired(DateTime nowUtc)
@@ -135,6 +141,7 @@ public class UserSubscription
         Status = UserSubscriptionStatus.Expired;
         AutoRenew = false;
         UpdatedAt = nowUtc;
+        Version++;
     }
 
     public void MarkRefunded(DateTime nowUtc)
@@ -142,6 +149,7 @@ public class UserSubscription
         Status = UserSubscriptionStatus.Refunded;
         AutoRenew = false;
         UpdatedAt = nowUtc;
+        Version++;
     }
 
     public void ActivateTrial(string planCode, UserRole roleGranted, DateTime nowUtc, DateTime endsAtUtc)
@@ -159,5 +167,6 @@ public class UserSubscription
         ExternalPriceId = null;
         CancelledAt = null;
         UpdatedAt = nowUtc;
+        Version++;
     }
 }
