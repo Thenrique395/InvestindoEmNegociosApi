@@ -1,6 +1,8 @@
+using InvestindoEmNegocio.Domain.Common;
+
 namespace InvestindoEmNegocio.Domain.Entities;
 
-public class Card
+public class Card : ISoftDeletable
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid UserId { get; private set; }
@@ -14,6 +16,7 @@ public class Card
     public string Last4 { get; private set; } = string.Empty;
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
+    public DateTime? DeletedAt { get; private set; }
 
     private Card() { }
 
@@ -66,5 +69,11 @@ public class Card
     {
         if (day < 1 || day > 31) throw new ArgumentException($"{field} deve estar entre 1 e 31.");
         return day;
+    }
+
+    public void MarkDeleted(DateTime nowUtc)
+    {
+        DeletedAt = nowUtc;
+        UpdatedAt = nowUtc;
     }
 }

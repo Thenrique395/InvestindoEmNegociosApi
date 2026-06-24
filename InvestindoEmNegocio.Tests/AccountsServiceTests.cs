@@ -5,14 +5,36 @@ using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
+using InvestindoEmNegocio.Infrastructure.Data;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace InvestindoEmNegocio.Tests;
 
 [Trait("Suite", "Smoke")]
-public class AccountsServiceTests
+public class AccountsServiceTests : IDisposable
 {
+    private readonly SqliteConnection _connection = new("DataSource=:memory:");
+    private readonly InvestDbContext _dbContext;
+
+    public AccountsServiceTests()
+    {
+        _connection.Open();
+        var options = new DbContextOptionsBuilder<InvestDbContext>().UseSqlite(_connection).Options;
+        _dbContext = new InvestDbContext(options);
+        _dbContext.Database.EnsureCreated();
+    }
+
+    private IInvestDbContext DbContext => _dbContext;
+
+    public void Dispose()
+    {
+        _dbContext.Dispose();
+        _connection.Dispose();
+    }
+
     [Fact]
     public async Task TransferAsync_Should_Throw_When_Amount_Is_Invalid()
     {
@@ -83,7 +105,7 @@ public class AccountsServiceTests
 
         var transactionRepository = new Mock<IAccountTransactionRepository>();
         transactionRepository
-            .Setup(x => x.ListByAccountAsync(accountId, userId, null, null, It.IsAny<CancellationToken>()))
+            .Setup(x => x.ListByAccountAsync(accountId, userId, null, null, It.IsAny<CancellationToken>(), It.IsAny<bool>()))
             .ReturnsAsync([
                 new AccountTransaction(accountId, userId, DateTime.UtcNow, AccountTransactionKind.Credit, 100m, "Transfer", "AccountTransfer", Guid.NewGuid())
             ]);
@@ -96,7 +118,7 @@ public class AccountsServiceTests
         items![0].Type.Should().Be(AccountTransactionType.Transfer);
     }
 
-    private static IAccountsService BuildSut(
+    private IAccountsService BuildSut(
         Mock<IAccountRepository>? accountRepository = null,
         Mock<IAccountTransactionRepository>? transactionRepository = null)
     {
@@ -113,6 +135,7 @@ public class AccountsServiceTests
         var transfer = new AccountTransferService(
             accountRepository?.Object ?? Mock.Of<IAccountRepository>(),
             transactionRepository?.Object ?? Mock.Of<IAccountTransactionRepository>(),
+            DbContext,
             NullLogger<AccountTransferService>.Instance);
 
         return new AccountsService(

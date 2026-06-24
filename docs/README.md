@@ -36,9 +36,9 @@ Ela cobre:
 
 - autenticação, sessão e autorização
 - onboarding, perfil, preferências e LGPD
-- despesas, receitas, metas, contas, cartões e ledger
+- despesas, receitas, orçamento mensal, metas, contas, cartões e ledger
 - importações financeiras e portabilidade
-- investimentos, patrimônio, empréstimos e snapshots
+- investimentos, patrimônio, empréstimos, simulador de cenários, relatórios mensais e snapshots
 - billing, assinatura e integração com Stripe
 - área administrativa, parâmetros e robôs
 

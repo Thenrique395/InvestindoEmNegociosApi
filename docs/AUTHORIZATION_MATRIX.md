@@ -67,7 +67,11 @@ Observacao:
 - `feature.data-portability.export`
 - `feature.data-portability.import`
 - `feature.plans.manage`
+- `feature.incomes.read`
 - `feature.incomes.summary.read`
+- `feature.budget.access`
+- `feature.scenarios.access`
+- `feature.reports.access`
 - `feature.goals.manage`
 - `feature.goal-contributions.manage`
 - `feature.installments.read`
@@ -107,7 +111,11 @@ Observacao:
 - `data-portability.export`
 - `data-portability.import`
 - `plans.manage`
+- `incomes.read`
 - `incomes.summary.read`
+- `budget.access`
+- `scenarios.access`
+- `reports.access`
 - `goals.manage`
 - `goal-contributions.manage`
 - `installments.read`
@@ -144,8 +152,8 @@ Observacao:
 ## Leitura rapida por faixa de acesso
 
 - `Publico`: autenticacao publica, recuperacao de acesso e webhook do provedor
-- `Basic via feature`: seguranca da conta, perfil, preferencias, onboarding, notificacoes, consultas gerais, portabilidade, billing self-service, assinaturas, planos, receitas, metas, parcelas basicas, leitura de contas, cartoes basicos e leitura de categorias
-- `Intermediate+ via feature`: gestao e analytics de contas, faturas de cartao, gestao de categorias, importacoes, antecipacao de parcelas, assistente financeiro, snapshots mensais e emprestimos
+- `Basic via feature`: seguranca da conta, perfil, preferencias, onboarding, notificacoes, consultas gerais, portabilidade (exportacao), billing self-service (incluindo refund, trial e retry-payment), assinaturas, planos, receitas (lista simples), metas, parcelas basicas, leitura de contas, cartoes basicos e leitura de categorias
+- `Intermediate+ via feature`: gestao e analytics de contas, faturas de cartao, gestao de categorias, importacoes (incluindo `data-portability.import`), antecipacao de parcelas, assistente financeiro, snapshots mensais, emprestimos (incluindo pagamento de parcela), receitas com analytics, orcamento mensal, simulador de cenarios e relatorios mensais
 - `Advanced+ via feature`: investimentos e market data
 - `Administrativo via feature`: usuarios, parametros, robos e categorias padrao
 
@@ -177,6 +185,7 @@ Classificacao:
 - `POST /api/v1/auth/reset-password`
 - `POST /api/v1/auth/logout`
 - `POST /api/v1/billing/stripe/webhook`
+- `POST /api/v1/billing/mercadopago/webhook`
 
 ### Basic via feature gate
 
@@ -228,6 +237,9 @@ Classificacao:
   - `GET /api/v1/subscriptions/catalog`
   - `POST /api/v1/subscriptions/change`
   - `POST /api/v1/subscriptions/cancel`
+  - `POST /api/v1/subscriptions/refund`
+  - `POST /api/v1/subscriptions/request-trial`
+  - `POST /api/v1/subscriptions/retry-payment`
 
 - `feature.billing.manage`
   - `POST /api/v1/billing/checkout`
@@ -241,6 +253,9 @@ Classificacao:
   - `GET /api/v1/plans/{id}`
   - `PUT /api/v1/plans/{id}`
   - `DELETE /api/v1/plans/{id}`
+
+- `feature.incomes.read`
+  - `GET /api/v1/incomes`
 
 - `feature.incomes.summary.read`
   - `GET /api/v1/incomes/summary`
@@ -279,8 +294,8 @@ Classificacao:
 
 Regra atual:
 
-- `Basic` recebe os recursos comuns acima, `accounts.read`, `cards.read`, `cards.create-update`, `cards.delete` e `categories.read`
-- `Basic` nao recebe faturas de cartao, gestao de contas, analytics, importacoes, antecipacao, assistente financeiro, snapshots, emprestimos nem investimentos
+- `Basic` recebe os recursos comuns acima, `accounts.read`, `cards.read`, `cards.create-update`, `cards.delete`, `categories.read` e `incomes.read` (lista simples de receitas, sem analytics)
+- `Basic` nao recebe faturas de cartao, gestao de contas, analytics, importacoes, antecipacao, assistente financeiro, snapshots, emprestimos, orcamento, simulador de cenarios, relatorios, `incomes.summary.read` nem investimentos
 
 ### Intermediate+ via feature gate
 
@@ -353,6 +368,20 @@ Classificacao:
   - `GET /api/v1/loans`
   - `POST /api/v1/loans/simulate`
   - `POST /api/v1/loans`
+  - `PUT /api/v1/loans/{id}`
+  - `DELETE /api/v1/loans/{id}`
+  - `POST /api/v1/loans/{contractId}/installments/{installmentId}/pay`
+
+- `feature.budget.access`
+  - `GET /api/v1/budget/{year}/{month}`
+  - `PUT /api/v1/budget/{year}/{month}/items`
+  - `DELETE /api/v1/budget/items/{itemId}`
+
+- `feature.scenarios.access`
+  - `POST /api/v1/scenarios/simulate`
+
+- `feature.reports.access`
+  - `GET /api/v1/reports/monthly-summary/{year}/{month}`
 
 Regra pratica:
 

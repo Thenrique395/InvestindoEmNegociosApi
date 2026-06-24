@@ -246,7 +246,7 @@ public class InvestmentsServiceTests
     }
 
     [Fact]
-    public async Task DeletePositionAsync_Should_Remove_And_Return_True_When_Position_Exists()
+    public async Task DeletePositionAsync_Should_MarkDeleted_And_Return_True_When_Position_Exists()
     {
         var userId = Guid.NewGuid();
         var position = new InvestmentPosition(userId, InvestmentType.ACOES, "PETR4", 2, 10, DateOnly.FromDateTime(DateTime.UtcNow), string.Empty, string.Empty, string.Empty);
@@ -259,8 +259,27 @@ public class InvestmentsServiceTests
         var deleted = await sut.DeletePositionAsync(userId, position.Id, CancellationToken.None);
 
         deleted.Should().BeTrue();
-        positionRepository.Verify(x => x.Remove(position), Times.Once);
+        position.DeletedAt.Should().NotBeNull();
         positionRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeletePositionAsync_Should_MarkDeleted_On_Movements_Cascade()
+    {
+        var userId = Guid.NewGuid();
+        var position = new InvestmentPosition(userId, InvestmentType.ACOES, "PETR4", 2, 10, DateOnly.FromDateTime(DateTime.UtcNow), string.Empty, string.Empty, string.Empty);
+        var movement = new InvestmentMovement(position.Id, InvestmentMovementType.COMPRA, 1, 10, DateOnly.FromDateTime(DateTime.UtcNow));
+        position.ApplyMovement(movement);
+
+        var positionRepository = new Mock<IInvestmentPositionRepository>();
+        positionRepository
+            .Setup(x => x.GetByIdAsync(position.Id, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(position);
+        var sut = BuildSut(positionRepository: positionRepository);
+
+        await sut.DeletePositionAsync(userId, position.Id, CancellationToken.None);
+
+        movement.DeletedAt.Should().NotBeNull();
     }
 
     [Fact]

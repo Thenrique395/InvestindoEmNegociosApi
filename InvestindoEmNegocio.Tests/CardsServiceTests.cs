@@ -226,7 +226,7 @@ public class CardsServiceTests
     }
 
     [Fact]
-    public async Task DeleteAsync_Should_Remove_And_Save_When_Card_Exists()
+    public async Task DeleteAsync_Should_MarkDeleted_And_Save_When_Card_Exists()
     {
         var userId = Guid.NewGuid();
         var card = new Card(userId, 1, "Nome", "Apelido", "1234", "Banco", 1000, 10, 20);
@@ -240,7 +240,7 @@ public class CardsServiceTests
         var removed = await sut.DeleteAsync(userId, Guid.NewGuid());
 
         removed.Should().BeTrue();
-        cardRepository.Verify(x => x.Remove(card), Times.Once);
+        card.DeletedAt.Should().NotBeNull();
         cardRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 

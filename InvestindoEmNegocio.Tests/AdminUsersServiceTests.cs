@@ -36,6 +36,47 @@ public class AdminUsersServiceTests
     }
 
     [Fact]
+    public async Task UpdateStatusAsync_Should_Revoke_Sessions_When_Deactivating()
+    {
+        var currentUserId = Guid.NewGuid();
+        var targetUser = new User("Tester", "tester@local", "hash");
+        var previousTokenVersion = targetUser.TokenVersion;
+
+        var repository = new Mock<IUserRepository>();
+        repository
+            .Setup(x => x.GetByIdAsync(targetUser.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(targetUser);
+
+        var userSessionService = new Mock<IUserSessionService>();
+        var sut = new AdminUsersService(repository.Object, Mock.Of<IUserSubscriptionRepository>(), Mock.Of<IUserFeatureOverrideRepository>(), userSessionService.Object, Mock.Of<IAuditService>());
+
+        await sut.UpdateStatusAsync(targetUser.Id, false, currentUserId, CancellationToken.None);
+
+        targetUser.IsActive.Should().BeFalse();
+        targetUser.TokenVersion.Should().BeGreaterThan(previousTokenVersion);
+        userSessionService.Verify(x => x.RevokeActiveAsync(targetUser.Id, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateStatusAsync_Should_Not_Revoke_Sessions_When_Activating()
+    {
+        var currentUserId = Guid.NewGuid();
+        var targetUser = new User("Tester", "tester@local", "hash");
+
+        var repository = new Mock<IUserRepository>();
+        repository
+            .Setup(x => x.GetByIdAsync(targetUser.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(targetUser);
+
+        var userSessionService = new Mock<IUserSessionService>();
+        var sut = new AdminUsersService(repository.Object, Mock.Of<IUserSubscriptionRepository>(), Mock.Of<IUserFeatureOverrideRepository>(), userSessionService.Object, Mock.Of<IAuditService>());
+
+        await sut.UpdateStatusAsync(targetUser.Id, true, currentUserId, CancellationToken.None);
+
+        userSessionService.Verify(x => x.RevokeActiveAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task DeleteAsync_Should_Remove_User_When_Found()
     {
         var currentUserId = Guid.NewGuid();

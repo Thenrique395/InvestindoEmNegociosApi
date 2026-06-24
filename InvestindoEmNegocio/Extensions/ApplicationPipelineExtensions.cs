@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using InvestindoEmNegocio.Infrastructure.Auth;
 using InvestindoEmNegocio.Infrastructure.Logging;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Scalar.AspNetCore;
@@ -24,7 +25,10 @@ public static class ApplicationPipelineExtensions
     public static WebApplication UseAppPipeline(this WebApplication app, string corsPolicy)
     {
         app.UseGlobalProblemDetails(app.Environment.IsDevelopment());
+        if (!app.Environment.IsDevelopment())
+            app.UseHsts();
         app.UseHttpsRedirection();
+        app.UseSecurityHeaders();
         app.UseResponseCompression();
         app.UseStaticFiles();
         app.UseMiddleware<CorrelationIdMiddleware>();
@@ -44,7 +48,30 @@ public static class ApplicationPipelineExtensions
         app.UseCors(corsPolicy);
         app.UseRateLimiter();
         app.UseAuthentication();
+        app.UseMiddleware<CsrfValidationMiddleware>();
         app.UseAuthorization();
+
+        return app;
+    }
+
+    private static WebApplication UseSecurityHeaders(this WebApplication app)
+    {
+        app.Use(async (context, next) =>
+        {
+            var headers = context.Response.Headers;
+            headers["X-Content-Type-Options"] = "nosniff";
+            headers["X-Frame-Options"] = "DENY";
+            headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+
+            // CSP só na API JSON; /docs e /openapi usam scripts da Scalar UI que a política quebraria.
+            if (!context.Request.Path.StartsWithSegments("/docs") &&
+                !context.Request.Path.StartsWithSegments("/openapi"))
+            {
+                headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'";
+            }
+
+            await next();
+        });
 
         return app;
     }

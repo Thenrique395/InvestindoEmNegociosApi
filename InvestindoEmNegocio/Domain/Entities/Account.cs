@@ -1,8 +1,9 @@
+using InvestindoEmNegocio.Domain.Common;
 using InvestindoEmNegocio.Domain.Enums;
 
 namespace InvestindoEmNegocio.Domain.Entities;
 
-public class Account
+public class Account : ISoftDeletable
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid UserId { get; private set; }
@@ -12,6 +13,7 @@ public class Account
     public bool IsActive { get; private set; } = true;
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
+    public DateTime? DeletedAt { get; private set; }
 
     private Account() { }
 
@@ -52,5 +54,11 @@ public class Account
         CreatedAt = createdAt.Kind == DateTimeKind.Utc
             ? createdAt
             : DateTime.SpecifyKind(createdAt, DateTimeKind.Utc);
+    }
+
+    public void MarkDeleted(DateTime nowUtc)
+    {
+        DeletedAt = nowUtc;
+        UpdatedAt = nowUtc;
     }
 }

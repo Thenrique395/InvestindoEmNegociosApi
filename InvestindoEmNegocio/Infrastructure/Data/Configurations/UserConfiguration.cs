@@ -77,6 +77,16 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.LockoutUntil);
         builder.Property(u => u.TrialUsedAt);
 
+        builder.Property(u => u.IsAnonymized)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(u => u.DeletedAt);
+
+        builder.Property(u => u.TokenVersion)
+            .IsRequired()
+            .HasDefaultValue(0);
+
         builder.HasIndex(u => u.Email)
             .IsUnique();
 

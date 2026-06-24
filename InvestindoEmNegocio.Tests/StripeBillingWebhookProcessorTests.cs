@@ -118,7 +118,11 @@ public class StripeBillingWebhookProcessorTests
             .ProcessAsync(stripeEvent, webhookLog);
 
         billingSubscriptionSyncService.Verify(
-            x => x.SyncAsync(subscription, EventTypes.CustomerSubscriptionUpdated, It.IsAny<CancellationToken>(), null),
+            x => x.SyncAsync(
+                It.Is<ProviderSubscriptionSnapshot>(s => s.ExternalId == subscription.Id),
+                EventTypes.CustomerSubscriptionUpdated,
+                It.IsAny<CancellationToken>(),
+                null),
             Times.Once);
         billingCheckoutRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }

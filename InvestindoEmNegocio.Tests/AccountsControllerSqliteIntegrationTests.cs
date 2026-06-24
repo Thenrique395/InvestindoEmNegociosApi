@@ -194,6 +194,54 @@ public class AccountsControllerSqliteIntegrationTests
         netWorth.NetWorth.Should().Be(800m);
     }
 
+    [Fact]
+    public async Task Delete_Should_SoftDelete_Account_And_Cascade_To_Transactions_And_Allow_Recreating_Same_Name()
+    {
+        await using var host = await TestAccountsApiHost.StartAsync(UserRole.Intermediate);
+        var client = host.App.GetTestClient();
+
+        var createRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/accounts")
+        {
+            Content = JsonContent.Create(new AccountRequest("Conta Reaproveitada", AccountType.Checking, 100m))
+        };
+        createRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "token");
+        var createResponse = await client.SendAsync(createRequest);
+        var created = await createResponse.Content.ReadFromJsonAsync<AccountResponse>();
+
+        await host.SeedTransactionAsync(new AccountTransaction(
+            created!.Id, TestAccountsApiHost.TestUserId, DateTime.UtcNow, AccountTransactionKind.Credit, 50m, "Aporte"));
+
+        var deleteRequest = new HttpRequestMessage(HttpMethod.Delete, $"/api/v1/accounts/{created.Id}");
+        deleteRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "token");
+        var deleteResponse = await client.SendAsync(deleteRequest);
+        deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        // Índice único parcial: deve ser possível recriar uma conta com o mesmo nome
+        // depois da exclusão (a linha excluída não pode mais ocupar o slot do índice).
+        var recreateRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/accounts")
+        {
+            Content = JsonContent.Create(new AccountRequest("Conta Reaproveitada", AccountType.Checking, 200m))
+        };
+        recreateRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "token");
+        var recreateResponse = await client.SendAsync(recreateRequest);
+        recreateResponse.StatusCode.Should().Be(HttpStatusCode.Created, await recreateResponse.Content.ReadAsStringAsync());
+
+        var listRequest = new HttpRequestMessage(HttpMethod.Get, "/api/v1/accounts");
+        listRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "token");
+        var listResponse = await client.SendAsync(listRequest);
+        var accounts = await listResponse.Content.ReadFromJsonAsync<List<AccountResponse>>();
+        accounts!.Should().ContainSingle(x => x.Name == "Conta Reaproveitada" && x.InitialBalance == 200m);
+
+        await host.SeedAsync(async db =>
+        {
+            var deletedAccount = await db.Accounts.IgnoreQueryFilters().SingleAsync(x => x.Id == created.Id);
+            deletedAccount.DeletedAt.Should().NotBeNull();
+
+            var deletedTransaction = await db.AccountTransactions.IgnoreQueryFilters().SingleAsync(x => x.AccountId == created.Id);
+            deletedTransaction.DeletedAt.Should().NotBeNull();
+        });
+    }
+
     private sealed class TestAccountsApiHost(WebApplication app, SqliteConnection connection) : IAsyncDisposable
     {
         internal static readonly Guid TestUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");

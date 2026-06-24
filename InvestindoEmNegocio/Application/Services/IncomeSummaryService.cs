@@ -9,6 +9,39 @@ public sealed class IncomeSummaryService(
     IPlansService plansService,
     IInstallmentsService installmentsService) : IIncomeSummaryService
 {
+    public async Task<IncomeListResponse> GetListAsync(Guid userId, string? month, CancellationToken cancellationToken = default)
+    {
+        var targetMonth = ParseMonthOrNow(month);
+        var from = new DateOnly(targetMonth.Year, targetMonth.Month, 1);
+        var to = from.AddMonths(1).AddDays(-1);
+
+        var plans = await plansService.ListAsync(userId, MoneyType.Income, cancellationToken);
+        var installments = await installmentsService.ListAsync(userId, null, from, to, MoneyType.Income, cancellationToken);
+
+        var planMap = plans.ToDictionary(p => p.Id, p => p);
+        var items = installments
+            .Select(i =>
+            {
+                planMap.TryGetValue(i.PlanId, out var plan);
+                var schedule = plan?.Schedule ?? ScheduleType.OneTime;
+                var startDate = plan?.StartDate ?? i.DueDate;
+                return new IncomeItemResponse(
+                    i.Id,
+                    i.PlanId,
+                    plan?.Title ?? "Receita",
+                    i.Amount,
+                    i.DueDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    schedule,
+                    startDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    schedule == ScheduleType.Recurring,
+                    schedule == ScheduleType.Recurring
+                        ? startDate.ToString("MM/yyyy", CultureInfo.GetCultureInfo("pt-BR"))
+                        : null);
+            }).ToList();
+
+        return new IncomeListResponse($"{targetMonth:yyyy-MM}", items);
+    }
+
     public async Task<IncomeSummaryResponse> GetSummaryAsync(Guid userId, string? month, CancellationToken cancellationToken = default)
     {
         var targetMonth = ParseMonthOrNow(month);

@@ -21,6 +21,7 @@ public class MoneyPaymentConfiguration : IEntityTypeConfiguration<MoneyPayment>
             .IsRequired();
 
         builder.Property(p => p.CreatedAt).IsRequired();
+        builder.Property(p => p.DeletedAt);
 
         builder.Property(p => p.Note)
             .HasMaxLength(200);
@@ -40,5 +41,7 @@ public class MoneyPaymentConfiguration : IEntityTypeConfiguration<MoneyPayment>
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasCheckConstraint("ck_payment_amount_positive", "\"PaidAmount\" > 0");
+
+        builder.HasQueryFilter(p => p.DeletedAt == null);
     }
 }

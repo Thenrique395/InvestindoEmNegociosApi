@@ -127,42 +127,54 @@ public sealed class UserPrivacyCenterService(
                 StatusCodes.Status400BadRequest);
         }
 
+        var now = DateTime.UtcNow;
         await using var transaction = await dbContext.BeginTransactionAsync(cancellationToken);
         await RemoveUserDataAsync(userId, cancellationToken);
-        userRepository.Remove(user);
+        user.Anonymize(now);
         await userRepository.SaveChangesAsync(cancellationToken);
+        await auditService.LogAsync(userId, "ACCOUNT_ANONYMIZED", "User", userId.ToString(), null, null, $"deletedAt={now:u}", cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 
     private async Task RemoveUserDataAsync(Guid userId, CancellationToken cancellationToken)
     {
+        // IgnoreQueryFilters: a exclusão de conta precisa apagar TUDO de verdade, inclusive
+        // o que o próprio usuário já havia soft-deletado antes (conta/cartão/meta/transação/
+        // plano/posição) — senão essas linhas nunca mais seriam alcançadas por nenhuma query
+        // e a exclusão de conta mentiria sobre o que de fato remove.
         var positionIds = await dbContext.InvestmentPositions
+            .IgnoreQueryFilters()
             .Where(x => x.UserId == userId)
             .Select(x => x.Id)
             .ToListAsync(cancellationToken);
 
+        // Artefatos de autenticação — removidos imediatamente
         dbContext.RefreshTokens.RemoveRange(dbContext.RefreshTokens.Where(x => x.UserId == userId));
         dbContext.PasswordResetTokens.RemoveRange(dbContext.PasswordResetTokens.Where(x => x.UserId == userId));
-        dbContext.AuditLogs.RemoveRange(dbContext.AuditLogs.Where(x => x.UserId == userId));
-        dbContext.MoneyPayments.RemoveRange(dbContext.MoneyPayments.Where(x => x.UserId == userId));
-        dbContext.MoneyInstallments.RemoveRange(dbContext.MoneyInstallments.Where(x => x.UserId == userId));
-        dbContext.GoalContributions.RemoveRange(dbContext.GoalContributions.Where(x => x.UserId == userId));
+
+        // Dados operacionais — removidos (direito ao esquecimento LGPD)
+        dbContext.MoneyPayments.RemoveRange(dbContext.MoneyPayments.IgnoreQueryFilters().Where(x => x.UserId == userId));
+        dbContext.MoneyInstallments.RemoveRange(dbContext.MoneyInstallments.IgnoreQueryFilters().Where(x => x.UserId == userId));
+        dbContext.GoalContributions.RemoveRange(dbContext.GoalContributions.IgnoreQueryFilters().Where(x => x.UserId == userId));
         dbContext.UserCategorizationFeedback.RemoveRange(dbContext.UserCategorizationFeedback.Where(x => x.UserId == userId));
         dbContext.RobotExecutionLogs.RemoveRange(dbContext.RobotExecutionLogs.Where(x => x.TriggeredByUserId == userId));
-        dbContext.UserSubscriptions.RemoveRange(dbContext.UserSubscriptions.Where(x => x.UserId == userId));
-        dbContext.InvestmentMovements.RemoveRange(dbContext.InvestmentMovements.Where(x => positionIds.Contains(x.PositionId)));
+        dbContext.InvestmentMovements.RemoveRange(dbContext.InvestmentMovements.IgnoreQueryFilters().Where(x => positionIds.Contains(x.PositionId)));
         dbContext.UserNotifications.RemoveRange(dbContext.UserNotifications.Where(x => x.UserId == userId));
-        dbContext.InvestmentPositions.RemoveRange(dbContext.InvestmentPositions.Where(x => x.UserId == userId));
+        dbContext.InvestmentPositions.RemoveRange(dbContext.InvestmentPositions.IgnoreQueryFilters().Where(x => x.UserId == userId));
         dbContext.InvestmentGoals.RemoveRange(dbContext.InvestmentGoals.Where(x => x.UserId == userId));
         dbContext.InvestmentAllocationTargets.RemoveRange(dbContext.InvestmentAllocationTargets.Where(x => x.UserId == userId));
-        dbContext.AccountTransactions.RemoveRange(dbContext.AccountTransactions.Where(x => x.UserId == userId));
-        dbContext.MoneyPlans.RemoveRange(dbContext.MoneyPlans.Where(x => x.UserId == userId));
-        dbContext.Goals.RemoveRange(dbContext.Goals.Where(x => x.UserId == userId));
-        dbContext.Cards.RemoveRange(dbContext.Cards.Where(x => x.UserId == userId));
+        dbContext.AccountTransactions.RemoveRange(dbContext.AccountTransactions.IgnoreQueryFilters().Where(x => x.UserId == userId));
+        dbContext.MoneyPlans.RemoveRange(dbContext.MoneyPlans.IgnoreQueryFilters().Where(x => x.UserId == userId));
+        dbContext.Goals.RemoveRange(dbContext.Goals.IgnoreQueryFilters().Where(x => x.UserId == userId));
+        dbContext.Cards.RemoveRange(dbContext.Cards.IgnoreQueryFilters().Where(x => x.UserId == userId));
         dbContext.Categories.RemoveRange(dbContext.Categories.Where(x => x.UserId == userId));
-        dbContext.Accounts.RemoveRange(dbContext.Accounts.Where(x => x.UserId == userId));
+        dbContext.Accounts.RemoveRange(dbContext.Accounts.IgnoreQueryFilters().Where(x => x.UserId == userId));
         dbContext.UserOnboardings.RemoveRange(dbContext.UserOnboardings.Where(x => x.UserId == userId));
         dbContext.UserProfiles.RemoveRange(dbContext.UserProfiles.Where(x => x.UserId == userId));
+
+        // UserSubscriptions e BillingCheckouts são retidos anonimizados — necessário para
+        // conformidade fiscal/tributária (retenção mínima de 5 anos).
+        // AuditLogs são retidos como trilha de auditoria de segurança.
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

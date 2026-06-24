@@ -3,6 +3,7 @@ using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace InvestindoEmNegocio.Controllers;
 
@@ -15,6 +16,7 @@ public class BillingCheckoutsController(
     IBillingCheckoutQueryService billingCheckoutQueryService) : AuthenticatedControllerBase
 {
     [HttpPost("checkout")]
+    [EnableRateLimiting("billing-checkout")]
     public async Task<ActionResult<StartBillingCheckoutResponse>> Start([FromBody] StartBillingCheckoutRequest request, CancellationToken cancellationToken)
     {
         var response = await billingCheckoutCommandService.StartCheckoutAsync(GetUserId(), request, cancellationToken);

@@ -124,7 +124,7 @@ public class InstallmentsServiceTests
     }
 
     [Fact]
-    public async Task DeleteAsync_Should_Remove_Ledger_Transactions_From_Installment_Payments()
+    public async Task DeleteAsync_Should_MarkDeleted_On_Ledger_Transactions_From_Installment_Payments()
     {
         var userId = Guid.NewGuid();
         var installment = new MoneyInstallment(Guid.NewGuid(), userId, 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100);
@@ -163,12 +163,9 @@ public class InstallmentsServiceTests
         var removed = await sut.DeleteAsync(userId, installmentId);
 
         removed.Should().BeTrue();
-        accountTransactionRepository.Verify(
-            x => x.RemoveRange(It.Is<IEnumerable<AccountTransaction>>(list => list.Any(t => t.Id == transaction.Id))),
-            Times.Once);
-        paymentRepository.Verify(
-            x => x.RemoveRange(It.Is<IEnumerable<MoneyPayment>>(list => list.Any(p => p.Id == payment.Id))),
-            Times.Once);
+        installment.DeletedAt.Should().NotBeNull();
+        payment.DeletedAt.Should().NotBeNull();
+        transaction.DeletedAt.Should().NotBeNull();
     }
 
     [Fact]

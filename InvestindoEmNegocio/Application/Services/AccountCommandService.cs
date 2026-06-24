@@ -52,7 +52,12 @@ public class AccountCommandService(
         var account = await accountRepository.GetByIdAsync(accountId, userId, cancellationToken);
         if (account is null) return false;
 
-        accountRepository.Remove(account);
+        var now = DateTime.UtcNow;
+        var transactions = await accountTransactionRepository.ListByAccountAsync(accountId, userId, cancellationToken: cancellationToken, track: true);
+        foreach (var transaction in transactions)
+            transaction.MarkDeleted(now);
+
+        account.MarkDeleted(now);
         await accountRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Account deleted {UserId} {AccountId}", userId, accountId);
         return true;

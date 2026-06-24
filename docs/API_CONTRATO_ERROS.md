@@ -113,7 +113,7 @@ Exemplos:
 - webhook inválido: `400`
 - portal sem cliente externo vinculado: `400`
 
-### Accounts, cards, goals, plans, loans
+### Accounts, cards, goals, plans, loans, budget, scenarios, reports
 
 - dados inválidos de entrada: `400`
 - recurso não encontrado: `404`

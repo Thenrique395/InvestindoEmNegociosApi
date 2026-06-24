@@ -66,11 +66,10 @@ public class PreferenceSettingsAndPrivacyCenterServiceTests
     }
 
     [Fact]
-    public async Task DeleteOwnAccountAsync_Should_Remove_User_And_Data_When_Request_Is_Valid()
+    public async Task DeleteOwnAccountAsync_Should_Anonymize_User_And_Remove_Operational_Data_When_Request_Is_Valid()
     {
         await using var dbContext = CreateDbContext();
         var userRepository = new UserRepository(dbContext);
-        var profileRepository = new UserProfileRepository(dbContext);
         var user = new User("Teste", "teste@teste.com", BCrypt.Net.BCrypt.HashPassword("Senha@123"));
         var userId = user.Id;
 
@@ -88,13 +87,23 @@ public class PreferenceSettingsAndPrivacyCenterServiceTests
 
         await sut.DeleteOwnAccountAsync(userId, request);
 
-        (await dbContext.Users.CountAsync(x => x.Id == userId)).Should().Be(0);
+        // Usuário anonimizado (não deletado) — PII zerado, registro mantido para auditoria
+        var anonymizedUser = await dbContext.Users.SingleAsync(x => x.Id == userId);
+        anonymizedUser.IsAnonymized.Should().BeTrue();
+        anonymizedUser.Name.Should().Be("Usuário Removido");
+        anonymizedUser.Email.Should().StartWith("deleted-");
+        anonymizedUser.IsActive.Should().BeFalse();
+        anonymizedUser.DeletedAt.Should().NotBeNull();
+
+        // Dados operacionais removidos
         (await dbContext.UserProfiles.CountAsync(x => x.UserId == userId)).Should().Be(0);
         (await dbContext.Categories.CountAsync(x => x.UserId == userId)).Should().Be(0);
         (await dbContext.Accounts.CountAsync(x => x.UserId == userId)).Should().Be(0);
         (await dbContext.RefreshTokens.CountAsync(x => x.UserId == userId)).Should().Be(0);
         (await dbContext.PasswordResetTokens.CountAsync(x => x.UserId == userId)).Should().Be(0);
-        (await dbContext.AuditLogs.CountAsync(x => x.UserId == userId)).Should().Be(0);
+
+        // Audit logs retidos como trilha de segurança
+        (await dbContext.AuditLogs.CountAsync(x => x.UserId == userId)).Should().BeGreaterThan(0);
     }
 
     [Fact]

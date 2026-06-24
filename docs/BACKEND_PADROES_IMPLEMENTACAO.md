@@ -142,6 +142,20 @@ Mudanças nesses domínios exigem cuidado adicional.
 - falha de dependência externa deve manter semântica de erro coerente
 - integração crítica exige caminho de erro explícito e observável
 
+### Robôs (`IRobotTask`)
+
+- robôs de automação implementam `IRobotTask` (`Application/Interfaces/IRobotTask.cs`) e retornam `RobotTaskExecutionResult`
+- exemplos atuais: `MonthlySnapshotRobotTask`, `SubscriptionExpirationRobotTask`, `ReminderRobotTask`
+- quando um robô decide aplicar um efeito penalizador ou irreversível (ex.: downgrade de assinatura por `PastDue`) com base em estado que pode estar desatualizado, ele deve consultar a fonte externa autoritativa antes de agir (`GetSubscriptionAsync` do gateway resolvido via `IPaymentProviderResolver`/`UserSubscription.Provider` — Stripe ou Mercado Pago, conforme a assinatura)
+- se a fonte externa estiver indisponível, o robô deve degradar graciosamente e decidir pelo estado local, registrando log de aviso — nunca falhar silenciosamente nem travar a execução agendada
+- robôs são administráveis via `/admin/robots` (execução manual, monitor de execução)
+
+### LGPD e exclusão de conta
+
+- exclusão de conta self-service usa anonimização (`User.Anonymize`), não exclusão física do registro de `users` — preserva auditoria e estatísticas sem manter PII
+- `UserSubscriptions`, `BillingCheckouts` e `AuditLogs` são retidos pós-exclusão por exigência de retenção fiscal/trilha de segurança; não devem ser apagados em `RemoveUserDataAsync`
+- qualquer nova entidade vinculada ao usuário precisa decidir explicitamente entre anonimização, retenção ou remoção — não assumir remoção física por padrão
+
 ## Regras mínimas de testes por tipo de mudança
 
 ### Regra ou fluxo interno

@@ -138,6 +138,8 @@ public static class ServiceCollectionExtensions
         services.Configure<SmtpEmailOptions>(configuration.GetSection(SmtpEmailOptions.SectionName));
         services.Configure<RobotsOptions>(configuration.GetSection(RobotsOptions.SectionName));
         services.Configure<StripeOptions>(configuration.GetSection(StripeOptions.SectionName));
+        services.Configure<MercadoPagoOptions>(configuration.GetSection(MercadoPagoOptions.SectionName));
+        services.Configure<BillingOptions>(configuration.GetSection(BillingOptions.SectionName));
         return services;
     }
 
@@ -147,19 +149,14 @@ public static class ServiceCollectionExtensions
         {
             "http://localhost:4200",
             "http://127.0.0.1:4200",
-            "http://35.174.50.187:4200",
-            "http://35.174.50.187:4201",
             "http://localhost:4000",
             "http://127.0.0.1:4000",
-            "http://35.174.50.187:4000",
             "http://localhost:4300",
             "http://127.0.0.1:4300",
             "https://localhost:4200",
             "https://127.0.0.1:4200",
-            "https://35.174.50.187:4200",
             "https://localhost:4000",
-            "https://127.0.0.1:4000",
-            "https://35.174.50.187:4000"
+            "https://127.0.0.1:4000"
         };
         var configuredOrigins = ResolveConfiguredOrigins(configuration);
         var allowedOrigins = (configuredOrigins.Count > 0 ? configuredOrigins.ToArray() : defaultOrigins)
@@ -213,6 +210,38 @@ public static class ServiceCollectionExtensions
                 limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
                 limiterOptions.QueueLimit = 2;
             });
+
+            options.AddFixedWindowLimiter("stripe-webhook", limiterOptions =>
+            {
+                limiterOptions.PermitLimit = 200;
+                limiterOptions.Window = TimeSpan.FromMinutes(1);
+                limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                limiterOptions.QueueLimit = 0;
+            });
+
+            options.AddFixedWindowLimiter("mercadopago-webhook", limiterOptions =>
+            {
+                limiterOptions.PermitLimit = 200;
+                limiterOptions.Window = TimeSpan.FromMinutes(1);
+                limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                limiterOptions.QueueLimit = 0;
+            });
+
+            // Particionado por usuário (não global como os limiters acima) — checkout é uma
+            // ação autenticada por usuário; um limiter global deixaria um único usuário
+            // esgotar a cota de todo mundo.
+            options.AddPolicy("billing-checkout", context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                        ?? context.Connection.RemoteIpAddress?.ToString()
+                        ?? "anonymous",
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 5,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 0
+                    }));
         });
 
         return services;
@@ -272,6 +301,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<INotificationSettingsRepository, NotificationSettingsRepository>();
         services.AddScoped<IRobotSettingsRepository, RobotSettingsRepository>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddSingleton<IAuthCookieService, AuthCookieService>();
         services.AddScoped<IAuthRegistrationService, AuthRegistrationService>();
         services.AddScoped<IAuthAvailabilityService, AuthAvailabilityService>();
         services.AddScoped<IAuthAccessService, AuthAccessService>();
@@ -341,12 +371,23 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPasswordResetService, PasswordResetService>();
         services.AddScoped<IBillingNotificationService, BillingNotificationService>();
         services.AddScoped<IStripeBillingGateway, StripeBillingGateway>();
+        // IPaymentProvider aponta para Stripe por padrão — assinaturas Mercado Pago serão
+        // resolvidas por subscription.Provider quando o roteamento de checkout for implementado.
+        services.AddScoped<IPaymentProvider, StripeBillingGateway>();
+        services.AddHttpClient<MercadoPagoBillingGateway>((sp, client) =>
+        {
+            var mpOptions = sp.GetRequiredService<IOptions<MercadoPagoOptions>>().Value;
+            client.BaseAddress = new Uri(mpOptions.ApiBaseUrl);
+        });
+        services.AddScoped<IMercadoPagoBillingGateway>(sp => sp.GetRequiredService<MercadoPagoBillingGateway>());
+        services.AddScoped<IPaymentProviderResolver, PaymentProviderResolver>();
         services.AddScoped<IBillingCheckoutCommandService, BillingCheckoutCommandService>();
         services.AddScoped<IBillingCheckoutQueryService, BillingCheckoutQueryService>();
         services.AddScoped<IBillingPortalService, BillingPortalService>();
         services.AddScoped<IBillingSubscriptionSyncService, BillingSubscriptionSyncService>();
         services.AddScoped<IStripeBillingWebhookProcessor, StripeBillingWebhookProcessor>();
         services.AddScoped<IStripeBillingWebhookService, StripeBillingWebhookService>();
+        services.AddScoped<IMercadoPagoBillingWebhookService, MercadoPagoBillingWebhookService>();
         services.AddScoped<ISubscriptionCatalogService, SubscriptionCatalogService>();
         services.AddScoped<ISubscriptionManagementService, SubscriptionManagementService>();
         services.AddScoped<INotificationQueryService, NotificationQueryService>();
@@ -436,8 +477,8 @@ public static class ServiceCollectionExtensions
         var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
                          ?? throw new InvalidOperationException("Configuração JWT não encontrada.");
 
-        if (string.IsNullOrWhiteSpace(jwtOptions.SecretKey))
-            throw new InvalidOperationException("JWT SecretKey não configurada.");
+        if (string.IsNullOrWhiteSpace(jwtOptions.SecretKey) || jwtOptions.SecretKey.StartsWith("CHANGE_ME"))
+            throw new InvalidOperationException("JWT SecretKey não configurada ou usa valor placeholder. Configure via variável de ambiente.");
 
         services.AddAuthentication(options =>
             {
@@ -455,6 +496,43 @@ public static class ServiceCollectionExtensions
                     ValidIssuer = jwtOptions.Issuer,
                     ValidAudience = jwtOptions.Audience,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey))
+                };
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        if (string.IsNullOrEmpty(context.Token)
+                            && context.Request.Cookies.TryGetValue(AuthCookieService.AccessTokenCookie, out var accessToken)
+                            && !string.IsNullOrEmpty(accessToken))
+                        {
+                            context.Token = accessToken;
+                        }
+
+                        return Task.CompletedTask;
+                    },
+                    // Revogação imediata de sessão: sem isso, desativar um usuário ou trocar a
+                    // senha não tem efeito sobre tokens já emitidos até eles expirarem (15 min).
+                    // Deliberadamente sem cache aqui — é o trade-off "correção > micro-otimização"
+                    // para a revogação ser de fato imediata, não "imediata em até N segundos".
+                    OnTokenValidated = async context =>
+                    {
+                        var userIdClaim = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                        var tokenVersionClaim = context.Principal?.FindFirst(JwtTokenGenerator.TokenVersionClaim)?.Value;
+
+                        if (!Guid.TryParse(userIdClaim, out var userId))
+                        {
+                            context.Fail("Token inválido.");
+                            return;
+                        }
+
+                        var userRepository = context.HttpContext.RequestServices.GetRequiredService<IUserRepository>();
+                        var user = await userRepository.GetByIdAsync(userId, context.HttpContext.RequestAborted);
+
+                        if (user is null || !user.IsActive || user.TokenVersion.ToString() != tokenVersionClaim)
+                        {
+                            context.Fail("Sessão revogada.");
+                        }
+                    }
                 };
             });
 

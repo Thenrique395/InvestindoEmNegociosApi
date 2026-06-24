@@ -1,8 +1,9 @@
+using InvestindoEmNegocio.Domain.Common;
 using InvestindoEmNegocio.Domain.Enums;
 
 namespace InvestindoEmNegocio.Domain.Entities;
 
-public class MoneyInstallment
+public class MoneyInstallment : ISoftDeletable
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid PlanId { get; private set; }
@@ -18,6 +19,7 @@ public class MoneyInstallment
     public InstallmentStatus Status { get; private set; } = InstallmentStatus.Open;
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
+    public DateTime? DeletedAt { get; private set; }
 
     private MoneyInstallment() { }
 
@@ -81,5 +83,11 @@ public class MoneyInstallment
         CreatedAt = createdAt.Kind == DateTimeKind.Utc
             ? createdAt
             : DateTime.SpecifyKind(createdAt, DateTimeKind.Utc);
+    }
+
+    public void MarkDeleted(DateTime nowUtc)
+    {
+        DeletedAt = nowUtc;
+        UpdatedAt = nowUtc;
     }
 }

@@ -37,6 +37,7 @@ public class MoneyInstallmentConfiguration : IEntityTypeConfiguration<MoneyInsta
 
         builder.Property(i => i.CreatedAt).IsRequired();
         builder.Property(i => i.UpdatedAt).IsRequired();
+        builder.Property(i => i.DeletedAt);
 
         builder.HasIndex(i => new { i.UserId, i.DueDate });
         builder.HasIndex(i => new { i.PlanId, i.DueDate });
@@ -50,5 +51,7 @@ public class MoneyInstallmentConfiguration : IEntityTypeConfiguration<MoneyInsta
         builder.HasCheckConstraint("ck_installment_amount_positive", "\"Amount\" > 0");
 
         builder.HasIndex(i => new { i.PlanId, i.InstallmentNo }).IsUnique();
+
+        builder.HasQueryFilter(i => i.DeletedAt == null);
     }
 }

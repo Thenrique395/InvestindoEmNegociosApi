@@ -7,12 +7,13 @@ namespace InvestindoEmNegocio.Infrastructure.Repositories;
 
 public class GoalContributionRepository(InvestDbContext context) : IGoalContributionRepository
 {
-    public async Task<List<GoalContribution>> ListByGoalAsync(Guid goalId, Guid userId, CancellationToken cancellationToken = default)
+    public async Task<List<GoalContribution>> ListByGoalAsync(Guid goalId, Guid userId, CancellationToken cancellationToken = default, bool track = false)
     {
-        return await context.GoalContributions.AsNoTracking()
-            .Where(x => x.GoalId == goalId && x.UserId == userId)
-            .OrderByDescending(x => x.Date)
-            .ToListAsync(cancellationToken);
+        var query = track
+            ? context.GoalContributions.Where(x => x.GoalId == goalId && x.UserId == userId)
+            : context.GoalContributions.AsNoTracking().Where(x => x.GoalId == goalId && x.UserId == userId);
+
+        return await query.OrderByDescending(x => x.Date).ToListAsync(cancellationToken);
     }
 
     public async Task<Dictionary<Guid, DateOnly>> GetLastContributionDatesByGoalsAsync(

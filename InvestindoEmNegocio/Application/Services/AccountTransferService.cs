@@ -9,6 +9,7 @@ namespace InvestindoEmNegocio.Application.Services;
 public class AccountTransferService(
     IAccountRepository accountRepository,
     IAccountTransactionRepository accountTransactionRepository,
+    IInvestDbContext dbContext,
     ILogger<AccountTransferService> logger) : IAccountTransferService
 {
     private readonly ILogger<AccountTransferService> _logger = logger;
@@ -32,35 +33,38 @@ public class AccountTransferService(
             ? $"Transferência {from.Name} -> {to.Name}"
             : request.Description.Trim();
 
-        await accountTransactionRepository.AddAsync(new AccountTransaction(
-            from.Id,
-            userId,
-            occurredAt,
-            Domain.Enums.AccountTransactionKind.Debit,
-            request.Amount,
-            description,
-            sourceType: AccountTransactionSourceTypes.AccountTransfer,
-            sourceId: transferId), cancellationToken);
+        await using (var transaction = await dbContext.BeginTransactionAsync(cancellationToken))
+        {
+            await accountTransactionRepository.AddAsync(new AccountTransaction(
+                from.Id,
+                userId,
+                occurredAt,
+                Domain.Enums.AccountTransactionKind.Debit,
+                request.Amount,
+                description,
+                sourceType: AccountTransactionSourceTypes.AccountTransfer,
+                sourceId: transferId), cancellationToken);
 
-        await accountTransactionRepository.AddAsync(new AccountTransaction(
-            to.Id,
-            userId,
-            occurredAt,
-            Domain.Enums.AccountTransactionKind.Credit,
-            request.Amount,
-            description,
-            sourceType: AccountTransactionSourceTypes.AccountTransfer,
-            sourceId: transferId), cancellationToken);
+            await accountTransactionRepository.AddAsync(new AccountTransaction(
+                to.Id,
+                userId,
+                occurredAt,
+                Domain.Enums.AccountTransactionKind.Credit,
+                request.Amount,
+                description,
+                sourceType: AccountTransactionSourceTypes.AccountTransfer,
+                sourceId: transferId), cancellationToken);
 
-        await accountRepository.SaveChangesAsync(cancellationToken);
+            await accountRepository.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
 
         _logger.LogInformation(
-            "Account transfer created {UserId} {TransferId} {FromAccountId} -> {ToAccountId} Amount {Amount}",
+            "Account transfer created {UserId} {TransferId} {FromAccountId} -> {ToAccountId}",
             userId,
             transferId,
             from.Id,
-            to.Id,
-            request.Amount);
+            to.Id);
 
         return new AccountTransferResponse(
             transferId,

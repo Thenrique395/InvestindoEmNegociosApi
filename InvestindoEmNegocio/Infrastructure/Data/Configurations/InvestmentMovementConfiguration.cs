@@ -20,7 +20,10 @@ public class InvestmentMovementConfiguration : IEntityTypeConfiguration<Investme
         builder.Property(x => x.Note).HasMaxLength(400);
 
         builder.Property(x => x.CreatedAt).IsRequired();
+        builder.Property(x => x.DeletedAt);
 
         builder.HasIndex(x => x.PositionId);
+
+        builder.HasQueryFilter(x => x.DeletedAt == null);
     }
 }

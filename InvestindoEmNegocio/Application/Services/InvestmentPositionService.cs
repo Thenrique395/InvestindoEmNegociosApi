@@ -75,7 +75,11 @@ public class InvestmentPositionService(
         var position = await positionRepository.GetByIdAsync(id, userId, cancellationToken);
         if (position is null) return false;
 
-        positionRepository.Remove(position);
+        var now = DateTime.UtcNow;
+        foreach (var movement in position.Movements)
+            movement.MarkDeleted(now);
+
+        position.MarkDeleted(now);
         await positionRepository.SaveChangesAsync(cancellationToken);
         InvalidatePositionsCache(userId);
         _logger.LogInformation("Investment position deleted {UserId} {PositionId}", userId, position.Id);

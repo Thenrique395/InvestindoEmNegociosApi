@@ -35,12 +35,15 @@ public class CardConfiguration : IEntityTypeConfiguration<Card>
 
         builder.Property(c => c.CreatedAt).IsRequired();
         builder.Property(c => c.UpdatedAt).IsRequired();
+        builder.Property(c => c.DeletedAt);
 
         builder.HasOne<CardBrand>()
             .WithMany()
             .HasForeignKey(c => c.BrandId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasIndex(c => new { c.UserId, c.BrandId, c.Last4 }).IsUnique();
+        builder.HasIndex(c => new { c.UserId, c.BrandId, c.Last4 }).IsUnique().HasFilter("\"DeletedAt\" IS NULL");
+
+        builder.HasQueryFilter(c => c.DeletedAt == null);
     }
 }

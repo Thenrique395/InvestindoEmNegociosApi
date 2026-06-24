@@ -103,15 +103,32 @@ public class PlansService(
         var plan = await planRepository.GetByIdAsync(id, userId, cancellationToken);
         if (plan is null) return false;
 
-        var installments = await installmentRepository.ListByPlanAsync(plan.Id, userId, cancellationToken) ?? [];
+        var now = DateTime.UtcNow;
+        var installments = await installmentRepository.ListByPlanAsync(plan.Id, userId, cancellationToken, track: true) ?? [];
         var installmentIds = installments.Select(i => i.Id).ToList();
         if (installmentIds.Count > 0)
         {
             var payments = await paymentRepository.ListByInstallmentIdsAsync(installmentIds, cancellationToken) ?? [];
-            await CleanupLedgerFromPaymentsAsync(userId, payments, cancellationToken);
+            var paymentIds = payments.Select(p => p.Id).ToList();
+            if (paymentIds.Count > 0)
+            {
+                var transactions = await accountTransactionRepository.ListBySourceAsync(
+                    userId,
+                    AccountTransactionSourceTypes.InstallmentPayment,
+                    paymentIds,
+                    cancellationToken) ?? [];
+                foreach (var transaction in transactions)
+                    transaction.MarkDeleted(now);
+            }
+
+            foreach (var payment in payments)
+                payment.MarkDeleted(now);
         }
 
-        planRepository.Remove(plan);
+        foreach (var installment in installments)
+            installment.MarkDeleted(now);
+
+        plan.MarkDeleted(now);
         await planRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Plan deleted {UserId} {PlanId}", userId, plan.Id);
         return true;

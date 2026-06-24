@@ -102,7 +102,7 @@ public class CardsService(
         var card = await cardRepository.GetByIdAsync(id, userId, cancellationToken);
         if (card is null) return false;
 
-        cardRepository.Remove(card);
+        card.MarkDeleted(DateTime.UtcNow);
         await cardRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Card deleted {UserId} {CardId}", userId, card.Id);
         return true;

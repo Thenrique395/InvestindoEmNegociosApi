@@ -22,7 +22,7 @@ public class BillingSubscriptionSyncServiceTests
             new UserRepository(dbContext),
             new UserSubscriptionRepository(dbContext),
             new BillingCheckoutRepository(dbContext),
-            Mock.Of<IStripeBillingGateway>(),
+            Mock.Of<IPaymentProvider>(),
             notificationService ?? Mock.Of<IBillingNotificationService>(),
             Mock.Of<ILogger<BillingSubscriptionSyncService>>());
 
@@ -42,7 +42,7 @@ public class BillingSubscriptionSyncServiceTests
         var billingNotificationService = new Mock<IBillingNotificationService>();
         var sut = CreateSut(dbContext, billingNotificationService.Object);
 
-        var subscription = new Subscription { Id = "sub_test", CustomerId = "cus_test", Status = "active" };
+        var subscription = new ProviderSubscriptionSnapshot("sub_test", "cus_test", "active", null, null, null, null);
 
         await sut.SyncAsync(subscription, EventTypes.CustomerSubscriptionUpdated, knownCheckout: checkout);
 
@@ -77,7 +77,7 @@ public class BillingSubscriptionSyncServiceTests
         var billingNotificationService = new Mock<IBillingNotificationService>();
         var sut = CreateSut(dbContext, billingNotificationService.Object);
 
-        var subscription = new Subscription { Id = "sub_test", CustomerId = "cus_test", Status = "past_due" };
+        var subscription = new ProviderSubscriptionSnapshot("sub_test", "cus_test", "past_due", null, null, null, null);
 
         await sut.SyncAsync(subscription, EventTypes.CustomerSubscriptionUpdated, knownCheckout: checkout);
 
@@ -109,7 +109,7 @@ public class BillingSubscriptionSyncServiceTests
 
         var sut = CreateSut(dbContext);
 
-        var subscription = new Subscription { Id = "sub_test", CustomerId = "cus_test", Status = "canceled" };
+        var subscription = new ProviderSubscriptionSnapshot("sub_test", "cus_test", "canceled", null, null, null, null);
 
         await sut.SyncAsync(subscription, EventTypes.CustomerSubscriptionDeleted, knownCheckout: checkout);
 
@@ -148,7 +148,7 @@ public class BillingSubscriptionSyncServiceTests
         var billingNotificationService = new Mock<IBillingNotificationService>();
         var sut = CreateSut(dbContext, billingNotificationService.Object);
 
-        var subscription = new Subscription { Id = "sub_test", CustomerId = "cus_test", Status = "active" };
+        var subscription = new ProviderSubscriptionSnapshot("sub_test", "cus_test", "active", null, null, null, null);
 
         await sut.SyncAsync(subscription, EventTypes.CustomerSubscriptionUpdated, knownCheckout: checkout);
 
@@ -189,7 +189,7 @@ public class BillingSubscriptionSyncServiceTests
         var billingNotificationService = new Mock<IBillingNotificationService>();
         var sut = CreateSut(dbContext, billingNotificationService.Object);
 
-        var subscription = new Subscription { Id = "sub_test", CustomerId = "cus_test", Status = "active" };
+        var subscription = new ProviderSubscriptionSnapshot("sub_test", "cus_test", "active", null, null, null, null);
 
         await sut.SyncAsync(subscription, EventTypes.CustomerSubscriptionUpdated, knownCheckout: checkout);
 

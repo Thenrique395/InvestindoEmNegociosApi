@@ -13,6 +13,7 @@ public class UserSubscription
     public decimal PriceAmount { get; private set; }
     public string Currency { get; private set; }
     public bool AutoRenew { get; private set; } = true;
+    public string Provider { get; private set; } = "stripe";
     public string? ExternalCustomerId { get; private set; }
     public string? ExternalSubscriptionId { get; private set; }
     public string? ExternalPriceId { get; private set; }
@@ -101,6 +102,12 @@ public class UserSubscription
         if (!string.IsNullOrWhiteSpace(externalSubscriptionId)) ExternalSubscriptionId = externalSubscriptionId;
         if (!string.IsNullOrWhiteSpace(externalPriceId)) ExternalPriceId = externalPriceId;
         UpdatedAt = nowUtc;
+    }
+
+    public void SetProvider(string provider)
+    {
+        if (!string.IsNullOrWhiteSpace(provider))
+            Provider = provider.Trim().ToLowerInvariant();
     }
 
     public void ScheduleCancellation(DateTime nowUtc)

@@ -6,6 +6,7 @@ using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Controllers;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
+using InvestindoEmNegocio.Infrastructure.Auth;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
@@ -251,7 +252,7 @@ public class MoreControllersSmokeTests
 
         var billingCheckoutsController = new BillingCheckoutsController(billingCheckoutCommand.Object, billingCheckoutQuery.Object);
         var billingPortalController = new BillingPortalController(billingPortal.Object);
-        var subscriptionsController = new SubscriptionsController(subscriptionCatalog.Object, subscriptionManagement.Object);
+        var subscriptionsController = new SubscriptionsController(subscriptionCatalog.Object, subscriptionManagement.Object, new AuthCookieService());
         var webhookController = new StripeWebhooksController(billingWebhook.Object)
         {
             ControllerContext = new ControllerContext
@@ -300,21 +301,24 @@ public class MoreControllersSmokeTests
         var authAvailability = new Mock<IAuthAvailabilityService>();
         authAvailability.Setup(x => x.CheckAsync(It.IsAny<CheckAvailabilityRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new CheckAvailabilityResponse(false, false));
-        var authController = new AuthController(authAccess.Object, authAvailability.Object);
-        var authRegistrationController = new AuthRegistrationController(authRegistration.Object);
+        var authCookieService = new AuthCookieService();
+        var authController = new AuthController(authAccess.Object, authAvailability.Object, authCookieService);
+        var authRegistrationController = new AuthRegistrationController(authRegistration.Object, authCookieService);
         var authPasswordsController = new AuthPasswordsController(authPassword.Object);
         var summariesController = new PreferenceSummariesController(privacy.Object);
         var sessionsController = new PreferenceSessionsController(privacy.Object);
         var accountController = new PreferenceAccountController(privacy.Object);
         SetAuth(authController);
+        SetAuth(authRegistrationController);
         SetAuth(authPasswordsController);
         SetAuth(summariesController);
         SetAuth(sessionsController);
         SetAuth(accountController);
+        authController.ControllerContext.HttpContext.Request.Headers["Cookie"] = $"{AuthCookieService.RefreshTokenCookie}=refresh";
 
         (await authController.Login(new LoginRequest("u@test.com", "123"), CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
-        (await authController.Refresh(new RefreshTokenRequest("refresh"), CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
-        (await authController.Logout(new RefreshTokenRequest("refresh"), CancellationToken.None)).Should().BeOfType<NoContentResult>();
+        (await authController.Refresh(CancellationToken.None)).Result.Should().BeOfType<OkObjectResult>();
+        (await authController.Logout(CancellationToken.None)).Should().BeOfType<NoContentResult>();
         (await authRegistrationController.Register(new RegisterUserRequest("U", "u@test.com", "123456", "52998224725"), CancellationToken.None)).Result.Should().BeOfType<CreatedAtActionResult>();
         (await authPasswordsController.ChangePassword(new ChangePasswordRequest("old", "new"), CancellationToken.None)).Should().BeOfType<NoContentResult>();
         (await authPasswordsController.ForgotPassword(new ForgotPasswordRequest("u@test.com"), CancellationToken.None)).Should().BeOfType<AcceptedResult>();

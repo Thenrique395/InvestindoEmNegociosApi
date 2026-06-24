@@ -1,8 +1,9 @@
+using InvestindoEmNegocio.Domain.Common;
 using InvestindoEmNegocio.Domain.Enums;
 
 namespace InvestindoEmNegocio.Domain.Entities;
 
-public class InvestmentMovement
+public class InvestmentMovement : ISoftDeletable
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid PositionId { get; private set; }
@@ -12,6 +13,7 @@ public class InvestmentMovement
     public DateOnly Date { get; private set; }
     public string? Note { get; private set; }
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
+    public DateTime? DeletedAt { get; private set; }
 
     public InvestmentPosition? Position { get; private set; }
 
@@ -26,4 +28,6 @@ public class InvestmentMovement
         Date = date;
         Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
     }
+
+    public void MarkDeleted(DateTime nowUtc) => DeletedAt = nowUtc;
 }

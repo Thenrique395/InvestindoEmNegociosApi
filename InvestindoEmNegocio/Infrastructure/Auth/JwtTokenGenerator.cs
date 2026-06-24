@@ -10,6 +10,8 @@ namespace InvestindoEmNegocio.Infrastructure.Auth;
 
 public class JwtTokenGenerator(IOptions<JwtOptions> options) : IJwtTokenGenerator
 {
+    public const string TokenVersionClaim = "token_version";
+
     private readonly JwtOptions _options = options.Value;
 
     public TokenResult Generate(User user)
@@ -28,6 +30,7 @@ public class JwtTokenGenerator(IOptions<JwtOptions> options) : IJwtTokenGenerato
             new(ClaimTypes.Name, user.Name),
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Role, user.Role.ToString()),
+            new(TokenVersionClaim, user.TokenVersion.ToString()),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 

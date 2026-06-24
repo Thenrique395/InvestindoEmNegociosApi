@@ -29,6 +29,12 @@ public class AuthAccessService(
             throw new InvalidOperationException("Conta bloqueada temporariamente. Tente novamente mais tarde.");
         }
 
+        if (!user.IsActive)
+        {
+            _logger.LogWarning("Login blocked, account deactivated {UserId}", user.Id);
+            throw new UnauthorizedAccessException("Credenciais inválidas.");
+        }
+
         if (!BCryptNet.Verify(request.Password, user.PasswordHash))
         {
             user.RegisterFailedLogin(now, AuthServicePolicies.MaxFailedLoginAttempts, AuthServicePolicies.LockoutDuration);
@@ -65,6 +71,12 @@ public class AuthAccessService(
         var user = await userRepository.GetByIdAsync(stored.UserId, cancellationToken);
         if (user is null)
             throw new UnauthorizedAccessException("Usuário não encontrado.");
+
+        if (!user.IsActive)
+        {
+            _logger.LogWarning("Refresh blocked, account deactivated {UserId}", user.Id);
+            throw new UnauthorizedAccessException("Refresh token inválido.");
+        }
 
         _logger.LogInformation("Refresh token rotated {UserId}", user.Id);
         return await userSessionService.RotateAsync(user, stored, now, cancellationToken);

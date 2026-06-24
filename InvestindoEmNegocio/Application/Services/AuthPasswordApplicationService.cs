@@ -1,6 +1,7 @@
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
+using InvestindoEmNegocio.Domain.Common;
 using Microsoft.AspNetCore.Http;
 
 namespace InvestindoEmNegocio.Application.Services;
@@ -19,7 +20,7 @@ public sealed class AuthPasswordApplicationService(
         }
         catch (ArgumentException ex)
         {
-            logger.LogWarning(ex, "Falha de validação em forgot-password para {Email}", request.Email);
+            logger.LogWarning(ex, "Falha de validação em forgot-password para {Email}", LogMasking.Email(request.Email));
             throw new AppProblemException("Requisição inválida", ex.Message, StatusCodes.Status400BadRequest);
         }
     }

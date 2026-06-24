@@ -1,8 +1,9 @@
+using InvestindoEmNegocio.Domain.Common;
 using InvestindoEmNegocio.Domain.Enums;
 
 namespace InvestindoEmNegocio.Domain.Entities;
 
-public class MoneyPlan
+public class MoneyPlan : ISoftDeletable
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid UserId { get; private set; }
@@ -19,6 +20,7 @@ public class MoneyPlan
     public PlanStatus Status { get; private set; } = PlanStatus.Active;
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
+    public DateTime? DeletedAt { get; private set; }
 
     private MoneyPlan() { }
 
@@ -49,6 +51,12 @@ public class MoneyPlan
     {
         Status = status;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void MarkDeleted(DateTime nowUtc)
+    {
+        DeletedAt = nowUtc;
+        UpdatedAt = nowUtc;
     }
 
     private void ApplyDetails(

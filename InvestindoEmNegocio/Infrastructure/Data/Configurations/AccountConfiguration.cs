@@ -30,9 +30,12 @@ public class AccountConfiguration : IEntityTypeConfiguration<Account>
 
         builder.Property(a => a.CreatedAt).IsRequired();
         builder.Property(a => a.UpdatedAt).IsRequired();
+        builder.Property(a => a.DeletedAt);
 
-        builder.HasIndex(a => new { a.UserId, a.Name }).IsUnique();
+        builder.HasIndex(a => new { a.UserId, a.Name }).IsUnique().HasFilter("\"DeletedAt\" IS NULL");
         builder.HasIndex(a => new { a.UserId, a.IsActive });
+
+        builder.HasQueryFilter(a => a.DeletedAt == null);
 
         builder.HasCheckConstraint("ck_accounts_initial_balance", "\"InitialBalance\" >= 0");
     }

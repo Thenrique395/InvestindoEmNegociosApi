@@ -72,6 +72,11 @@ Este documento cobre o estado de implementação das comunicações e os textos 
 - Corpo: `Tudo certo novamente. Seu pagamento foi confirmado e seu plano premium já está ativo.`
 - CTA: `Acessar o app` → `{frontendBase}/dashboard`
 
+## Retry e reconciliação automática
+
+- retry manual: `POST /api/v1/subscriptions/retry-payment` (`SubscriptionManagementService.RetryPaymentAsync`) permite ao usuário em `PastDue` forçar uma nova tentativa de cobrança da fatura em aberto no Stripe, fora do ciclo de retry do próprio gateway. Não dispara notificação própria — se o pagamento for confirmado, o webhook segue o fluxo normal e dispara `NotifyReactivatedAsync` (evento 6). **Só funciona para assinaturas Stripe** — para `UserSubscription.Provider == "mercado_pago"` o endpoint responde `501 Not Implemented` (deliberado; API de retry do MP não foi integrada/validada ainda).
+- retry/reconciliação automática: `SubscriptionExpirationRobotTask` consulta o gateway correto (`GetSubscriptionAsync` via `IPaymentProviderResolver`, escolhido pelo `UserSubscription.Provider` da assinatura — Stripe ou Mercado Pago) antes de fazer downgrade de assinaturas `PastDue` após o grace period de 7 dias, evitando downgrade indevido por webhook perdido ou atrasado. Se a assinatura já estiver `active` no provedor, o robô sincroniza o estado local em vez de aplicar `NotifyDowngradedAsync` (evento 5). Se o provedor estiver indisponível, o robô degrada graciosamente e decide pelo estado local.
+
 ## Dados disponíveis nos templates
 
 - nome do usuário (`user.Name`)

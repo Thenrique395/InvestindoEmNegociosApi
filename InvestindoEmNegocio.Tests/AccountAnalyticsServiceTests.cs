@@ -205,7 +205,7 @@ public class AccountAnalyticsServiceTests
             .ReturnsAsync([account]);
 
         var transactionRepository = new Mock<IAccountTransactionRepository>();
-        transactionRepository.Setup(x => x.ListByAccountAsync(accountId, userId, null, It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()))
+        transactionRepository.Setup(x => x.ListByAccountAsync(accountId, userId, null, It.IsAny<DateTime?>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()))
             .ReturnsAsync([
                 new AccountTransaction(accountId, userId, new DateTime(2026, 2, 10, 12, 0, 0, DateTimeKind.Utc), AccountTransactionKind.Credit, 300m, "Receita"),
                 new AccountTransaction(accountId, userId, new DateTime(2026, 3, 20, 12, 0, 0, DateTimeKind.Utc), AccountTransactionKind.Debit, 50m, "Despesa")

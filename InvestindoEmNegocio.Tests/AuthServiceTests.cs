@@ -78,6 +78,51 @@ public class AuthServiceTests
     }
 
     [Fact]
+    public async Task LoginAsync_Should_Throw_When_Account_Is_Deactivated()
+    {
+        var passwordHash = BCrypt.Net.BCrypt.HashPassword("Password123!");
+        var user = new User("User", "user@local", passwordHash);
+        user.Deactivate();
+
+        var userRepository = new Mock<IUserRepository>();
+        userRepository
+            .Setup(x => x.GetByEmailAsync("user@local", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+
+        var sut = BuildSut(userRepository: userRepository);
+
+        Func<Task> act = async () => await sut.LoginAsync(new LoginRequest("user@local", "Password123!"), CancellationToken.None);
+
+        await act.Should().ThrowAsync<UnauthorizedAccessException>()
+            .WithMessage("*Credenciais inválidas*");
+    }
+
+    [Fact]
+    public async Task RefreshAsync_Should_Throw_When_Account_Is_Deactivated()
+    {
+        var user = new User("User", "user@local", BCrypt.Net.BCrypt.HashPassword("Password123!"));
+        user.Deactivate();
+        var stored = new RefreshToken(user.Id, "hashed-token", DateTime.UtcNow.AddDays(1));
+
+        var refreshTokenRepository = new Mock<IRefreshTokenRepository>();
+        refreshTokenRepository
+            .Setup(x => x.GetByTokenHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(stored);
+
+        var userRepository = new Mock<IUserRepository>();
+        userRepository
+            .Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+
+        var sut = BuildSut(userRepository: userRepository, refreshTokenRepository: refreshTokenRepository);
+
+        Func<Task> act = async () => await sut.RefreshAsync(new RefreshTokenRequest("plain-token"), CancellationToken.None);
+
+        await act.Should().ThrowAsync<UnauthorizedAccessException>()
+            .WithMessage("*Refresh token inválido*");
+    }
+
+    [Fact]
     public async Task LogoutAsync_Should_Revoke_RefreshToken_When_Valid()
     {
         var refreshToken = new RefreshToken(Guid.NewGuid(), "hashed-token", DateTime.UtcNow.AddDays(1));
@@ -218,6 +263,30 @@ public class AuthServiceTests
     }
 
     [Fact]
+    public async Task ChangePasswordAsync_Should_Revoke_Sessions_So_Old_Tokens_Stop_Working()
+    {
+        var oldPassword = "Password123!";
+        var user = new User("User", "user@local", BCrypt.Net.BCrypt.HashPassword(oldPassword));
+        var previousTokenVersion = user.TokenVersion;
+
+        var userRepository = new Mock<IUserRepository>();
+        userRepository
+            .Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+
+        var refreshTokenRepository = new Mock<IRefreshTokenRepository>();
+        var sut = BuildSut(userRepository: userRepository, refreshTokenRepository: refreshTokenRepository);
+
+        await sut.ChangePasswordAsync(
+            user.Id,
+            new ChangePasswordRequest(oldPassword, "NewPassword123!"),
+            CancellationToken.None);
+
+        user.TokenVersion.Should().BeGreaterThan(previousTokenVersion);
+        refreshTokenRepository.Verify(x => x.RevokeActiveByUserAsync(user.Id, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task ForgotPasswordAsync_Should_Not_Throw_When_User_Does_Not_Exist()
     {
         var userRepository = new Mock<IUserRepository>();
@@ -254,9 +323,12 @@ public class AuthServiceTests
             refreshTokenRepository: refreshRepository,
             passwordResetTokenRepository: passwordResetRepository);
 
+        var previousTokenVersion = user.TokenVersion;
+
         await sut.ResetPasswordAsync(new ResetPasswordRequest(rawResetToken, "NovaSenha123!"), CancellationToken.None);
 
         resetToken.IsUsed.Should().BeTrue();
+        user.TokenVersion.Should().BeGreaterThan(previousTokenVersion);
         refreshRepository.Verify(x => x.RevokeActiveByUserAsync(user.Id, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Once);
         refreshRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -301,6 +373,7 @@ public class AuthServiceTests
         var authPasswordService = new AuthPasswordService(
             userRepository?.Object ?? Mock.Of<IUserRepository>(),
             passwordResetService,
+            sessionService,
             NullLogger<AuthPasswordService>.Instance);
 
         return new AuthService(

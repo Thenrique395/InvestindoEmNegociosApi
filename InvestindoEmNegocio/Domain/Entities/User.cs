@@ -24,6 +24,9 @@ public class User
     public int FailedLoginAttempts { get; private set; }
     public DateTime? LockoutUntil { get; private set; }
     public DateTime? TrialUsedAt { get; private set; }
+    public bool IsAnonymized { get; private set; }
+    public DateTime? DeletedAt { get; private set; }
+    public int TokenVersion { get; private set; }
 
     private User()
     {
@@ -133,6 +136,35 @@ public class User
     {
         PasswordHash = newPasswordHash;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Invalida todas as sessões já emitidas (JWTs anteriores deixam de validar no próximo
+    /// OnTokenValidated) — chamado em troca de senha, reset de senha e desativação por admin.
+    /// </summary>
+    public void RevokeSessions()
+    {
+        TokenVersion++;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void Anonymize(DateTime nowUtc)
+    {
+        Name = "Usuário Removido";
+        Email = $"deleted-{Id:N}@deletado.local";
+        Document = string.Empty;
+        AvatarUrl = string.Empty;
+        Phone = string.Empty;
+        City = string.Empty;
+        State = string.Empty;
+        Country = string.Empty;
+        BirthDate = null;
+        PasswordHash = "DELETED";
+        IsActive = false;
+        Role = UserRole.Basic;
+        IsAnonymized = true;
+        DeletedAt = nowUtc;
+        UpdatedAt = nowUtc;
     }
 
     public void Deactivate()

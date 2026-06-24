@@ -10,6 +10,7 @@ using BCryptNet = BCrypt.Net.BCrypt;
 public class AuthPasswordService(
     IUserRepository userRepository,
     IPasswordResetService passwordResetService,
+    IUserSessionService userSessionService,
     ILogger<AuthPasswordService> logger) : IAuthPasswordService
 {
     private readonly ILogger<AuthPasswordService> _logger = logger;
@@ -22,9 +23,12 @@ public class AuthPasswordService(
         if (!BCryptNet.Verify(request.CurrentPassword, user.PasswordHash))
             throw new UnauthorizedAccessException("Senha atual inválida.");
 
+        var now = DateTime.UtcNow;
         var newHash = BCryptNet.HashPassword(request.NewPassword, AuthServicePolicies.BcryptWorkFactor);
         user.ChangePassword(newHash);
+        user.RevokeSessions();
         await userRepository.SaveChangesAsync(cancellationToken);
+        await userSessionService.RevokeActiveAsync(user.Id, now, cancellationToken);
         _logger.LogInformation("Password changed {UserId}", user.Id);
     }
 

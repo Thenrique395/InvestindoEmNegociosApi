@@ -30,6 +30,7 @@ public class AccountTransactionConfiguration : IEntityTypeConfiguration<AccountT
 
         builder.Property(t => t.OccurredAt).IsRequired();
         builder.Property(t => t.CreatedAt).IsRequired();
+        builder.Property(t => t.DeletedAt);
 
         builder.HasIndex(t => new { t.AccountId, t.OccurredAt });
         builder.HasIndex(t => new { t.UserId, t.OccurredAt });
@@ -41,5 +42,7 @@ public class AccountTransactionConfiguration : IEntityTypeConfiguration<AccountT
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasCheckConstraint("ck_account_transactions_amount_positive", "\"Amount\" > 0");
+
+        builder.HasQueryFilter(t => t.DeletedAt == null);
     }
 }

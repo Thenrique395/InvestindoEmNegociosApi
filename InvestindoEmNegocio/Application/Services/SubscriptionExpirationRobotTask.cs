@@ -10,6 +10,8 @@ public sealed class SubscriptionExpirationRobotTask(
     IUserRepository userRepository,
     IUserSubscriptionRepository userSubscriptionRepository,
     IBillingNotificationService billingNotificationService,
+    IPaymentProviderResolver paymentProviderResolver,
+    IBillingSubscriptionSyncService billingSubscriptionSyncService,
     ILogger<SubscriptionExpirationRobotTask> logger) : IRobotTask
 {
     public string Name => "RoboExpiracaoAssinaturas";
@@ -58,6 +60,13 @@ public sealed class SubscriptionExpirationRobotTask(
             if (user is null || user.Role == UserRole.Admin)
                 continue;
 
+            // Verifica Stripe antes de cancelar — webhook de "renovação retomada" pode ter sido perdido
+            if (await TryReconcileWithProviderAsync(subscription, cancellationToken))
+            {
+                processed++;
+                continue;
+            }
+
             logger.LogInformation("{Name}: cancelling subscription for user {UserId} (plan {PlanCode}) — AutoRenew disabled and RenewsAt passed",
                 Name, subscription.UserId, subscription.PlanCode);
             subscription.CancelNow(now);
@@ -72,6 +81,13 @@ public sealed class SubscriptionExpirationRobotTask(
             if (user is null || user.Role == UserRole.Admin)
                 continue;
 
+            // Verifica Stripe antes de downgrade — webhook pode ter sido perdido
+            if (await TryReconcileWithProviderAsync(subscription, cancellationToken))
+            {
+                processed++;
+                continue;
+            }
+
             logger.LogWarning("{Name}: expiring PastDue subscription for user {UserId} (plan {PlanCode}) — grace period ended, downgrading to Basic",
                 Name, subscription.UserId, subscription.PlanCode);
             subscription.MarkExpired(now);
@@ -85,5 +101,36 @@ public sealed class SubscriptionExpirationRobotTask(
 
         logger.LogInformation("{Name} completed: {Processed} subscriptions processed", Name, processed);
         return new RobotTaskExecutionResult(processed);
+    }
+
+    /// <summary>
+    /// Verifica o status real no gateway de pagamento antes de qualquer efeito local
+    /// irreversível (cancelamento/downgrade). Retorna true se sincronizou a partir do
+    /// gateway (e o caller deve pular a ação local).
+    /// </summary>
+    private async Task<bool> TryReconcileWithProviderAsync(Domain.Entities.UserSubscription subscription, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(subscription.ExternalSubscriptionId))
+            return false;
+
+        try
+        {
+            var provider = paymentProviderResolver.Resolve(subscription.Provider);
+            var snapshot = await provider.GetSubscriptionAsync(subscription.ExternalSubscriptionId, cancellationToken);
+            var providerStatus = snapshot.Status?.ToLowerInvariant() ?? string.Empty;
+            if (providerStatus is not ("active" or "trialing"))
+                return false;
+
+            logger.LogInformation("{Name}: provider shows subscription {ExternalId} as {ProviderStatus} for user {UserId} — syncing instead of applying local action",
+                Name, subscription.ExternalSubscriptionId, providerStatus, subscription.UserId);
+            await billingSubscriptionSyncService.SyncAsync(snapshot, "robot.reconcile", cancellationToken);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "{Name}: failed to verify provider status for subscription {ExternalId} (user {UserId}) — proceeding with local decision",
+                Name, subscription.ExternalSubscriptionId, subscription.UserId);
+            return false;
+        }
     }
 }

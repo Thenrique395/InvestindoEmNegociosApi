@@ -1,6 +1,7 @@
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
+using InvestindoEmNegocio.Domain.Common;
 using Microsoft.AspNetCore.Http;
 
 namespace InvestindoEmNegocio.Application.Services;
@@ -20,17 +21,17 @@ public sealed class AuthAccessApplicationService(
         }
         catch (InvalidOperationException ex)
         {
-            logger.LogWarning(ex, "Account locked para {Email}", request.Email);
+            logger.LogWarning(ex, "Account locked para {Email}", LogMasking.Email(request.Email));
             throw new AppProblemException("Conta bloqueada", ex.Message, StatusCodes.Status423Locked);
         }
         catch (ArgumentException ex)
         {
-            logger.LogWarning(ex, "Falha de validação no login para {Email}", request.Email);
+            logger.LogWarning(ex, "Falha de validação no login para {Email}", LogMasking.Email(request.Email));
             throw new AppProblemException("Login inválido", ex.Message, StatusCodes.Status400BadRequest);
         }
         catch (UnauthorizedAccessException)
         {
-            logger.LogWarning("Invalid credentials para {Email}", request.Email);
+            logger.LogWarning("Invalid credentials para {Email}", LogMasking.Email(request.Email));
             throw new AppProblemException("Credenciais inválidas", "Email ou senha incorretos.", StatusCodes.Status401Unauthorized);
         }
     }

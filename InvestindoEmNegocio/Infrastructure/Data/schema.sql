@@ -645,6 +645,7 @@ CREATE TABLE IF NOT EXISTS user_subscriptions (
     "PriceAmount" numeric(14,2) NOT NULL,
     "Currency" character varying(8) NOT NULL,
     "AutoRenew" boolean NOT NULL DEFAULT TRUE,
+    "Provider" character varying(32) NOT NULL DEFAULT 'stripe',
     "ExternalCustomerId" character varying(120) NULL,
     "ExternalSubscriptionId" character varying(120) NULL,
     "ExternalPriceId" character varying(120) NULL,
@@ -664,6 +665,10 @@ ALTER TABLE IF EXISTS user_subscriptions
 
 ALTER TABLE IF EXISTS user_subscriptions
     ADD COLUMN IF NOT EXISTS "ExternalPriceId" character varying(120) NULL;
+
+-- Mercado Pago como gateway adicional (Provider distingue qual gateway gere cada assinatura).
+ALTER TABLE IF EXISTS user_subscriptions
+    ADD COLUMN IF NOT EXISTS "Provider" character varying(32) NOT NULL DEFAULT 'stripe';
 
 CREATE INDEX IF NOT EXISTS "IX_user_subscriptions_ExternalSubscriptionId"
     ON user_subscriptions ("ExternalSubscriptionId");
@@ -1106,3 +1111,58 @@ CREATE INDEX IF NOT EXISTS "IX_monthly_budget_items_UserId_Year_Month"
 
 CREATE UNIQUE INDEX IF NOT EXISTS "IX_monthly_budget_items_UserId_Year_Month_CategoryName"
     ON monthly_budget_items ("UserId", "Year", "Month", "CategoryName");
+
+-- LGPD: anonimização pós-exclusão (soft-delete com PII zerado, registros fiscais retidos)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'users'
+    ) THEN
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS "IsAnonymized" boolean NOT NULL DEFAULT FALSE;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS "DeletedAt" timestamp with time zone;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS "TrialUsedAt" timestamp with time zone;
+        -- Revogação imediata de sessão (token_version): incrementado em troca/reset de senha e
+        -- desativação por admin; o OnTokenValidated do JWT rejeita tokens com versão antiga.
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS "TokenVersion" integer NOT NULL DEFAULT 0;
+    END IF;
+END $$;
+
+-- Soft-delete do dia a dia (não confundir com a anonimização de exclusão de conta acima):
+-- exclusão de conta/cartão/meta/transação/plano/posição de investimento dentro do uso normal
+-- do app passa a marcar DeletedAt em vez de remover a linha, para permitir desfazer e manter
+-- trilha. O fluxo de exclusão de conta (LGPD) continua removendo fisicamente (ignora este
+-- DeletedAt via IgnoreQueryFilters na camada de aplicação).
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS "DeletedAt" timestamp with time zone;
+ALTER TABLE cards ADD COLUMN IF NOT EXISTS "DeletedAt" timestamp with time zone;
+ALTER TABLE goals ADD COLUMN IF NOT EXISTS "DeletedAt" timestamp with time zone;
+ALTER TABLE goal_contributions ADD COLUMN IF NOT EXISTS "DeletedAt" timestamp with time zone;
+ALTER TABLE account_transactions ADD COLUMN IF NOT EXISTS "DeletedAt" timestamp with time zone;
+ALTER TABLE money_plans ADD COLUMN IF NOT EXISTS "DeletedAt" timestamp with time zone;
+ALTER TABLE money_installments ADD COLUMN IF NOT EXISTS "DeletedAt" timestamp with time zone;
+ALTER TABLE money_payments ADD COLUMN IF NOT EXISTS "DeletedAt" timestamp with time zone;
+ALTER TABLE investment_positions ADD COLUMN IF NOT EXISTS "DeletedAt" timestamp with time zone;
+ALTER TABLE investment_movements ADD COLUMN IF NOT EXISTS "DeletedAt" timestamp with time zone;
+
+-- Índices únicos parciais: uma linha soft-deletada não pode mais ocupar o slot do índice
+-- único, senão o usuário não conseguiria recriar uma conta com o mesmo nome ou recadastrar
+-- o mesmo cartão depois de excluir o anterior.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_indexes WHERE tablename = 'accounts' AND indexname = 'IX_accounts_UserId_Name'
+    ) THEN
+        DROP INDEX "IX_accounts_UserId_Name";
+    END IF;
+
+    CREATE UNIQUE INDEX IF NOT EXISTS "IX_accounts_UserId_Name" ON accounts ("UserId", "Name") WHERE "DeletedAt" IS NULL;
+
+    IF EXISTS (
+        SELECT 1 FROM pg_indexes WHERE tablename = 'cards' AND indexname = 'IX_cards_UserId_BrandId_Last4'
+    ) THEN
+        DROP INDEX "IX_cards_UserId_BrandId_Last4";
+    END IF;
+
+    CREATE UNIQUE INDEX IF NOT EXISTS "IX_cards_UserId_BrandId_Last4" ON cards ("UserId", "BrandId", "Last4") WHERE "DeletedAt" IS NULL;
+END $$;

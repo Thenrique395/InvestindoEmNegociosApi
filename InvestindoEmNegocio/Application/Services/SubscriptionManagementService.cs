@@ -5,6 +5,7 @@ using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace InvestindoEmNegocio.Application.Services;
@@ -15,9 +16,12 @@ public sealed class SubscriptionManagementService(
     IBillingCheckoutRepository billingCheckoutRepository,
     IUserSessionService userSessionService,
     IStripeBillingGateway stripeBillingGateway,
-    IOptions<StripeOptions> stripeOptions) : ISubscriptionManagementService
+    IMercadoPagoBillingGateway mercadoPagoBillingGateway,
+    IOptions<StripeOptions> stripeOptions,
+    ILogger<SubscriptionManagementService> logger) : ISubscriptionManagementService
 {
     private readonly StripeOptions _stripeOptions = stripeOptions.Value;
+    private const string MercadoPagoProvider = "mercado_pago";
 
     public async Task<SubscriptionChangeResponse> ChangeAsync(Guid userId, ChangeSubscriptionRequest request, CancellationToken cancellationToken = default)
     {
@@ -81,7 +85,15 @@ public sealed class SubscriptionManagementService(
             await userSubscriptionRepository.AddAsync(subscription, cancellationToken);
         }
 
-        if (!string.IsNullOrWhiteSpace(subscription.ExternalSubscriptionId) && !string.IsNullOrWhiteSpace(_stripeOptions.SecretKey))
+        if (!string.IsNullOrWhiteSpace(subscription.ExternalSubscriptionId) && subscription.Provider == MercadoPagoProvider)
+        {
+            // MP não tem "cancelar no fim do período" nativo — cancela a cobrança recorrente
+            // já agora para não continuar debitando o usuário; o acesso local continua até
+            // RenewsAt via ScheduleCancellation, igual ao comportamento do Stripe para o usuário.
+            await mercadoPagoBillingGateway.CancelAsync(subscription.ExternalSubscriptionId, cancellationToken);
+            subscription.ScheduleCancellation(DateTime.UtcNow);
+        }
+        else if (!string.IsNullOrWhiteSpace(subscription.ExternalSubscriptionId) && !string.IsNullOrWhiteSpace(_stripeOptions.SecretKey))
         {
             await stripeBillingGateway.ScheduleCancellationAsync(subscription.ExternalSubscriptionId, cancellationToken);
             subscription.ScheduleCancellation(DateTime.UtcNow);
@@ -111,7 +123,26 @@ public sealed class SubscriptionManagementService(
         if ((now - subscription.StartedAt).TotalDays > graceDays)
             throw new AppProblemException("Prazo expirado", $"O direito de arrependimento é válido por {graceDays} dias após a contratação.", StatusCodes.Status400BadRequest);
 
-        if (!string.IsNullOrWhiteSpace(subscription.ExternalSubscriptionId) && !string.IsNullOrWhiteSpace(_stripeOptions.SecretKey))
+        if (subscription.Provider == MercadoPagoProvider && !string.IsNullOrWhiteSpace(subscription.ExternalSubscriptionId))
+        {
+            // Cancela a cobrança recorrente imediatamente (direito de não ser cobrado de novo).
+            await mercadoPagoBillingGateway.CancelAsync(subscription.ExternalSubscriptionId, cancellationToken);
+
+            var checkout = await billingCheckoutRepository.GetByProviderSubscriptionIdAsync(subscription.ExternalSubscriptionId, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(checkout?.ProviderPaymentIntentId))
+            {
+                await mercadoPagoBillingGateway.RefundPaymentAsync(checkout.ProviderPaymentIntentId, cancellationToken);
+            }
+            else
+            {
+                // Sem pagamento vinculado (webhook "payment" do MP ainda não chegou, ou o
+                // external_reference não correspondeu) — precisa de reconciliação manual.
+                logger.LogWarning(
+                    "RequestRefundAsync: assinatura {SubscriptionId} (user {UserId}) é Mercado Pago — preapproval cancelado, mas não há pagamento vinculado para reembolsar automaticamente.",
+                    subscription.ExternalSubscriptionId, userId);
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(subscription.ExternalSubscriptionId) && !string.IsNullOrWhiteSpace(_stripeOptions.SecretKey))
         {
             await stripeBillingGateway.CancelImmediatelyAsync(subscription.ExternalSubscriptionId, cancellationToken);
 
@@ -174,6 +205,9 @@ public sealed class SubscriptionManagementService(
 
         if (string.IsNullOrWhiteSpace(subscription.ExternalSubscriptionId))
             throw new AppProblemException("Retry indisponível", "Assinatura sem vínculo com provedor de pagamento.", StatusCodes.Status400BadRequest);
+
+        if (subscription.Provider == MercadoPagoProvider)
+            throw new AppProblemException("Retry indisponível", "Nova tentativa de cobrança ainda não está disponível para assinaturas Mercado Pago.", StatusCodes.Status501NotImplemented);
 
         if (string.IsNullOrWhiteSpace(_stripeOptions.SecretKey))
             throw new AppProblemException("Cobrança indisponível", "Stripe não está configurado neste ambiente.", StatusCodes.Status503ServiceUnavailable);

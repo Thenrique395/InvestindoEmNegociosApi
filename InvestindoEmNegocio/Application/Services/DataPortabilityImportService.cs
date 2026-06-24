@@ -298,22 +298,27 @@ public sealed class DataPortabilityImportService(
 
     private async Task RemoveCurrentDataAsync(Guid userId, CancellationToken cancellationToken)
     {
+        // IgnoreQueryFilters: importar e substituir os dados precisa apagar de verdade
+        // qualquer linha já soft-deletada antes (mesmo motivo do RemoveUserDataAsync em
+        // UserPrivacyCenterService) — senão ela sobrevive ao "replace" e pode colidir com
+        // os índices únicos (cartões/contas) ao reimportar.
         var positionIds = await dbContext.InvestmentPositions
+            .IgnoreQueryFilters()
             .Where(x => x.UserId == userId)
             .Select(x => x.Id)
             .ToListAsync(cancellationToken);
 
-        dbContext.MoneyPayments.RemoveRange(dbContext.MoneyPayments.Where(x => x.UserId == userId));
-        dbContext.MoneyInstallments.RemoveRange(dbContext.MoneyInstallments.Where(x => x.UserId == userId));
-        dbContext.GoalContributions.RemoveRange(dbContext.GoalContributions.Where(x => x.UserId == userId));
-        dbContext.InvestmentMovements.RemoveRange(dbContext.InvestmentMovements.Where(x => positionIds.Contains(x.PositionId)));
+        dbContext.MoneyPayments.RemoveRange(dbContext.MoneyPayments.IgnoreQueryFilters().Where(x => x.UserId == userId));
+        dbContext.MoneyInstallments.RemoveRange(dbContext.MoneyInstallments.IgnoreQueryFilters().Where(x => x.UserId == userId));
+        dbContext.GoalContributions.RemoveRange(dbContext.GoalContributions.IgnoreQueryFilters().Where(x => x.UserId == userId));
+        dbContext.InvestmentMovements.RemoveRange(dbContext.InvestmentMovements.IgnoreQueryFilters().Where(x => positionIds.Contains(x.PositionId)));
         dbContext.UserNotifications.RemoveRange(dbContext.UserNotifications.Where(x => x.UserId == userId));
-        dbContext.InvestmentPositions.RemoveRange(dbContext.InvestmentPositions.Where(x => x.UserId == userId));
+        dbContext.InvestmentPositions.RemoveRange(dbContext.InvestmentPositions.IgnoreQueryFilters().Where(x => x.UserId == userId));
         dbContext.InvestmentGoals.RemoveRange(dbContext.InvestmentGoals.Where(x => x.UserId == userId));
         dbContext.InvestmentAllocationTargets.RemoveRange(dbContext.InvestmentAllocationTargets.Where(x => x.UserId == userId));
-        dbContext.MoneyPlans.RemoveRange(dbContext.MoneyPlans.Where(x => x.UserId == userId));
-        dbContext.Goals.RemoveRange(dbContext.Goals.Where(x => x.UserId == userId));
-        dbContext.Cards.RemoveRange(dbContext.Cards.Where(x => x.UserId == userId));
+        dbContext.MoneyPlans.RemoveRange(dbContext.MoneyPlans.IgnoreQueryFilters().Where(x => x.UserId == userId));
+        dbContext.Goals.RemoveRange(dbContext.Goals.IgnoreQueryFilters().Where(x => x.UserId == userId));
+        dbContext.Cards.RemoveRange(dbContext.Cards.IgnoreQueryFilters().Where(x => x.UserId == userId));
         dbContext.Categories.RemoveRange(dbContext.Categories.Where(x => x.UserId == userId));
         dbContext.UserOnboardings.RemoveRange(dbContext.UserOnboardings.Where(x => x.UserId == userId));
         dbContext.UserProfiles.RemoveRange(dbContext.UserProfiles.Where(x => x.UserId == userId));

@@ -1,6 +1,7 @@
 using InvestindoEmNegocio.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace InvestindoEmNegocio.Controllers;
 
@@ -11,6 +12,7 @@ public class StripeWebhooksController(IStripeBillingWebhookService stripeBilling
 {
     [HttpPost]
     [AllowAnonymous]
+    [EnableRateLimiting("stripe-webhook")]
     public async Task<IActionResult> Receive(CancellationToken cancellationToken)
     {
         using var reader = new StreamReader(Request.Body);

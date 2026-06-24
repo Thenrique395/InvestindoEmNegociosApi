@@ -14,7 +14,7 @@ public class GoalsServiceTests
     [Fact]
     public async Task UpsertIncomeGoalAsync_Should_Throw_When_ExpectedMonthly_Is_Invalid()
     {
-        var sut = new GoalsService(Mock.Of<IGoalRepository>(), NullLogger<GoalsService>.Instance);
+        var sut = new GoalsService(Mock.Of<IGoalRepository>(), Mock.Of<IGoalContributionRepository>(), NullLogger<GoalsService>.Instance);
 
         Func<Task> act = async () => await sut.UpsertIncomeGoalAsync(Guid.NewGuid(), new UpsertIncomeGoalRequest(2026, 0));
 
@@ -31,7 +31,7 @@ public class GoalsServiceTests
             .Setup(x => x.ListByUserAsync(userId, 2026, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Goal>());
 
-        var sut = new GoalsService(repository.Object, NullLogger<GoalsService>.Instance);
+        var sut = new GoalsService(repository.Object, Mock.Of<IGoalContributionRepository>(), NullLogger<GoalsService>.Instance);
 
         var result = await sut.UpsertIncomeGoalAsync(userId, new UpsertIncomeGoalRequest(2026, 1000));
 
@@ -48,11 +48,36 @@ public class GoalsServiceTests
         repository
             .Setup(x => x.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Goal?)null);
-        var sut = new GoalsService(repository.Object, NullLogger<GoalsService>.Instance);
+        var sut = new GoalsService(repository.Object, Mock.Of<IGoalContributionRepository>(), NullLogger<GoalsService>.Instance);
 
         var removed = await sut.DeleteAsync(Guid.NewGuid(), Guid.NewGuid());
 
         removed.Should().BeFalse();
-        repository.Verify(x => x.Remove(It.IsAny<Goal>()), Times.Never);
+        repository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_Should_MarkDeleted_On_Goal_And_Cascade_To_Contributions()
+    {
+        var userId = Guid.NewGuid();
+        var goal = new Goal(userId, "Viagem", 5000, 2026);
+        var contribution = new GoalContribution(goal.Id, userId, 200, DateOnly.FromDateTime(DateTime.UtcNow));
+
+        var repository = new Mock<IGoalRepository>();
+        repository.Setup(x => x.GetByIdAsync(goal.Id, userId, It.IsAny<CancellationToken>())).ReturnsAsync(goal);
+
+        var contributionRepository = new Mock<IGoalContributionRepository>();
+        contributionRepository
+            .Setup(x => x.ListByGoalAsync(goal.Id, userId, It.IsAny<CancellationToken>(), It.IsAny<bool>()))
+            .ReturnsAsync([contribution]);
+
+        var sut = new GoalsService(repository.Object, contributionRepository.Object, NullLogger<GoalsService>.Instance);
+
+        var removed = await sut.DeleteAsync(userId, goal.Id);
+
+        removed.Should().BeTrue();
+        goal.DeletedAt.Should().NotBeNull();
+        contribution.DeletedAt.Should().NotBeNull();
+        repository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 }

@@ -3,6 +3,7 @@ using System.Text;
 using System.Linq;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
+using InvestindoEmNegocio.Domain.Common;
 using InvestindoEmNegocio.Domain.Repositories;
 using Microsoft.Extensions.Logging;
 
@@ -28,7 +29,7 @@ public sealed class ReminderRobotTask(
         var emailsAttempted = 0;
         var emailsSent = 0;
         var emailsFailed = 0;
-        var todayUtc = DateTime.UtcNow.Date;
+        var todayUtc = BrazilTime.TodayStartUtc;
         var activeUsersCount = users.Count(u => u.IsActive);
         if (activeUsersCount == 0)
             return new RobotTaskExecutionResult(0, ZeroItemsReasonCode: "NO_ACTIVE_USERS");
@@ -70,13 +71,13 @@ public sealed class ReminderRobotTask(
                 emailsSent++;
                 logger.LogInformation(
                     "RoboLembretes enviou resumo por e-mail para {Email} com {Count} lembrete(s).",
-                    user.Email,
+                    LogMasking.Email(user.Email),
                     toEmail.Count);
             }
             catch (Exception ex)
             {
                 emailsFailed++;
-                logger.LogError(ex, "RoboLembretes falhou ao enviar e-mail para {Email}.", user.Email);
+                logger.LogError(ex, "RoboLembretes falhou ao enviar e-mail para {Email}.", LogMasking.Email(user.Email));
             }
         }
 

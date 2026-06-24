@@ -14,7 +14,10 @@ public class GoalContributionConfiguration : IEntityTypeConfiguration<GoalContri
         builder.Property(x => x.Amount).HasColumnType("numeric(14,2)");
         builder.Property(x => x.Note).HasMaxLength(300);
         builder.Property(x => x.CreatedAt).IsRequired();
+        builder.Property(x => x.DeletedAt);
 
         builder.HasIndex(x => new { x.GoalId, x.Date });
+
+        builder.HasQueryFilter(x => x.DeletedAt == null);
     }
 }

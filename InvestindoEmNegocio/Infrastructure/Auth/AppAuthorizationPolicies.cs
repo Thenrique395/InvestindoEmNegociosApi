@@ -22,6 +22,7 @@ public static class AppAuthorizationPolicies
     public const string FeatureDataPortabilityExport = "feature.data-portability.export";
     public const string FeatureDataPortabilityImport = "feature.data-portability.import";
     public const string FeaturePlansManage = "feature.plans.manage";
+    public const string FeatureIncomesRead = "feature.incomes.read";
     public const string FeatureIncomesSummaryRead = "feature.incomes.summary.read";
     public const string FeatureGoalsManage = "feature.goals.manage";
     public const string FeatureGoalContributionsManage = "feature.goal-contributions.manage";
@@ -89,6 +90,7 @@ public static class AppAuthorizationPolicies
         AddFeaturePolicy(options, FeatureDataPortabilityExport, AppFeatureKeys.DataPortabilityExport);
         AddFeaturePolicy(options, FeatureDataPortabilityImport, AppFeatureKeys.DataPortabilityImport);
         AddFeaturePolicy(options, FeaturePlansManage, AppFeatureKeys.PlansManage);
+        AddFeaturePolicy(options, FeatureIncomesRead, AppFeatureKeys.IncomesRead);
         AddFeaturePolicy(options, FeatureIncomesSummaryRead, AppFeatureKeys.IncomesSummaryRead);
         AddFeaturePolicy(options, FeatureGoalsManage, AppFeatureKeys.GoalsManage);
         AddFeaturePolicy(options, FeatureGoalContributionsManage, AppFeatureKeys.GoalContributionsManage);

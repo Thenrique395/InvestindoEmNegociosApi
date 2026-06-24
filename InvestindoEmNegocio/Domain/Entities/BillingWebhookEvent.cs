@@ -24,8 +24,10 @@ public sealed class BillingWebhookEvent
         string eventType,
         string payloadJson,
         Guid? userId = null,
-        Guid? billingCheckoutId = null)
+        Guid? billingCheckoutId = null,
+        string provider = "stripe")
     {
+        Provider = provider.Trim();
         ProviderEventId = providerEventId.Trim();
         EventType = eventType.Trim();
         PayloadJson = payloadJson;

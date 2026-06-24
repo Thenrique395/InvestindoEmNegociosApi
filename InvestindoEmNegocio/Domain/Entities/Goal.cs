@@ -1,8 +1,9 @@
+using InvestindoEmNegocio.Domain.Common;
 using InvestindoEmNegocio.Domain.Enums;
 
 namespace InvestindoEmNegocio.Domain.Entities;
 
-public class Goal
+public class Goal : ISoftDeletable
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid UserId { get; private set; }
@@ -17,6 +18,7 @@ public class Goal
     public GoalKind Kind { get; private set; } = GoalKind.General;
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
+    public DateTime? DeletedAt { get; private set; }
 
     private Goal() { }
 
@@ -69,5 +71,11 @@ public class Goal
         CurrentAmount = newAmount;
         Status = newStatus;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void MarkDeleted(DateTime nowUtc)
+    {
+        DeletedAt = nowUtc;
+        UpdatedAt = nowUtc;
     }
 }

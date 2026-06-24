@@ -315,7 +315,7 @@ public class PlansServiceTests
         var planRepository = new Mock<IMoneyPlanRepository>();
         planRepository.Setup(x => x.GetByIdAsync(planId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(plan);
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
-        installmentRepository.Setup(x => x.ListByPlanAsync(planId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(installments);
+        installmentRepository.Setup(x => x.ListByPlanAsync(planId, userId, It.IsAny<CancellationToken>(), It.IsAny<bool>())).ReturnsAsync(installments);
 
         var sut = BuildSut(planRepository: planRepository, installmentRepository: installmentRepository);
         var result = await sut.GetByIdAsync(userId, planId);
@@ -347,7 +347,7 @@ public class PlansServiceTests
         planRepository.Setup(x => x.GetByIdAsync(planId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(plan);
 
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
-        installmentRepository.Setup(x => x.ListByPlanAsync(planId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(oldInstallments);
+        installmentRepository.Setup(x => x.ListByPlanAsync(planId, userId, It.IsAny<CancellationToken>(), It.IsAny<bool>())).ReturnsAsync(oldInstallments);
 
         var paymentRepository = new Mock<IMoneyPaymentRepository>();
         paymentRepository
@@ -391,7 +391,7 @@ public class PlansServiceTests
     }
 
     [Fact]
-    public async Task DeleteAsync_Should_Remove_Plan_When_Found()
+    public async Task DeleteAsync_Should_MarkDeleted_On_Plan_When_Found()
     {
         var userId = Guid.NewGuid();
         var plan = new MoneyPlan(userId, MoneyType.Expense, "Plano", 100, ScheduleType.OneTime, new DateOnly(2026, 1, 1), null, 1, null, null, null);
@@ -404,8 +404,46 @@ public class PlansServiceTests
         var result = await sut.DeleteAsync(userId, Guid.NewGuid());
 
         result.Should().BeTrue();
-        planRepository.Verify(x => x.Remove(plan), Times.Once);
+        plan.DeletedAt.Should().NotBeNull();
         planRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_Should_Cascade_MarkDeleted_To_Installments_Payments_And_Transactions()
+    {
+        var userId = Guid.NewGuid();
+        var plan = new MoneyPlan(userId, MoneyType.Expense, "Plano", 100, ScheduleType.Installments, new DateOnly(2026, 1, 1), null, 2, null, null, null);
+        var installment = new MoneyInstallment(plan.Id, userId, 1, new DateOnly(2026, 2, 1), 50);
+        var payment = new MoneyPayment(installment.Id, userId, DateTime.UtcNow, 50);
+        var transaction = new AccountTransaction(Guid.NewGuid(), userId, DateTime.UtcNow, AccountTransactionKind.Debit, 50, "Parcela", AccountTransactionSourceTypes.InstallmentPayment, payment.Id);
+
+        var planRepository = new Mock<IMoneyPlanRepository>();
+        planRepository.Setup(x => x.GetByIdAsync(plan.Id, userId, It.IsAny<CancellationToken>())).ReturnsAsync(plan);
+
+        var installmentRepository = new Mock<IMoneyInstallmentRepository>();
+        installmentRepository.Setup(x => x.ListByPlanAsync(plan.Id, userId, It.IsAny<CancellationToken>(), It.IsAny<bool>())).ReturnsAsync([installment]);
+
+        var paymentRepository = new Mock<IMoneyPaymentRepository>();
+        paymentRepository.Setup(x => x.ListByInstallmentIdsAsync(It.Is<List<Guid>>(l => l.Contains(installment.Id)), It.IsAny<CancellationToken>())).ReturnsAsync([payment]);
+
+        var accountTransactionRepository = new Mock<IAccountTransactionRepository>();
+        accountTransactionRepository
+            .Setup(x => x.ListBySourceAsync(userId, AccountTransactionSourceTypes.InstallmentPayment, It.Is<List<Guid>>(l => l.Contains(payment.Id)), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([transaction]);
+
+        var sut = BuildSut(
+            planRepository: planRepository,
+            installmentRepository: installmentRepository,
+            paymentRepository: paymentRepository,
+            accountTransactionRepository: accountTransactionRepository);
+
+        var result = await sut.DeleteAsync(userId, plan.Id);
+
+        result.Should().BeTrue();
+        plan.DeletedAt.Should().NotBeNull();
+        installment.DeletedAt.Should().NotBeNull();
+        payment.DeletedAt.Should().NotBeNull();
+        transaction.DeletedAt.Should().NotBeNull();
     }
 
     private static PlansService BuildSut(

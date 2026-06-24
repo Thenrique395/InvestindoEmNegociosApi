@@ -2,6 +2,10 @@ using InvestindoEmNegocio.Domain.Enums;
 
 namespace InvestindoEmNegocio.Application.DTOs;
 
+public record IncomeListResponse(
+    string Month,
+    IReadOnlyList<IncomeItemResponse> Items);
+
 public record IncomeSummaryResponse(
     string Month,
     decimal Total,

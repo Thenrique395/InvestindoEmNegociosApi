@@ -13,6 +13,7 @@ public static class AppFeatureKeys
     public const string DataPortabilityExport = "data-portability.export";
     public const string DataPortabilityImport = "data-portability.import";
     public const string PlansManage = "plans.manage";
+    public const string IncomesRead = "incomes.read";
     public const string IncomesSummaryRead = "incomes.summary.read";
     public const string GoalsManage = "goals.manage";
     public const string GoalContributionsManage = "goal-contributions.manage";
@@ -56,6 +57,7 @@ public static class AppFeatureKeys
         DataPortabilityExport,
         DataPortabilityImport,
         PlansManage,
+        IncomesRead,
         IncomesSummaryRead,
         GoalsManage,
         GoalContributionsManage,

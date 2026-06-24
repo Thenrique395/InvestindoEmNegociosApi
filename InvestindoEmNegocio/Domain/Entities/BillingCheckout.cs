@@ -51,6 +51,12 @@ public sealed class BillingCheckout
         Currency = string.IsNullOrWhiteSpace(currency) ? "BRL" : currency.Trim().ToUpperInvariant();
     }
 
+    public void SetProvider(string provider)
+    {
+        if (!string.IsNullOrWhiteSpace(provider))
+            Provider = provider.Trim().ToLowerInvariant();
+    }
+
     public void Start(
         string providerCheckoutId,
         string checkoutUrl,

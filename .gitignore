@@ -5,6 +5,8 @@ riderModule.iml
 /_ReSharper.Caches/
 /TestResults/
 **/TestResults/
+/test-results/
+**/test-results/
 coverage.cobertura.xml
 coverage.opencover.xml
 *.trx

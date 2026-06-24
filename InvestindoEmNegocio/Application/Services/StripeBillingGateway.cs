@@ -9,9 +9,12 @@ using Stripe.Checkout;
 
 namespace InvestindoEmNegocio.Application.Services;
 
-public sealed class StripeBillingGateway(IOptions<StripeOptions> stripeOptions) : IStripeBillingGateway
+public sealed class StripeBillingGateway(IOptions<StripeOptions> stripeOptions) : IStripeBillingGateway, IPaymentProvider
 {
     private readonly StripeOptions _options = stripeOptions.Value;
+
+    async Task<ProviderSubscriptionSnapshot> IPaymentProvider.GetSubscriptionAsync(string subscriptionId, CancellationToken cancellationToken) =>
+        (await GetSubscriptionAsync(subscriptionId, cancellationToken)).ToProviderSnapshot();
 
     public async Task<Session> CreateCheckoutSessionAsync(
         User user,

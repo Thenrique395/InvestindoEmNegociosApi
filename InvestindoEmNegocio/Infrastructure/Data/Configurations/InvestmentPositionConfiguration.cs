@@ -26,6 +26,7 @@ public class InvestmentPositionConfiguration : IEntityTypeConfiguration<Investme
 
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired();
+        builder.Property(x => x.DeletedAt);
 
         builder.HasMany(x => x.Movements)
             .WithOne(x => x.Position)
@@ -38,5 +39,7 @@ public class InvestmentPositionConfiguration : IEntityTypeConfiguration<Investme
             .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasIndex(x => new { x.UserId, x.Asset });
+
+        builder.HasQueryFilter(x => x.DeletedAt == null);
     }
 }

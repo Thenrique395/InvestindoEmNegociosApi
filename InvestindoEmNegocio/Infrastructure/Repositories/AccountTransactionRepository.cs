@@ -13,10 +13,12 @@ public class AccountTransactionRepository(InvestDbContext context) : IAccountTra
         Guid userId,
         DateTime? fromUtc = null,
         DateTime? toUtc = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool track = false)
     {
-        var query = context.AccountTransactions.AsNoTracking()
-            .Where(t => t.AccountId == accountId && t.UserId == userId);
+        var query = track
+            ? context.AccountTransactions.Where(t => t.AccountId == accountId && t.UserId == userId)
+            : context.AccountTransactions.AsNoTracking().Where(t => t.AccountId == accountId && t.UserId == userId);
 
         if (fromUtc.HasValue) query = query.Where(t => t.OccurredAt >= fromUtc.Value);
         if (toUtc.HasValue) query = query.Where(t => t.OccurredAt <= toUtc.Value);

@@ -365,11 +365,11 @@ public class NotificationApplicationServicesTests
             .ReturnsAsync([completed, below, inactive]);
 
         var goalContributionRepository = new Mock<IGoalContributionRepository>();
-        goalContributionRepository.Setup(x => x.ListByGoalAsync(inactive.Id, userId, It.IsAny<CancellationToken>()))
+        goalContributionRepository.Setup(x => x.ListByGoalAsync(inactive.Id, userId, It.IsAny<CancellationToken>(), It.IsAny<bool>()))
             .ReturnsAsync([new GoalContribution(inactive.Id, userId, 50m, today.AddDays(-10))]);
-        goalContributionRepository.Setup(x => x.ListByGoalAsync(completed.Id, userId, It.IsAny<CancellationToken>()))
+        goalContributionRepository.Setup(x => x.ListByGoalAsync(completed.Id, userId, It.IsAny<CancellationToken>(), It.IsAny<bool>()))
             .ReturnsAsync([]);
-        goalContributionRepository.Setup(x => x.ListByGoalAsync(below.Id, userId, It.IsAny<CancellationToken>()))
+        goalContributionRepository.Setup(x => x.ListByGoalAsync(below.Id, userId, It.IsAny<CancellationToken>(), It.IsAny<bool>()))
             .ReturnsAsync([]);
 
         var notificationRepository = new Mock<IUserNotificationRepository>();

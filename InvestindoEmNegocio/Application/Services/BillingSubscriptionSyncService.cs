@@ -5,7 +5,6 @@ using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Stripe;
 using Stripe.Checkout;
 
 namespace InvestindoEmNegocio.Application.Services;
@@ -14,19 +13,19 @@ public sealed class BillingSubscriptionSyncService(
     IUserRepository userRepository,
     IUserSubscriptionRepository userSubscriptionRepository,
     IBillingCheckoutRepository billingCheckoutRepository,
-    IStripeBillingGateway stripeBillingGateway,
+    IPaymentProvider paymentProvider,
     IBillingNotificationService billingNotificationService,
     ILogger<BillingSubscriptionSyncService> logger) : IBillingSubscriptionSyncService
 {
     public async Task SyncByExternalSubscriptionAsync(string subscriptionId, BillingCheckout? checkout, CancellationToken cancellationToken = default)
     {
-        var subscription = await stripeBillingGateway.GetSubscriptionAsync(subscriptionId, cancellationToken);
+        var subscription = await paymentProvider.GetSubscriptionAsync(subscriptionId, cancellationToken);
         await SyncAsync(subscription, "provider.sync", cancellationToken, checkout);
     }
 
-    public async Task SyncAsync(Subscription subscription, string eventType, CancellationToken cancellationToken = default, BillingCheckout? knownCheckout = null)
+    public async Task SyncAsync(ProviderSubscriptionSnapshot subscription, string eventType, CancellationToken cancellationToken = default, BillingCheckout? knownCheckout = null)
     {
-        var checkout = knownCheckout ?? await billingCheckoutRepository.GetByProviderSubscriptionIdAsync(subscription.Id, cancellationToken);
+        var checkout = knownCheckout ?? await billingCheckoutRepository.GetByProviderSubscriptionIdAsync(subscription.ExternalId, cancellationToken);
         if (checkout is null
             && subscription.Metadata is not null
             && subscription.Metadata.TryGetValue("checkoutId", out var checkoutIdRaw)
@@ -35,12 +34,12 @@ public sealed class BillingSubscriptionSyncService(
             checkout = await billingCheckoutRepository.GetByIdAsync(checkoutId, cancellationToken);
         }
 
-        UserSubscription? localSubscription = await userSubscriptionRepository.GetByExternalSubscriptionIdAsync(subscription.Id, cancellationToken);
+        UserSubscription? localSubscription = await userSubscriptionRepository.GetByExternalSubscriptionIdAsync(subscription.ExternalId, cancellationToken);
         if (localSubscription is null && checkout is not null)
             localSubscription = await userSubscriptionRepository.GetByUserIdAsync(checkout.UserId, cancellationToken);
 
         if (checkout is not null)
-            checkout.AttachProviderObjects(subscription.CustomerId, subscription.Id, checkout.ProviderPaymentIntentId, DateTime.UtcNow);
+            checkout.AttachProviderObjects(subscription.CustomerId, subscription.ExternalId, checkout.ProviderPaymentIntentId, DateTime.UtcNow);
 
         if (checkout is null && localSubscription is null)
             return;
@@ -49,15 +48,16 @@ public sealed class BillingSubscriptionSyncService(
         {
             var plan = SubscriptionPlanCatalog.GetByCodeOrThrow(checkout!.PlanCode);
             localSubscription = new UserSubscription(checkout.UserId, checkout.PlanCode, plan.Role, checkout.BillingCycle, checkout.Amount, checkout.Currency, DateTime.UtcNow, ResolveRenewalAt(subscription));
+            localSubscription.SetProvider(checkout.Provider);
             await userSubscriptionRepository.AddAsync(localSubscription, cancellationToken);
         }
 
         var status = subscription.Status?.ToLowerInvariant() ?? string.Empty;
         var renewsAt = ResolveRenewalAt(subscription);
-        var priceId = subscription.Items?.Data?.FirstOrDefault()?.Price?.Id;
+        var priceId = subscription.PriceId;
 
         logger.LogInformation("Syncing subscription {SubscriptionId} status={Status} event={EventType} for user {UserId}",
-            subscription.Id, status, eventType, checkout?.UserId ?? localSubscription?.UserId);
+            subscription.ExternalId, status, eventType, checkout?.UserId ?? localSubscription?.UserId);
 
         switch (status)
         {
@@ -73,7 +73,7 @@ public sealed class BillingSubscriptionSyncService(
                     DateTime.UtcNow,
                     renewsAt,
                     subscription.CustomerId,
-                    subscription.Id,
+                    subscription.ExternalId,
                     priceId);
                 await PromoteUserRoleAsync(localSubscription.UserId, localSubscription.RoleGranted, cancellationToken);
                 if (checkout is not null)
@@ -81,17 +81,17 @@ public sealed class BillingSubscriptionSyncService(
                     checkout.MarkPaid(status, eventType, DateTime.UtcNow);
                     if (previousStatus == UserSubscriptionStatus.PastDue)
                     {
-                        logger.LogInformation("Subscription {SubscriptionId} reactivated for user {UserId} (was PastDue)", subscription.Id, localSubscription.UserId);
+                        logger.LogInformation("Subscription {SubscriptionId} reactivated for user {UserId} (was PastDue)", subscription.ExternalId, localSubscription.UserId);
                         await billingNotificationService.NotifyReactivatedAsync(localSubscription.UserId, checkout, cancellationToken);
                     }
                     else if (previousStatus == UserSubscriptionStatus.Active)
                     {
-                        logger.LogInformation("Subscription {SubscriptionId} renewed for user {UserId}", subscription.Id, localSubscription.UserId);
+                        logger.LogInformation("Subscription {SubscriptionId} renewed for user {UserId}", subscription.ExternalId, localSubscription.UserId);
                         await billingNotificationService.NotifyRenewalApprovedAsync(localSubscription.UserId, checkout, cancellationToken);
                     }
                     else
                     {
-                        logger.LogInformation("Subscription {SubscriptionId} activated for user {UserId}, plan {PlanCode}", subscription.Id, localSubscription.UserId, localSubscription.PlanCode);
+                        logger.LogInformation("Subscription {SubscriptionId} activated for user {UserId}, plan {PlanCode}", subscription.ExternalId, localSubscription.UserId, localSubscription.PlanCode);
                         await billingNotificationService.NotifyApprovedAsync(localSubscription.UserId, checkout, cancellationToken);
                     }
                 }
@@ -99,7 +99,7 @@ public sealed class BillingSubscriptionSyncService(
 
             case "past_due":
             case "unpaid":
-                logger.LogWarning("Subscription {SubscriptionId} marked past_due for user {UserId}", subscription.Id, localSubscription.UserId);
+                logger.LogWarning("Subscription {SubscriptionId} marked past_due for user {UserId}", subscription.ExternalId, localSubscription.UserId);
                 localSubscription.MarkPastDue(DateTime.UtcNow);
                 if (checkout is not null)
                 {
@@ -113,7 +113,7 @@ public sealed class BillingSubscriptionSyncService(
                 break;
 
             case "canceled":
-                logger.LogInformation("Subscription {SubscriptionId} canceled for user {UserId} — downgrading to Basic", subscription.Id, localSubscription.UserId);
+                logger.LogInformation("Subscription {SubscriptionId} canceled for user {UserId} — downgrading to Basic", subscription.ExternalId, localSubscription.UserId);
                 localSubscription.CancelNow(DateTime.UtcNow);
                 if (checkout is not null)
                     checkout.MarkCancelled(eventType, DateTime.UtcNow);
@@ -130,7 +130,7 @@ public sealed class BillingSubscriptionSyncService(
                     DateTime.UtcNow,
                     renewsAt,
                     subscription.CustomerId,
-                    subscription.Id,
+                    subscription.ExternalId,
                     priceId);
                 if (checkout is not null)
                     checkout.MarkPending(status, eventType, DateTime.UtcNow);
@@ -220,12 +220,6 @@ public sealed class BillingSubscriptionSyncService(
         await userRepository.SaveChangesAsync(cancellationToken);
     }
 
-    private static DateTime ResolveRenewalAt(Subscription subscription)
-    {
-        var currentPeriodEnd = subscription.Items?.Data?.FirstOrDefault()?.CurrentPeriodEnd;
-        if (currentPeriodEnd is DateTime dt && dt > DateTime.MinValue)
-            return dt.ToUniversalTime();
-
-        return DateTime.UtcNow.AddMonths(1);
-    }
+    private static DateTime ResolveRenewalAt(ProviderSubscriptionSnapshot subscription) =>
+        subscription.CurrentPeriodEnd ?? DateTime.UtcNow.AddMonths(1);
 }

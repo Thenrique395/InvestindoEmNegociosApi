@@ -62,8 +62,17 @@ public sealed class AdminUsersService(
         var user = await userRepository.GetByIdAsync(id, cancellationToken)
             ?? throw new AppProblemException("Usuário não encontrado", "Usuário não encontrado.", StatusCodes.Status404NotFound);
 
-        if (isActive) user.Activate();
-        else user.Deactivate();
+        if (isActive)
+        {
+            user.Activate();
+        }
+        else
+        {
+            // Desativação tem que matar sessões já emitidas, não só bloquear logins novos —
+            // senão o token/refresh token que o usuário já tem continua funcionando.
+            user.Deactivate();
+            user.RevokeSessions();
+        }
 
         try
         {
@@ -75,6 +84,11 @@ public sealed class AdminUsersService(
                 "Falha ao salvar",
                 "Não foi possível atualizar o usuário no momento.",
                 StatusCodes.Status409Conflict);
+        }
+
+        if (!isActive)
+        {
+            await userSessionService.RevokeActiveAsync(user.Id, DateTime.UtcNow, cancellationToken);
         }
 
         return new UserSummaryResponse(user.Id, user.Name, user.Email, user.Role.ToString(), user.IsActive, user.CreatedAt);

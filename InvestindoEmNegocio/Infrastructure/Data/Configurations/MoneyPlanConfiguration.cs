@@ -43,8 +43,11 @@ public class MoneyPlanConfiguration : IEntityTypeConfiguration<MoneyPlan>
 
         builder.Property(p => p.CreatedAt).IsRequired();
         builder.Property(p => p.UpdatedAt).IsRequired();
+        builder.Property(p => p.DeletedAt);
 
         builder.HasIndex(p => p.UserId);
+
+        builder.HasQueryFilter(p => p.DeletedAt == null);
 
         builder.HasOne<Category>()
             .WithMany()

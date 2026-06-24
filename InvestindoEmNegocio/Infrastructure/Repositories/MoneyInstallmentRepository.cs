@@ -21,12 +21,13 @@ public class MoneyInstallmentRepository(InvestDbContext context) : IMoneyInstall
         return await query.OrderBy(i => i.DueDate).ThenBy(i => i.InstallmentNo).ToListAsync(cancellationToken);
     }
 
-    public async Task<List<MoneyInstallment>> ListByPlanAsync(Guid planId, Guid userId, CancellationToken cancellationToken = default)
+    public async Task<List<MoneyInstallment>> ListByPlanAsync(Guid planId, Guid userId, CancellationToken cancellationToken = default, bool track = false)
     {
-        return await context.MoneyInstallments.AsNoTracking()
-            .Where(i => i.PlanId == planId && i.UserId == userId)
-            .OrderBy(i => i.InstallmentNo)
-            .ToListAsync(cancellationToken);
+        var query = track
+            ? context.MoneyInstallments.Where(i => i.PlanId == planId && i.UserId == userId)
+            : context.MoneyInstallments.AsNoTracking().Where(i => i.PlanId == planId && i.UserId == userId);
+
+        return await query.OrderBy(i => i.InstallmentNo).ToListAsync(cancellationToken);
     }
 
     public async Task<decimal> SumCardDebtAsync(Guid userId, CancellationToken cancellationToken = default)

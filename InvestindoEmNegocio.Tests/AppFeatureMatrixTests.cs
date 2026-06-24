@@ -20,9 +20,8 @@ public class AppFeatureMatrixTests
             AppFeatureKeys.NotificationsAccess,
             AppFeatureKeys.LookupsRead,
             AppFeatureKeys.DataPortabilityExport,
-            AppFeatureKeys.DataPortabilityImport,
             AppFeatureKeys.PlansManage,
-            AppFeatureKeys.IncomesSummaryRead,
+            AppFeatureKeys.IncomesRead,
             AppFeatureKeys.GoalsManage,
             AppFeatureKeys.GoalContributionsManage,
             AppFeatureKeys.InstallmentsRead,
@@ -46,6 +45,8 @@ public class AppFeatureMatrixTests
     {
         string[] deniedFeatures =
         [
+            AppFeatureKeys.DataPortabilityImport,
+            AppFeatureKeys.IncomesSummaryRead,
             AppFeatureKeys.InstallmentsAnticipate,
             AppFeatureKeys.AccountsManage,
             AppFeatureKeys.AccountsAnalytics,

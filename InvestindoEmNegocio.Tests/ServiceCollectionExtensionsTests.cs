@@ -150,9 +150,10 @@ public class ServiceCollectionExtensionsTests
         var configuredPolicy = cors.GetPolicy(policy);
 
         configuredPolicy.Should().NotBeNull();
-        configuredPolicy!.Origins.Should().Contain("https://35.174.50.187:4000");
-        configuredPolicy.Origins.Should().Contain("http://35.174.50.187:4201");
-        configuredPolicy.Origins.Should().Contain("http://localhost:4200");
+        configuredPolicy!.Origins.Should().Contain("http://localhost:4200");
+        configuredPolicy.Origins.Should().Contain("https://localhost:4200");
+        configuredPolicy.Origins.Should().NotContain("http://35.174.50.187:4201", "IP público removido por segurança");
+        configuredPolicy.Origins.Should().NotContain("https://35.174.50.187:4000", "IP público removido por segurança");
         configuredPolicy.SupportsCredentials.Should().BeTrue();
     }
 
@@ -340,7 +341,7 @@ public class ServiceCollectionExtensionsTests
         Action act = () => services.AddJwtAuthentication(configuration);
 
         act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*JWT SecretKey não configurada.*");
+            .WithMessage("*JWT SecretKey não configurada*");
     }
 
     [Fact]

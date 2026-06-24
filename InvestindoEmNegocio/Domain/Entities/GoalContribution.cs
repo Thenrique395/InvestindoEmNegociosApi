@@ -1,6 +1,8 @@
+using InvestindoEmNegocio.Domain.Common;
+
 namespace InvestindoEmNegocio.Domain.Entities;
 
-public class GoalContribution
+public class GoalContribution : ISoftDeletable
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid GoalId { get; private set; }
@@ -9,6 +11,7 @@ public class GoalContribution
     public DateOnly Date { get; private set; }
     public string? Note { get; private set; }
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
+    public DateTime? DeletedAt { get; private set; }
 
     private GoalContribution() { }
 
@@ -20,4 +23,6 @@ public class GoalContribution
         Date = date;
         Note = note;
     }
+
+    public void MarkDeleted(DateTime nowUtc) => DeletedAt = nowUtc;
 }

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Mail;
 using InvestindoEmNegocio.Application.Interfaces;
+using InvestindoEmNegocio.Domain.Common;
 using Microsoft.Extensions.Options;
 
 namespace InvestindoEmNegocio.Infrastructure.Services;
@@ -15,7 +16,7 @@ public sealed class SmtpEmailSender(
         if (string.IsNullOrWhiteSpace(settings.Host) || string.IsNullOrWhiteSpace(settings.FromEmail))
         {
             const string errorMessage = "SMTP não configurado (Host/FromEmail).";
-            logger.LogWarning("{Message} E-mail para {Recipient} não enviado.", errorMessage, to);
+            logger.LogWarning("{Message} E-mail para {Recipient} não enviado.", errorMessage, LogMasking.Email(to));
             throw new InvalidOperationException(errorMessage);
         }
 
@@ -53,7 +54,7 @@ public sealed class SmtpEmailSender(
         else
         {
             const string errorMessage = "SMTP não configurado (Username).";
-            logger.LogWarning("{Message} E-mail para {Recipient} não enviado.", errorMessage, to);
+            logger.LogWarning("{Message} E-mail para {Recipient} não enviado.", errorMessage, LogMasking.Email(to));
             throw new InvalidOperationException(errorMessage);
         }
 

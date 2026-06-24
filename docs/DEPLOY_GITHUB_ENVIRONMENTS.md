@@ -17,6 +17,13 @@ O fluxo esperado da API e:
 
 Segredos nao devem ser commitados nem enviados em arquivo `.env` para o servidor.
 
+## Estado atual do ambiente PRD
+
+- o ambiente `production` (`invest-prd`, porta `5060`) esta pausado desde 2026-06-15 — ver [../../docs/DECISIONS/2026-06-15-pausar-ambiente-prd-focar-dev.md](../../docs/DECISIONS/2026-06-15-pausar-ambiente-prd-focar-dev.md)
+- testes manuais e automatizados devem usar exclusivamente `development` (`invest-dev`, porta `5059`) até que o ambiente esteja estavel e o PRD seja recriado/validado
+- o workflow `Deploy Backend Production` exige digitar `DEPLOY` no input `confirm` para liberar o job, justamente para evitar disparo acidental enquanto o PRD estiver pausado
+- a pendencia de inversao dos bancos `meu_mentor_db`/`meu_mentor_prd` (ver "Pendencia conhecida" abaixo) deve ser corrigida antes ou durante a recriacao do PRD
+
 ## Environments obrigatorios
 
 Crie estes GitHub Environments no repositorio:

@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
+using InvestindoEmNegocio.Domain.Common;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Repositories;
 using Microsoft.Extensions.Options;
@@ -27,7 +28,7 @@ public sealed class PasswordResetService(
         var user = await userRepository.GetByEmailAsync(request.Email.Trim().ToLowerInvariant(), cancellationToken);
         if (user is null)
         {
-            logger.LogInformation("Password reset requested for unknown email {Email}", request.Email);
+            logger.LogInformation("Password reset requested for unknown email {Email}", LogMasking.Email(request.Email));
             return;
         }
 
@@ -109,6 +110,7 @@ public sealed class PasswordResetService(
 
         var newHash = BCryptNet.HashPassword(request.NewPassword, BcryptWorkFactor);
         user.ChangePassword(newHash);
+        user.RevokeSessions();
         stored.MarkAsUsed(now);
         await userRepository.SaveChangesAsync(cancellationToken);
         await passwordResetTokenRepository.SaveChangesAsync(cancellationToken);

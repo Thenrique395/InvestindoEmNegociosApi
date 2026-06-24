@@ -49,7 +49,7 @@ public sealed class StripeBillingWebhookProcessor(
                 var subscription = stripeEvent.Data.Object as Subscription;
                 if (subscription is null) return;
                 logger.LogInformation("Stripe webhook {EventId}: syncing subscription {SubscriptionId} (type={EventType})", stripeEvent.Id, subscription.Id, stripeEvent.Type);
-                await billingSubscriptionSyncService.SyncAsync(subscription, stripeEvent.Type, cancellationToken);
+                await billingSubscriptionSyncService.SyncAsync(subscription.ToProviderSnapshot(), stripeEvent.Type, cancellationToken);
                 break;
             }
             case EventTypes.InvoicePaid:

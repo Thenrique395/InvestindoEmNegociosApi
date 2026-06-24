@@ -6,6 +6,7 @@ using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace InvestindoEmNegocio.Application.Services;
 
@@ -14,6 +15,8 @@ public sealed class BillingCheckoutCommandService(
     IUserSubscriptionRepository userSubscriptionRepository,
     IBillingCheckoutRepository billingCheckoutRepository,
     IStripeBillingGateway stripeBillingGateway,
+    IMercadoPagoBillingGateway mercadoPagoBillingGateway,
+    IOptions<BillingOptions> billingOptions,
     IBillingNotificationService billingNotificationService,
     ILogger<BillingCheckoutCommandService> logger) : IBillingCheckoutCommandService
 {
@@ -33,24 +36,20 @@ public sealed class BillingCheckoutCommandService(
         var now = DateTime.UtcNow;
         var amount = cycle == SubscriptionBillingCycle.Yearly ? plan.YearlyPrice : plan.MonthlyPrice;
         var checkout = new BillingCheckout(userId, plan.Code, plan.Role, cycle, amount, "BRL");
+        var provider = billingOptions.Value.PrimaryProvider;
+        checkout.SetProvider(provider);
         await billingCheckoutRepository.AddAsync(checkout, cancellationToken);
         await billingCheckoutRepository.SaveChangesAsync(cancellationToken);
-        var existingSubscription = await userSubscriptionRepository.GetByUserIdAsync(userId, cancellationToken);
 
-        var session = await stripeBillingGateway.CreateCheckoutSessionAsync(
-            user,
-            checkout,
-            plan.Name,
-            plan.Description,
-            existingSubscription?.ExternalCustomerId,
-            cancellationToken);
+        if (provider == "mercado_pago")
+            await StartMercadoPagoCheckoutAsync(user, checkout, plan.Name, cycle, amount, now, cancellationToken);
+        else
+            await StartStripeCheckoutAsync(user, checkout, plan.Name, plan.Description, now, cancellationToken);
 
-        checkout.Start(session.Id, session.Url ?? string.Empty, session.ExpiresAt, session.PaymentStatus, now);
-        checkout.AttachProviderObjects(session.CustomerId, session.SubscriptionId, session.PaymentIntentId, now);
         await billingCheckoutRepository.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("Checkout {CheckoutId} started for user {UserId}, plan {PlanCode} ({BillingCycle}), Stripe session {SessionId}",
-            checkout.Id, userId, plan.Code, cycle, session.Id);
+        logger.LogInformation("Checkout {CheckoutId} started for user {UserId}, plan {PlanCode} ({BillingCycle}), provider {Provider}",
+            checkout.Id, userId, plan.Code, cycle, checkout.Provider);
 
         await billingNotificationService.NotifyPendingAsync(user, checkout, cancellationToken);
 
@@ -64,6 +63,37 @@ public sealed class BillingCheckoutCommandService(
             checkout.Amount,
             checkout.Currency,
             checkout.ExpiresAt);
+    }
+
+    private async Task StartStripeCheckoutAsync(User user, BillingCheckout checkout, string planName, string planDescription, DateTime now, CancellationToken cancellationToken)
+    {
+        var existingSubscription = await userSubscriptionRepository.GetByUserIdAsync(checkout.UserId, cancellationToken);
+
+        var session = await stripeBillingGateway.CreateCheckoutSessionAsync(
+            user,
+            checkout,
+            planName,
+            planDescription,
+            existingSubscription?.ExternalCustomerId,
+            cancellationToken);
+
+        checkout.Start(session.Id, session.Url ?? string.Empty, session.ExpiresAt, session.PaymentStatus, now);
+        checkout.AttachProviderObjects(session.CustomerId, session.SubscriptionId, session.PaymentIntentId, now);
+    }
+
+    private async Task StartMercadoPagoCheckoutAsync(User user, BillingCheckout checkout, string planName, SubscriptionBillingCycle cycle, decimal amount, DateTime now, CancellationToken cancellationToken)
+    {
+        var preapproval = await mercadoPagoBillingGateway.CreatePreapprovalAsync(
+            $"Investindo em Negócios - {planName}",
+            user.Email,
+            checkout.Id.ToString(),
+            amount,
+            checkout.Currency,
+            cycle,
+            cancellationToken);
+
+        checkout.Start(preapproval.Id, preapproval.InitPoint ?? string.Empty, null, preapproval.Status, now);
+        checkout.AttachProviderObjects(null, preapproval.Id, null, now);
     }
 
     private async Task<User> GetUserOrThrowAsync(Guid userId, CancellationToken cancellationToken)

@@ -46,8 +46,11 @@ public class GoalConfiguration : IEntityTypeConfiguration<Goal>
 
         builder.Property(g => g.CreatedAt).IsRequired();
         builder.Property(g => g.UpdatedAt).IsRequired();
+        builder.Property(g => g.DeletedAt);
 
         builder.HasIndex(g => new { g.UserId, g.Year });
         builder.HasIndex(g => new { g.UserId, g.Status });
+
+        builder.HasQueryFilter(g => g.DeletedAt == null);
     }
 }

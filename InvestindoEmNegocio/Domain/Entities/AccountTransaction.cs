@@ -1,8 +1,9 @@
+using InvestindoEmNegocio.Domain.Common;
 using InvestindoEmNegocio.Domain.Enums;
 
 namespace InvestindoEmNegocio.Domain.Entities;
 
-public class AccountTransaction
+public class AccountTransaction : ISoftDeletable
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid AccountId { get; private set; }
@@ -14,6 +15,7 @@ public class AccountTransaction
     public string? SourceType { get; private set; }
     public Guid? SourceId { get; private set; }
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
+    public DateTime? DeletedAt { get; private set; }
 
     private AccountTransaction() { }
 
@@ -39,4 +41,6 @@ public class AccountTransaction
         SourceType = string.IsNullOrWhiteSpace(sourceType) ? null : sourceType.Trim();
         SourceId = sourceId;
     }
+
+    public void MarkDeleted(DateTime nowUtc) => DeletedAt = nowUtc;
 }

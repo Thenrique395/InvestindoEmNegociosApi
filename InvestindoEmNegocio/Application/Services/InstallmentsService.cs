@@ -1,6 +1,7 @@
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
+using InvestindoEmNegocio.Domain.Common;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
@@ -253,7 +254,7 @@ public class InstallmentsService(
         var installment = await installmentRepository.GetByIdAsync(installmentId, cancellationToken);
         if (installment is null || installment.UserId != userId) return false;
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow.Date);
+        var today = BrazilTime.TodayLocal;
         installment.Anticipate(request.DueDate, today);
 
         await installmentRepository.SaveChangesAsync(cancellationToken);
@@ -267,6 +268,7 @@ public class InstallmentsService(
         if (installment is null) return false;
         if (installment.UserId != userId) throw new UnauthorizedAccessException("Parcela pertence a outro usuário.");
 
+        var now = DateTime.UtcNow;
         var payments = await paymentRepository.ListByInstallmentIdAsync(installmentId, cancellationToken);
         var paymentIds = payments.Select(p => p.Id).ToList();
         if (paymentIds.Count > 0)
@@ -276,14 +278,14 @@ public class InstallmentsService(
                 "InstallmentPayment",
                 paymentIds,
                 cancellationToken) ?? [];
-            if (transactions.Count > 0)
-            {
-                accountTransactionRepository.RemoveRange(transactions);
-            }
+            foreach (var transaction in transactions)
+                transaction.MarkDeleted(now);
         }
 
-        paymentRepository.RemoveRange(payments);
-        installmentRepository.Remove(installment);
+        foreach (var payment in payments)
+            payment.MarkDeleted(now);
+
+        installment.MarkDeleted(now);
         await installmentRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation(
             "Installment deleted {UserId} {InstallmentId} with {PaymentsCount} payments cleaned from ledger",

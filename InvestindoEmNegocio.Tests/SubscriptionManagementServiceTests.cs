@@ -17,17 +17,23 @@ namespace InvestindoEmNegocio.Tests;
 
 public class SubscriptionManagementServiceTests
 {
-    private static SubscriptionManagementService CreateSut(InvestDbContext dbContext, IJwtTokenGenerator? jwt = null)
+    private static SubscriptionManagementService CreateSut(
+        InvestDbContext dbContext,
+        IJwtTokenGenerator? jwt = null,
+        IMercadoPagoBillingGateway? mercadoPagoBillingGateway = null,
+        IBillingCheckoutRepository? billingCheckoutRepository = null)
     {
         var jwtMock = jwt ?? Mock.Of<IJwtTokenGenerator>();
         var userSessionService = new UserSessionService(new RefreshTokenRepository(dbContext), jwtMock, Mock.Of<ILogger<UserSessionService>>());
         return new SubscriptionManagementService(
             new UserRepository(dbContext),
             new UserSubscriptionRepository(dbContext),
-            Mock.Of<IBillingCheckoutRepository>(),
+            billingCheckoutRepository ?? Mock.Of<IBillingCheckoutRepository>(),
             userSessionService,
             Mock.Of<IStripeBillingGateway>(),
-            Options.Create(new StripeOptions()));
+            mercadoPagoBillingGateway ?? Mock.Of<IMercadoPagoBillingGateway>(),
+            Options.Create(new StripeOptions()),
+            Mock.Of<ILogger<SubscriptionManagementService>>());
     }
 
     [Fact]
@@ -79,6 +85,124 @@ public class SubscriptionManagementServiceTests
         result.Current.RenewsAt.Should().BeCloseTo(renewsAt, TimeSpan.FromSeconds(1));
         result.Session.Token.Should().Be("jwt-token");
         (await dbContext.Users.SingleAsync()).Role.Should().Be(UserRole.Advanced);
+    }
+
+    [Fact]
+    public async Task CancelAsync_Should_Cancel_Preapproval_When_Subscription_Is_MercadoPago()
+    {
+        await using var dbContext = CreateDbContext();
+        var user = new User("Teste", "mp-cancel@teste.com", "hash");
+        user.SetRole(UserRole.Advanced);
+        await dbContext.Users.AddAsync(user);
+        var renewsAt = DateTime.UtcNow.AddDays(20);
+        var subscription = new UserSubscription(
+            user.Id, "advanced", UserRole.Advanced, SubscriptionBillingCycle.Monthly,
+            59.90m, "BRL", DateTime.UtcNow.AddMonths(-1), renewsAt);
+        subscription.Activate("advanced", UserRole.Advanced, SubscriptionBillingCycle.Monthly, 59.90m, "BRL",
+            DateTime.UtcNow.AddMonths(-1), renewsAt, null, "preapproval_test", null);
+        subscription.SetProvider("mercado_pago");
+        await dbContext.UserSubscriptions.AddAsync(subscription);
+        await dbContext.SaveChangesAsync();
+
+        var jwt = new Mock<IJwtTokenGenerator>();
+        jwt.Setup(x => x.Generate(It.IsAny<User>())).Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
+        var mercadoPagoGateway = new Mock<IMercadoPagoBillingGateway>();
+
+        var result = await CreateSut(dbContext, jwt.Object, mercadoPagoGateway.Object).CancelAsync(user.Id);
+
+        result.Current.AutoRenew.Should().BeFalse();
+        result.Current.RenewsAt.Should().BeCloseTo(renewsAt, TimeSpan.FromSeconds(1));
+        mercadoPagoGateway.Verify(x => x.CancelAsync("preapproval_test", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RequestRefundAsync_Should_Cancel_Preapproval_And_Mark_Refunded_For_MercadoPago()
+    {
+        await using var dbContext = CreateDbContext();
+        var user = new User("Teste", "mp-refund@teste.com", "hash");
+        user.SetRole(UserRole.Advanced);
+
+        var subscription = new UserSubscription(
+            user.Id, "advanced", UserRole.Advanced, SubscriptionBillingCycle.Monthly,
+            59.90m, "BRL", DateTime.UtcNow, DateTime.UtcNow.AddMonths(1));
+        subscription.Activate("advanced", UserRole.Advanced, SubscriptionBillingCycle.Monthly, 59.90m, "BRL",
+            DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), null, "preapproval_refund", null);
+        subscription.SetProvider("mercado_pago");
+
+        await dbContext.Users.AddAsync(user);
+        await dbContext.UserSubscriptions.AddAsync(subscription);
+        await dbContext.SaveChangesAsync();
+
+        var jwt = new Mock<IJwtTokenGenerator>();
+        jwt.Setup(x => x.Generate(It.IsAny<User>())).Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
+        var mercadoPagoGateway = new Mock<IMercadoPagoBillingGateway>();
+
+        var result = await CreateSut(dbContext, jwt.Object, mercadoPagoGateway.Object).RequestRefundAsync(user.Id);
+
+        result.Current.Status.Should().Be("Refunded");
+        (await dbContext.Users.SingleAsync()).Role.Should().Be(UserRole.Basic);
+        mercadoPagoGateway.Verify(x => x.CancelAsync("preapproval_refund", It.IsAny<CancellationToken>()), Times.Once);
+        mercadoPagoGateway.Verify(x => x.RefundPaymentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RequestRefundAsync_Should_Refund_Linked_Payment_For_MercadoPago()
+    {
+        await using var dbContext = CreateDbContext();
+        var user = new User("Teste", "mp-refund-linked@teste.com", "hash");
+        user.SetRole(UserRole.Advanced);
+
+        var subscription = new UserSubscription(
+            user.Id, "advanced", UserRole.Advanced, SubscriptionBillingCycle.Monthly,
+            59.90m, "BRL", DateTime.UtcNow, DateTime.UtcNow.AddMonths(1));
+        subscription.Activate("advanced", UserRole.Advanced, SubscriptionBillingCycle.Monthly, 59.90m, "BRL",
+            DateTime.UtcNow, DateTime.UtcNow.AddMonths(1), null, "preapproval_linked", null);
+        subscription.SetProvider("mercado_pago");
+
+        await dbContext.Users.AddAsync(user);
+        await dbContext.UserSubscriptions.AddAsync(subscription);
+        await dbContext.SaveChangesAsync();
+
+        var jwt = new Mock<IJwtTokenGenerator>();
+        jwt.Setup(x => x.Generate(It.IsAny<User>())).Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
+        var mercadoPagoGateway = new Mock<IMercadoPagoBillingGateway>();
+
+        var checkout = new BillingCheckout(user.Id, "advanced", UserRole.Advanced, SubscriptionBillingCycle.Monthly, 59.90m, "BRL");
+        checkout.AttachProviderObjects(null, "preapproval_linked", "pay-linked-1", DateTime.UtcNow);
+        var checkoutRepo = new Mock<IBillingCheckoutRepository>();
+        checkoutRepo.Setup(x => x.GetByProviderSubscriptionIdAsync("preapproval_linked", It.IsAny<CancellationToken>())).ReturnsAsync(checkout);
+
+        var result = await CreateSut(dbContext, jwt.Object, mercadoPagoGateway.Object, checkoutRepo.Object).RequestRefundAsync(user.Id);
+
+        result.Current.Status.Should().Be("Refunded");
+        mercadoPagoGateway.Verify(x => x.CancelAsync("preapproval_linked", It.IsAny<CancellationToken>()), Times.Once);
+        mercadoPagoGateway.Verify(x => x.RefundPaymentAsync("pay-linked-1", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RetryPaymentAsync_Should_Throw_NotImplemented_For_MercadoPago_Subscription()
+    {
+        await using var dbContext = CreateDbContext();
+        var user = new User("Teste", "mp-retry@teste.com", "hash");
+        user.SetRole(UserRole.Advanced);
+
+        var subscription = new UserSubscription(
+            user.Id, "advanced", UserRole.Advanced, SubscriptionBillingCycle.Monthly,
+            59.90m, "BRL", DateTime.UtcNow.AddMonths(-1), DateTime.UtcNow.AddDays(-1));
+        subscription.Activate("advanced", UserRole.Advanced, SubscriptionBillingCycle.Monthly, 59.90m, "BRL",
+            DateTime.UtcNow.AddMonths(-1), DateTime.UtcNow.AddDays(-1), null, "preapproval_retry", null);
+        subscription.SetProvider("mercado_pago");
+        subscription.MarkPastDue(DateTime.UtcNow.AddDays(-1));
+
+        await dbContext.Users.AddAsync(user);
+        await dbContext.UserSubscriptions.AddAsync(subscription);
+        await dbContext.SaveChangesAsync();
+
+        var sut = CreateSut(dbContext);
+
+        await sut.Invoking(x => x.RetryPaymentAsync(user.Id))
+            .Should().ThrowAsync<AppProblemException>()
+            .WithMessage("*Mercado Pago*");
     }
 
     [Fact]

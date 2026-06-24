@@ -1,6 +1,8 @@
+using InvestindoEmNegocio.Domain.Common;
+
 namespace InvestindoEmNegocio.Domain.Entities;
 
-public class MoneyPayment
+public class MoneyPayment : ISoftDeletable
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid InstallmentId { get; private set; }
@@ -11,6 +13,7 @@ public class MoneyPayment
     public Guid? AccountId { get; private set; }
     public string? Note { get; private set; }
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
+    public DateTime? DeletedAt { get; private set; }
 
     private MoneyPayment() { }
 
@@ -24,4 +27,6 @@ public class MoneyPayment
         AccountId = accountId;
         Note = note;
     }
+
+    public void MarkDeleted(DateTime nowUtc) => DeletedAt = nowUtc;
 }

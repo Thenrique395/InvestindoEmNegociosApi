@@ -1,4 +1,5 @@
 using InvestindoEmNegocio.Application.Interfaces;
+using InvestindoEmNegocio.Domain.Common;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
@@ -183,7 +184,7 @@ public sealed class BillingNotificationService(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to send billing email {Subject} to {Recipient}", subject, to);
+            logger.LogWarning(ex, "Failed to send billing email {Subject} to {Recipient}", subject, LogMasking.Email(to));
         }
     }
 

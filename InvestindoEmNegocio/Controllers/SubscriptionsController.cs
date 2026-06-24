@@ -12,8 +12,11 @@ namespace InvestindoEmNegocio.Controllers;
 [Authorize(Policy = AppAuthorizationPolicies.FeatureSubscriptionsManage)]
 public class SubscriptionsController(
     ISubscriptionCatalogService subscriptionCatalogService,
-    ISubscriptionManagementService subscriptionManagementService) : AuthenticatedControllerBase
+    ISubscriptionManagementService subscriptionManagementService,
+    IAuthCookieService authCookieService) : AuthenticatedControllerBase
 {
+    private const int RefreshTokenDays = 30;
+
     [HttpGet("catalog")]
     public async Task<IActionResult> GetCatalog(CancellationToken cancellationToken = default)
     {
@@ -25,28 +28,28 @@ public class SubscriptionsController(
     public async Task<IActionResult> Change([FromBody] ChangeSubscriptionRequest request, CancellationToken cancellationToken = default)
     {
         var response = await subscriptionManagementService.ChangeAsync(GetUserId(), request, cancellationToken);
-        return Ok(response);
+        return Ok(ToApiResponse(response));
     }
 
     [HttpPost("cancel")]
     public async Task<IActionResult> Cancel(CancellationToken cancellationToken = default)
     {
         var response = await subscriptionManagementService.CancelAsync(GetUserId(), cancellationToken);
-        return Ok(response);
+        return Ok(ToApiResponse(response));
     }
 
     [HttpPost("refund")]
     public async Task<IActionResult> Refund(CancellationToken cancellationToken = default)
     {
         var response = await subscriptionManagementService.RequestRefundAsync(GetUserId(), cancellationToken);
-        return Ok(response);
+        return Ok(ToApiResponse(response));
     }
 
     [HttpPost("request-trial")]
     public async Task<IActionResult> RequestTrial(CancellationToken cancellationToken = default)
     {
         var response = await subscriptionManagementService.RequestTrialAsync(GetUserId(), cancellationToken);
-        return Ok(response);
+        return Ok(ToApiResponse(response));
     }
 
     [HttpPost("retry-payment")]
@@ -56,4 +59,12 @@ public class SubscriptionsController(
         return NoContent();
     }
 
+    private SubscriptionChangeApiResponse ToApiResponse(SubscriptionChangeResponse response)
+    {
+        var session = response.Session;
+        authCookieService.SetAuthCookies(Response, session.Token, session.ExpiresAt, session.RefreshToken, DateTime.UtcNow.AddDays(RefreshTokenDays));
+        authCookieService.SetCsrfCookie(Response);
+        var apiSession = new AuthSessionResponse(session.UserId, session.Name, session.Email, session.Role, session.ExpiresAt);
+        return new SubscriptionChangeApiResponse(response.Current, apiSession, response.Notes);
+    }
 }

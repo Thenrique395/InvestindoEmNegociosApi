@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Application.Services;
 
-public class GoalsService(IGoalRepository goalRepository, ILogger<GoalsService> logger) : IGoalsService
+public class GoalsService(IGoalRepository goalRepository, IGoalContributionRepository goalContributionRepository, ILogger<GoalsService> logger) : IGoalsService
 {
     private readonly ILogger<GoalsService> _logger = logger;
     private const string IncomeGoalTitle = "Meta de Receita";
@@ -100,7 +100,12 @@ public class GoalsService(IGoalRepository goalRepository, ILogger<GoalsService> 
         var goal = await goalRepository.GetByIdAsync(id, userId, cancellationToken);
         if (goal is null) return false;
 
-        goalRepository.Remove(goal);
+        var now = DateTime.UtcNow;
+        var contributions = await goalContributionRepository.ListByGoalAsync(goal.Id, userId, cancellationToken, track: true);
+        foreach (var contribution in contributions)
+            contribution.MarkDeleted(now);
+
+        goal.MarkDeleted(now);
         await goalRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Goal deleted {UserId} {GoalId}", userId, goal.Id);
         return true;
