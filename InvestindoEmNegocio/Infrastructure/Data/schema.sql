@@ -1167,6 +1167,20 @@ BEGIN
     CREATE UNIQUE INDEX IF NOT EXISTS "IX_cards_UserId_BrandId_Last4" ON cards ("UserId", "BrandId", "Last4") WHERE "DeletedAt" IS NULL;
 END $$;
 
+-- Drift encontrado testando o fluxo da aplicação contra um banco bootstrapado só com este
+-- arquivo (sem EnsureCreated): UserSubscription.IsTrial existe no modelo EF e em
+-- UserSubscriptionConfiguration.cs desde a Fase de trial, mas nunca foi adicionada aqui —
+-- qualquer ambiente que bootstrapasse só por este script quebrava com 500 em
+-- GET /subscriptions/catalog ("column u.IsTrial does not exist").
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'user_subscriptions'
+    ) THEN
+        ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS "IsTrial" boolean NOT NULL DEFAULT FALSE;
+    END IF;
+END $$;
+
 -- Concorrência otimista (Version) em UserSubscription e LoanInstallment: protege contra
 -- duas escritas concorrentes na mesma linha (ex.: webhook de billing vs. cancelamento pelo
 -- usuário; duplo clique/retry de rede no pagamento de parcela) — o EF Core inclui
