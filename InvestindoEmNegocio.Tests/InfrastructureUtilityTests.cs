@@ -180,6 +180,56 @@ public class InfrastructureUtilityTests
         ex.Which.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
+    [Fact]
+    public async Task ReceiptStorageService_Should_Save_File_And_Return_Public_Url()
+    {
+        using var dir = new TempDir();
+        var env = new MockWebHostEnvironment
+        {
+            ContentRootPath = dir.Path,
+            WebRootPath = string.Empty
+        };
+
+        var sut = new ReceiptStorageService(env);
+        await using var stream = new MemoryStream([1, 2, 3, 4]);
+
+        var url = await sut.SaveAsync(
+            Guid.NewGuid(),
+            stream,
+            "nota.pdf",
+            "application/pdf",
+            "https://cdn.test",
+            CancellationToken.None);
+
+        url.Should().StartWith("https://cdn.test/uploads/receipts/");
+        Directory.Exists(System.IO.Path.Combine(dir.Path, "wwwroot", "uploads", "receipts")).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ReceiptStorageService_Should_Reject_Unsupported_ContentType()
+    {
+        using var dir = new TempDir();
+        var env = new MockWebHostEnvironment
+        {
+            ContentRootPath = dir.Path,
+            WebRootPath = dir.Path
+        };
+
+        var sut = new ReceiptStorageService(env);
+        await using var stream = new MemoryStream([1, 2, 3]);
+
+        Func<Task> act = async () => await sut.SaveAsync(
+            Guid.NewGuid(),
+            stream,
+            "nota.docx",
+            "application/msword",
+            "https://cdn.test",
+            CancellationToken.None);
+
+        var ex = await act.Should().ThrowAsync<AppProblemException>();
+        ex.Which.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+    }
+
     private sealed class StaticHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
     {
         public HttpRequestMessage? LastRequest { get; private set; }

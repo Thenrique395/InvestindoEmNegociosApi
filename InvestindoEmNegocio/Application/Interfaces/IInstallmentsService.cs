@@ -9,6 +9,7 @@ public interface IInstallmentsService
     Task<IReadOnlyList<InstallmentPaymentResponse>?> ListPaymentsAsync(Guid userId, Guid installmentId, CancellationToken cancellationToken = default);
     Task<bool> PayAsync(Guid userId, Guid installmentId, PaymentRequest request, CancellationToken cancellationToken = default);
     Task<bool> ReversePaymentAsync(Guid userId, Guid installmentId, Guid paymentId, PaymentReversalRequest request, CancellationToken cancellationToken = default);
+    Task<string?> AttachReceiptAsync(Guid userId, Guid installmentId, Guid paymentId, Stream content, string originalFileName, string contentType, string baseUrl, CancellationToken cancellationToken = default);
     Task<bool> AnticipateAsync(Guid userId, Guid installmentId, AnticipationRequest request, CancellationToken cancellationToken = default);
     Task<bool> DeleteAsync(Guid userId, Guid installmentId, CancellationToken cancellationToken = default);
 }

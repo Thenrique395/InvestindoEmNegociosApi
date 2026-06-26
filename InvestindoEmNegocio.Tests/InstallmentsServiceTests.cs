@@ -1,6 +1,7 @@
 using FluentAssertions;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Exceptions;
+using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
@@ -293,13 +294,81 @@ public class InstallmentsServiceTests
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact]
+    public async Task AttachReceiptAsync_Should_Save_File_And_Persist_Returned_Url()
+    {
+        var userId = Guid.NewGuid();
+        var installmentId = Guid.NewGuid();
+        var payment = new MoneyPayment(installmentId, userId, DateTime.UtcNow, 100m);
+
+        var paymentRepository = new Mock<IMoneyPaymentRepository>();
+        paymentRepository
+            .Setup(x => x.GetByIdAsync(payment.Id, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(payment);
+
+        var receiptStorageService = new Mock<IReceiptStorageService>();
+        receiptStorageService
+            .Setup(x => x.SaveAsync(userId, It.IsAny<Stream>(), "nota.pdf", "application/pdf", "https://api.test", It.IsAny<CancellationToken>()))
+            .ReturnsAsync("https://api.test/uploads/receipts/abc123.pdf");
+
+        var sut = BuildSut(paymentRepository: paymentRepository, receiptStorageService: receiptStorageService);
+
+        using var content = new MemoryStream();
+        var result = await sut.AttachReceiptAsync(userId, installmentId, payment.Id, content, "nota.pdf", "application/pdf", "https://api.test");
+
+        result.Should().Be("https://api.test/uploads/receipts/abc123.pdf");
+        payment.ReceiptUrl.Should().Be("https://api.test/uploads/receipts/abc123.pdf");
+        paymentRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task AttachReceiptAsync_Should_Return_Null_When_Payment_Not_Found()
+    {
+        var userId = Guid.NewGuid();
+        var paymentRepository = new Mock<IMoneyPaymentRepository>();
+        paymentRepository
+            .Setup(x => x.GetByIdAsync(It.IsAny<Guid>(), userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((MoneyPayment?)null);
+
+        var sut = BuildSut(paymentRepository: paymentRepository);
+
+        using var content = new MemoryStream();
+        var result = await sut.AttachReceiptAsync(userId, Guid.NewGuid(), Guid.NewGuid(), content, "nota.pdf", "application/pdf", "https://api.test");
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task AttachReceiptAsync_Should_Return_Null_When_Payment_Belongs_To_Different_Installment()
+    {
+        var userId = Guid.NewGuid();
+        var payment = new MoneyPayment(Guid.NewGuid(), userId, DateTime.UtcNow, 100m);
+
+        var paymentRepository = new Mock<IMoneyPaymentRepository>();
+        paymentRepository
+            .Setup(x => x.GetByIdAsync(payment.Id, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(payment);
+
+        var receiptStorageService = new Mock<IReceiptStorageService>();
+        var sut = BuildSut(paymentRepository: paymentRepository, receiptStorageService: receiptStorageService);
+
+        using var content = new MemoryStream();
+        var result = await sut.AttachReceiptAsync(userId, Guid.NewGuid(), payment.Id, content, "nota.pdf", "application/pdf", "https://api.test");
+
+        result.Should().BeNull();
+        receiptStorageService.Verify(x => x.SaveAsync(
+            It.IsAny<Guid>(), It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
     private static InstallmentsService BuildSut(
         Mock<IMoneyInstallmentRepository>? installmentRepository = null,
         Mock<IMoneyPaymentRepository>? paymentRepository = null,
         Mock<IMoneyPlanRepository>? planRepository = null,
         Mock<IUserRepository>? userRepository = null,
         Mock<IAccountRepository>? accountRepository = null,
-        Mock<IAccountTransactionRepository>? accountTransactionRepository = null)
+        Mock<IAccountTransactionRepository>? accountTransactionRepository = null,
+        Mock<IReceiptStorageService>? receiptStorageService = null)
     {
         var userRepo = userRepository ?? CreateDefaultUserRepository();
         var accountRepo = accountRepository ?? CreateDefaultAccountRepository();
@@ -323,6 +392,7 @@ public class InstallmentsServiceTests
             userRepo.Object,
             accountRepo.Object,
             accountTransactionRepository?.Object ?? Mock.Of<IAccountTransactionRepository>(),
+            receiptStorageService?.Object ?? Mock.Of<IReceiptStorageService>(),
             NullLogger<InstallmentsService>.Instance);
     }
 

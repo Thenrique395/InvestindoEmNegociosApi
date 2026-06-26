@@ -412,6 +412,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMarketDataProvider, FreeMarketDataProvider>();
         services.AddScoped<IMarketDataProvider, B3MarketDataProvider>();
         services.AddScoped<IAvatarStorageService, AvatarStorageService>();
+        services.AddScoped<IReceiptStorageService, ReceiptStorageService>();
 
         services.AddHttpClient<IInvestmentBenchmarksService, InvestmentBenchmarksService>(client =>
         {

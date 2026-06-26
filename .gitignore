@@ -31,5 +31,7 @@ Introdução à Arquitetura e Design de Software - Casa do Codigo_files/
 docs/*.pdf
 /InvestindoEmNegocio/wwwroot/uploads/avatars/*
 !/InvestindoEmNegocio/wwwroot/uploads/avatars/.gitkeep
+/InvestindoEmNegocio/wwwroot/uploads/receipts/*
+!/InvestindoEmNegocio/wwwroot/uploads/receipts/.gitkeep
 perf/config/local.json
 perf/results/*.json

@@ -17,6 +17,7 @@ public class InstallmentsService(
     IUserRepository userRepository,
     IAccountRepository accountRepository,
     IAccountTransactionRepository accountTransactionRepository,
+    IReceiptStorageService receiptStorageService,
     ILogger<InstallmentsService> logger)
     : IInstallmentsService
 {
@@ -74,7 +75,8 @@ public class InstallmentsService(
                     p.MethodId,
                     p.Note,
                     isReversal,
-                    canReverse);
+                    canReverse,
+                    p.ReceiptUrl);
             })
             .ToList();
     }
@@ -247,6 +249,26 @@ public class InstallmentsService(
         if (!year.HasValue || !month.HasValue)
             return null;
         return $"{month.Value:D2}/{year.Value}";
+    }
+
+    public async Task<string?> AttachReceiptAsync(
+        Guid userId,
+        Guid installmentId,
+        Guid paymentId,
+        Stream content,
+        string originalFileName,
+        string contentType,
+        string baseUrl,
+        CancellationToken cancellationToken = default)
+    {
+        var payment = await paymentRepository.GetByIdAsync(paymentId, userId, cancellationToken);
+        if (payment is null || payment.InstallmentId != installmentId) return null;
+
+        var receiptUrl = await receiptStorageService.SaveAsync(userId, content, originalFileName, contentType, baseUrl, cancellationToken);
+        payment.AttachReceipt(receiptUrl);
+        await paymentRepository.SaveChangesAsync(cancellationToken);
+
+        return receiptUrl;
     }
 
     public async Task<bool> AnticipateAsync(Guid userId, Guid installmentId, AnticipationRequest request, CancellationToken cancellationToken = default)

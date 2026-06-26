@@ -1,4 +1,5 @@
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authorization;
@@ -39,5 +40,25 @@ public class InstallmentPaymentsController(IInstallmentsService installmentsServ
         var reversed = await installmentsService.ReversePaymentAsync(userId, id, paymentId, request ?? new PaymentReversalRequest(), cancellationToken);
         if (!reversed) return NotFound();
         return Ok();
+    }
+
+    [HttpPost("{paymentId:guid}/receipt")]
+    [Authorize(Policy = AppAuthorizationPolicies.FeatureInstallmentsPay)]
+    [RequestSizeLimit(5 * 1024 * 1024)]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> AttachReceipt(Guid id, Guid paymentId, [FromForm] UploadReceiptRequest request, CancellationToken cancellationToken)
+    {
+        var receipt = request.Receipt;
+        if (receipt is null || receipt.Length == 0)
+            throw new AppProblemException("Arquivo inválido", "Envie um comprovante válido.", StatusCodes.Status400BadRequest);
+
+        var userId = GetUserId();
+        await using var stream = receipt.OpenReadStream();
+        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+        var receiptUrl = await installmentsService.AttachReceiptAsync(
+            userId, id, paymentId, stream, receipt.FileName, receipt.ContentType, baseUrl, cancellationToken);
+
+        if (receiptUrl is null) return NotFound();
+        return Ok(new { receiptUrl });
     }
 }

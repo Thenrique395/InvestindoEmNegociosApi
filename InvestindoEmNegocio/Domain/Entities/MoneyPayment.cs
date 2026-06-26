@@ -12,6 +12,7 @@ public class MoneyPayment : ISoftDeletable
     public int? MethodId { get; private set; }
     public Guid? AccountId { get; private set; }
     public string? Note { get; private set; }
+    public string? ReceiptUrl { get; private set; }
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime? DeletedAt { get; private set; }
 
@@ -29,4 +30,6 @@ public class MoneyPayment : ISoftDeletable
     }
 
     public void MarkDeleted(DateTime nowUtc) => DeletedAt = nowUtc;
+
+    public void AttachReceipt(string url) => ReceiptUrl = url;
 }

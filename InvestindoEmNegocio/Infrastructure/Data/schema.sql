@@ -1200,3 +1200,13 @@ BEGIN
         ALTER TABLE loan_installments ADD COLUMN IF NOT EXISTS "Version" integer NOT NULL DEFAULT 0;
     END IF;
 END $$;
+
+-- Anexo de comprovante de pagamento (feature inspirada no Budgi).
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'money_payments'
+    ) THEN
+        ALTER TABLE money_payments ADD COLUMN IF NOT EXISTS "ReceiptUrl" character varying(500);
+    END IF;
+END $$;

@@ -7,4 +7,5 @@ public record InstallmentPaymentResponse(
     int? MethodId,
     string? Note,
     bool IsReversal,
-    bool CanReverse);
+    bool CanReverse,
+    string? ReceiptUrl);

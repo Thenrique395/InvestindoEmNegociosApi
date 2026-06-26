@@ -26,6 +26,9 @@ public class MoneyPaymentConfiguration : IEntityTypeConfiguration<MoneyPayment>
         builder.Property(p => p.Note)
             .HasMaxLength(200);
 
+        builder.Property(p => p.ReceiptUrl)
+            .HasMaxLength(500);
+
         builder.HasIndex(p => new { p.UserId, p.PaidAt });
         builder.HasIndex(p => p.InstallmentId);
         builder.HasIndex(p => p.AccountId);
