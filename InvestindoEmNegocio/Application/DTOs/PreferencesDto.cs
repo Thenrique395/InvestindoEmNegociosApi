@@ -18,5 +18,4 @@ public record PrivacySummaryDto(
     bool SelfServiceDeletionEnabled,
     IReadOnlyList<string> DeletionScope,
     IReadOnlyList<string> ProductionControls,
-    string ScalabilityPhase,
     string RetentionPolicy);

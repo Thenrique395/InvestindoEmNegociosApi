@@ -292,7 +292,7 @@ public class MoreControllersSmokeTests
         authRegistration.Setup(x => x.RegisterAsync(It.IsAny<RegisterUserRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new AuthResponse(Guid.NewGuid(), "U", "u@test.com", "Basic", "token", "refresh", DateTime.UtcNow.AddHours(1)));
         privacy.Setup(x => x.GetPrivacySummaryAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PrivacySummaryDto(1, 0, 2, true, true, [], [], "phase-1-runtime-hardened", "policy"));
+            .ReturnsAsync(new PrivacySummaryDto(1, 0, 2, true, true, [], [], "policy"));
         privacy.Setup(x => x.GetSecuritySummaryAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SecuritySummaryDto(1, 0, false, null, null, [], []));
         privacy.Setup(x => x.RevokeOwnSessionsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))

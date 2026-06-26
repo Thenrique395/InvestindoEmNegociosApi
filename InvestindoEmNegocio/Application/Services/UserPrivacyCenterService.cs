@@ -48,7 +48,6 @@ public sealed class UserPrivacyCenterService(
                 "compressão de resposta",
                 "resiliência HTTP com retry"
             ],
-            ScalabilityPhase: "phase-1-runtime-hardened",
             RetentionPolicy: "A exclusão self-service remove os dados operacionais da conta e revoga artefatos de autenticação imediatamente.");
     }
 
