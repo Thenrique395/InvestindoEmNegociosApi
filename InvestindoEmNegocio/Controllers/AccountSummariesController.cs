@@ -37,6 +37,16 @@ public class AccountSummariesController(IAccountAnalyticsService accountAnalytic
         return Ok(summary);
     }
 
+    [HttpGet("subscriptions")]
+    public async Task<ActionResult<SubscriptionsSummaryResponse>> Subscriptions(
+        [FromQuery] DateOnly? referenceDate,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        var summary = await accountAnalyticsService.GetSubscriptionsSummaryAsync(userId, referenceDate, cancellationToken);
+        return Ok(summary);
+    }
+
     [HttpGet("net-worth")]
     public async Task<ActionResult<NetWorthSummaryResponse>> NetWorth(
         [FromQuery] DateOnly? referenceDate,

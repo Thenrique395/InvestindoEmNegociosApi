@@ -14,6 +14,7 @@ public class AccountAnalyticsService(
     IMoneyPaymentRepository moneyPaymentRepository,
     IMoneyPlanRepository moneyPlanRepository,
     ICardRepository cardRepository,
+    ICategoryRepository categoryRepository,
     ILoanContractRepository loanContractRepository,
     ILoanInstallmentRepository loanInstallmentRepository,
     IInvestmentPositionQueryService investmentPositionQueryService,
@@ -146,6 +147,51 @@ public class AccountAnalyticsService(
                 .ThenByDescending(i => i.OpenAmount)
                 .Take(6)
                 .ToList());
+        cache.Set(cacheKey, result, CacheTtl);
+        return result;
+    }
+
+    public async Task<SubscriptionsSummaryResponse> GetSubscriptionsSummaryAsync(
+        Guid userId,
+        DateOnly? referenceDate = null,
+        CancellationToken cancellationToken = default)
+    {
+        var cacheKey = CacheKey(userId, "subscriptions", date: referenceDate);
+        if (cache.TryGetValue(cacheKey, out SubscriptionsSummaryResponse? cached) && cached is not null)
+            return cached;
+
+        var anchorDate = referenceDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var categories = await categoryRepository.ListForUserAsync(userId, MoneyType.Expense, cancellationToken);
+        var assinaturasCategoryId = categories.FirstOrDefault(c => c.Name.Equals("Assinaturas", StringComparison.OrdinalIgnoreCase))?.Id;
+
+        IReadOnlyList<SubscriptionSummaryItemResponse> items = [];
+        if (assinaturasCategoryId.HasValue)
+        {
+            var plans = await moneyPlanRepository.ListByUserAsync(userId, MoneyType.Expense, cancellationToken);
+            var subscriptionPlans = plans
+                .Where(p => p.Status == PlanStatus.Active
+                    && p.Schedule == ScheduleType.Recurring
+                    && p.CategoryId == assinaturasCategoryId.Value)
+                .ToList();
+
+            if (subscriptionPlans.Count > 0)
+            {
+                var cards = await cardRepository.ListByUserAsync(userId, cancellationToken);
+                var cardNameById = cards.ToDictionary(c => c.Id, c => c.Nickname);
+
+                items = subscriptionPlans
+                    .OrderByDescending(p => p.Amount)
+                    .Select(p => new SubscriptionSummaryItemResponse(
+                        p.Id,
+                        p.Title,
+                        p.Amount,
+                        p.CardId.HasValue && cardNameById.TryGetValue(p.CardId.Value, out var cardName) ? cardName : null))
+                    .ToList();
+            }
+        }
+
+        var result = new SubscriptionsSummaryResponse(anchorDate, items.Sum(i => i.Amount), items.Count, items);
         cache.Set(cacheKey, result, CacheTtl);
         return result;
     }

@@ -224,6 +224,18 @@ public record DebtSummaryResponse(
     IReadOnlyList<DebtSummaryBucketResponse> Buckets,
     IReadOnlyList<DebtSummaryItemResponse> NextItems);
 
+public record SubscriptionSummaryItemResponse(
+    Guid PlanId,
+    string Title,
+    decimal Amount,
+    string? CardName);
+
+public record SubscriptionsSummaryResponse(
+    DateOnly ReferenceDate,
+    decimal MonthlyTotal,
+    int Count,
+    IReadOnlyList<SubscriptionSummaryItemResponse> Items);
+
 public record AccountTransferRequest(
     Guid FromAccountId,
     Guid ToAccountId,

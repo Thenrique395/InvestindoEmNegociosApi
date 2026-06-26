@@ -189,6 +189,65 @@ public class AccountAnalyticsServiceTests
     }
 
     [Fact]
+    public async Task GetSubscriptionsSummaryAsync_Should_Only_Count_Active_Recurring_Plans_In_Assinaturas_Category()
+    {
+        var userId = Guid.NewGuid();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var assinaturas = new Category(null, "Assinaturas", MoneyType.Expense);
+        var moradia = new Category(null, "Moradia", MoneyType.Expense);
+        var card = new Card(userId, 1, "Henrique", "Roxinho", "1234", "Banco", 3000m, 10, 20);
+
+        var netflix = new MoneyPlan(userId, MoneyType.Expense, "Netflix", 39.90m, ScheduleType.Recurring, today, frequency: FrequencyType.Monthly, categoryId: assinaturas.Id, cardId: card.Id);
+        var spotify = new MoneyPlan(userId, MoneyType.Expense, "Spotify", 21.90m, ScheduleType.Recurring, today, frequency: FrequencyType.Monthly, categoryId: assinaturas.Id);
+        var oneTimeMistagged = new MoneyPlan(userId, MoneyType.Expense, "Compra única", 99.90m, ScheduleType.OneTime, today, categoryId: assinaturas.Id);
+        var recurringOtherCategory = new MoneyPlan(userId, MoneyType.Expense, "Aluguel", 1500m, ScheduleType.Recurring, today, frequency: FrequencyType.Monthly, categoryId: moradia.Id);
+        var canceledSubscription = new MoneyPlan(userId, MoneyType.Expense, "Academia", 89.90m, ScheduleType.Recurring, today, frequency: FrequencyType.Monthly, categoryId: assinaturas.Id);
+        canceledSubscription.RestoreStatus(PlanStatus.Canceled);
+
+        var categoryRepository = new Mock<ICategoryRepository>();
+        categoryRepository.Setup(x => x.ListForUserAsync(userId, MoneyType.Expense, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([assinaturas, moradia]);
+
+        var planRepository = new Mock<IMoneyPlanRepository>();
+        planRepository.Setup(x => x.ListByUserAsync(userId, MoneyType.Expense, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([netflix, spotify, oneTimeMistagged, recurringOtherCategory, canceledSubscription]);
+
+        var cardRepository = new Mock<ICardRepository>();
+        cardRepository.Setup(x => x.ListByUserAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([card]);
+
+        var sut = BuildSut(planRepository: planRepository, cardRepository: cardRepository, categoryRepository: categoryRepository);
+
+        var result = await sut.GetSubscriptionsSummaryAsync(userId, today);
+
+        result.Count.Should().Be(2);
+        result.MonthlyTotal.Should().Be(61.80m);
+        result.Items.Should().HaveCount(2);
+        result.Items[0].Title.Should().Be("Netflix");
+        result.Items[0].CardName.Should().Be("Roxinho");
+        result.Items[1].Title.Should().Be("Spotify");
+        result.Items[1].CardName.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetSubscriptionsSummaryAsync_Should_Return_Empty_When_User_Has_No_Assinaturas_Category()
+    {
+        var userId = Guid.NewGuid();
+
+        var categoryRepository = new Mock<ICategoryRepository>();
+        categoryRepository.Setup(x => x.ListForUserAsync(userId, MoneyType.Expense, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var sut = BuildSut(categoryRepository: categoryRepository);
+
+        var result = await sut.GetSubscriptionsSummaryAsync(userId);
+
+        result.Count.Should().Be(0);
+        result.MonthlyTotal.Should().Be(0m);
+        result.Items.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task GetNetWorthHistoryAsync_Should_Build_Monthly_Series_With_Account_Investment_And_Liability_Context()
     {
         var userId = Guid.NewGuid();
@@ -278,6 +337,7 @@ public class AccountAnalyticsServiceTests
         Mock<IMoneyPaymentRepository>? paymentRepository = null,
         Mock<IMoneyPlanRepository>? planRepository = null,
         Mock<ICardRepository>? cardRepository = null,
+        Mock<ICategoryRepository>? categoryRepository = null,
         Mock<ILoanContractRepository>? loanContractRepository = null,
         Mock<ILoanInstallmentRepository>? loanInstallmentRepository = null,
         Mock<IInvestmentsService>? investmentsService = null,
@@ -294,6 +354,7 @@ public class AccountAnalyticsServiceTests
             paymentRepository?.Object ?? Mock.Of<IMoneyPaymentRepository>(),
             planRepository?.Object ?? Mock.Of<IMoneyPlanRepository>(),
             cardRepository?.Object ?? Mock.Of<ICardRepository>(),
+            categoryRepository?.Object ?? Mock.Of<ICategoryRepository>(),
             loanContractRepository?.Object ?? Mock.Of<ILoanContractRepository>(),
             loanInstallmentRepository?.Object ?? Mock.Of<ILoanInstallmentRepository>(),
             aggregate,

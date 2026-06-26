@@ -266,6 +266,7 @@ public class AccountsControllerSqliteIntegrationTests
             builder.Services.AddScoped<IMoneyPaymentRepository, MoneyPaymentRepository>();
             builder.Services.AddScoped<IMoneyPlanRepository, MoneyPlanRepository>();
             builder.Services.AddScoped<ICardRepository, CardRepository>();
+            builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
             builder.Services.AddScoped<ILoanContractRepository, LoanContractRepository>();
             builder.Services.AddScoped<ILoanInstallmentRepository, LoanInstallmentRepository>();
             builder.Services.AddScoped<IAccountQueryService, AccountQueryService>();
