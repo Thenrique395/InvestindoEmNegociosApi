@@ -25,6 +25,10 @@ public class AccountConfiguration : IEntityTypeConfiguration<Account>
             .HasColumnType("numeric(14,2)")
             .IsRequired();
 
+        builder.Property(a => a.Currency)
+            .HasMaxLength(3)
+            .IsRequired();
+
         builder.Property(a => a.IsActive)
             .IsRequired();
 

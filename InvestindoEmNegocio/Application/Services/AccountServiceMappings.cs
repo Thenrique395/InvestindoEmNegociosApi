@@ -16,7 +16,8 @@ internal static class AccountServiceMappings
             current,
             account.IsActive,
             account.CreatedAt,
-            account.UpdatedAt);
+            account.UpdatedAt,
+            account.Currency);
     }
 
     public static AccountTransactionResponse MapTransactionResponse(AccountTransaction transaction)

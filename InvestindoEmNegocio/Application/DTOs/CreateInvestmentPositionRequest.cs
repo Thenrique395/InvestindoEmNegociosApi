@@ -10,4 +10,5 @@ public record CreateInvestmentPositionRequest(
     DateOnly OpenedAt,
     string Account,
     string Category,
-    string? Note);
+    string? Note,
+    string Currency = "BRL");

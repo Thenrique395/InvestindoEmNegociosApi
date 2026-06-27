@@ -16,6 +16,7 @@ public class InvestmentPosition : ISoftDeletable
     public int? InstitutionId { get; private set; }
     public string Category { get; private set; } = string.Empty;
     public string? Note { get; private set; }
+    public string Currency { get; private set; } = "BRL";
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime? DeletedAt { get; private set; }
@@ -33,10 +34,11 @@ public class InvestmentPosition : ISoftDeletable
         DateOnly openedAt,
         string account,
         string category,
-        string? note = null)
+        string? note = null,
+        string currency = "BRL")
     {
         UserId = userId;
-        Update(type, asset, quantity, avgPrice, openedAt, account, category, note);
+        Update(type, asset, quantity, avgPrice, openedAt, account, category, note, currency);
     }
 
     public void Update(
@@ -47,7 +49,8 @@ public class InvestmentPosition : ISoftDeletable
         DateOnly openedAt,
         string account,
         string category,
-        string? note)
+        string? note,
+        string currency = "BRL")
     {
         Type = type;
         Asset = asset.Trim();
@@ -57,8 +60,12 @@ public class InvestmentPosition : ISoftDeletable
         Account = account?.Trim() ?? string.Empty;
         Category = category?.Trim() ?? string.Empty;
         Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+        Currency = NormalizeCurrency(currency);
         UpdatedAt = DateTime.UtcNow;
     }
+
+    private static string NormalizeCurrency(string currency) =>
+        string.IsNullOrWhiteSpace(currency) ? "BRL" : currency.Trim().ToUpperInvariant();
 
     public void ApplyMovement(InvestmentMovement movement)
     {

@@ -33,7 +33,8 @@ internal static class InvestmentsShared
             position.Account,
             position.Category,
             position.Note,
-            movements);
+            movements,
+            position.Currency);
     }
 
     public static InvestmentMovementDto CreateInvestmentMovementDto(InvestmentMovement movement)

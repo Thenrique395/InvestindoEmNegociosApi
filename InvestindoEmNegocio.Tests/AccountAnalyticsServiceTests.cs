@@ -105,7 +105,7 @@ public class AccountAnalyticsServiceTests
         var investmentsService = new Mock<IInvestmentsService>();
         var positions = new List<InvestmentPositionDto>
         {
-            new(Guid.NewGuid(), InvestmentType.ACOES, "PETR4", 10m, 20m, DateOnly.FromDateTime(DateTime.UtcNow), "Broker", "Ações", null, [], "PETR4", 30m),
+            new(Guid.NewGuid(), InvestmentType.ACOES, "PETR4", 10m, 20m, DateOnly.FromDateTime(DateTime.UtcNow), "Broker", "Ações", null, [], MarketSymbol: "PETR4", MarketPrice: 30m),
             new(Guid.NewGuid(), InvestmentType.RF, "Tesouro", 1m, 500m, DateOnly.FromDateTime(DateTime.UtcNow), "Conta", "Renda Fixa", null, []),
             new(Guid.NewGuid(), InvestmentType.IMOVEL, "Apartamento Boa Viagem", 1m, 350000m, DateOnly.FromDateTime(DateTime.UtcNow), "Patrimônio", "Imóvel", null, [])
         };
@@ -135,6 +135,72 @@ public class AccountAnalyticsServiceTests
         result.NetWorth.Should().Be(351500m);
         result.InvestmentPositionsCount.Should().Be(3);
         result.OpenLiabilitiesCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetNetWorthSummaryAsync_Should_Exclude_NonBrl_Entities_From_Main_Totals_And_Report_Them_Separately()
+    {
+        var userId = Guid.NewGuid();
+        var accountBrl = new Account(userId, "Conta BRL", AccountType.Checking, 1000m);
+        var accountUsd = new Account(userId, "Conta USD", AccountType.Checking, 500m, "USD");
+        var accountBrlId = accountBrl.Id;
+        var accountUsdId = accountUsd.Id;
+
+        var accountRepository = new Mock<IAccountRepository>();
+        accountRepository.Setup(x => x.ListByUserAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([accountBrl, accountUsd]);
+
+        var transactionRepository = new Mock<IAccountTransactionRepository>();
+        transactionRepository.Setup(x => x.SumSignedAmountByAccountAsync(accountBrlId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(100m);
+        transactionRepository.Setup(x => x.SumSignedAmountByAccountAsync(accountUsdId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(50m);
+
+        var installmentRepository = new Mock<IMoneyInstallmentRepository>();
+        installmentRepository.Setup(x => x.ListByUserAsync(userId, null, null, null, MoneyType.Expense, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var paymentRepository = new Mock<IMoneyPaymentRepository>();
+        paymentRepository.Setup(x => x.ListByInstallmentIdsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var planRepository = new Mock<IMoneyPlanRepository>();
+        planRepository.Setup(x => x.ListByUserAsync(userId, MoneyType.Expense, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var cardRepository = new Mock<ICardRepository>();
+        cardRepository.Setup(x => x.ListByUserAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var investmentsService = new Mock<IInvestmentsService>();
+        var positions = new List<InvestmentPositionDto>
+        {
+            new(Guid.NewGuid(), InvestmentType.ACOES, "PETR4", 10m, 20m, DateOnly.FromDateTime(DateTime.UtcNow), "Broker", "Ações", null, [], Currency: "BRL"),
+            new(Guid.NewGuid(), InvestmentType.ACOES, "AAPL", 5m, 10m, DateOnly.FromDateTime(DateTime.UtcNow), "Broker", "Ações", null, [], Currency: "USD")
+        };
+        investmentsService.Setup(x => x.ListPositionsAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(positions);
+        investmentsService.Setup(x => x.EnrichWithMarketAsync(It.IsAny<List<InvestmentPositionDto>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((List<InvestmentPositionDto> items, CancellationToken _) => items);
+
+        var sut = BuildSut(
+            accountRepository: accountRepository,
+            transactionRepository: transactionRepository,
+            installmentRepository: installmentRepository,
+            paymentRepository: paymentRepository,
+            planRepository: planRepository,
+            cardRepository: cardRepository,
+            investmentsService: investmentsService);
+
+        var result = await sut.GetNetWorthSummaryAsync(userId, DateOnly.FromDateTime(DateTime.UtcNow));
+
+        result.Assets.AccountsBalance.Should().Be(1100m);
+        result.Assets.InvestmentsBalance.Should().Be(200m);
+        result.Assets.TotalAssets.Should().Be(1300m);
+        result.Assets.OtherCurrencies.Should().ContainSingle();
+        var usdBreakdown = result.Assets.OtherCurrencies!.Single();
+        usdBreakdown.Currency.Should().Be("USD");
+        usdBreakdown.AccountsBalance.Should().Be(550m);
+        usdBreakdown.InvestmentsBalance.Should().Be(50m);
+        usdBreakdown.TotalAssets.Should().Be(600m);
     }
 
     [Fact]
@@ -297,8 +363,8 @@ public class AccountAnalyticsServiceTests
                 new InvestmentMovementDto(Guid.NewGuid(), InvestmentMovementType.COMPRA, 5m, 20m, new DateOnly(2026, 1, 10), null),
                 new InvestmentMovementDto(Guid.NewGuid(), InvestmentMovementType.COMPRA, 5m, 22m, new DateOnly(2026, 2, 10), null)
             ],
-            "PETR4",
-            30m);
+            MarketSymbol: "PETR4",
+            MarketPrice: 30m);
         investmentsService.Setup(x => x.ListPositionsAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync([position]);
         investmentsService.Setup(x => x.EnrichWithMarketAsync(It.IsAny<List<InvestmentPositionDto>>(), It.IsAny<CancellationToken>()))

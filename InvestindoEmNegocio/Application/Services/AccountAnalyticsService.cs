@@ -53,7 +53,7 @@ public class AccountAnalyticsService(
         var accounts = await accountRepository.ListByUserAsync(userId, cancellationToken);
         decimal activeAccountsBalance = 0m;
 
-        foreach (var account in accounts.Where(a => a.IsActive))
+        foreach (var account in accounts.Where(a => a.IsActive && a.Currency == "BRL"))
         {
             var net = await accountTransactionRepository.SumSignedAmountByAccountAsync(account.Id, userId, cancellationToken);
             activeAccountsBalance += account.InitialBalance + net;
@@ -208,18 +208,37 @@ public class AccountAnalyticsService(
         var anchorDate = referenceDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
         var accounts = await accountRepository.ListByUserAsync(userId, cancellationToken);
         decimal accountsBalance = 0m;
+        var otherCurrencyAccountBalances = new Dictionary<string, decimal>();
 
         foreach (var account in accounts.Where(a => a.IsActive))
         {
             var net = await accountTransactionRepository.SumSignedAmountByAccountAsync(account.Id, userId, cancellationToken);
-            accountsBalance += account.InitialBalance + net;
+            var balance = account.InitialBalance + net;
+            if (account.Currency == "BRL")
+                accountsBalance += balance;
+            else
+                otherCurrencyAccountBalances[account.Currency] = otherCurrencyAccountBalances.GetValueOrDefault(account.Currency) + balance;
         }
 
         var positions = await investmentPositionQueryService.ListPositionsAsync(userId, cancellationToken);
         var enrichedPositions = await investmentMarketEnrichmentService.EnrichWithMarketAsync(positions, cancellationToken);
         var activePositions = enrichedPositions.Where(p => p.Quantity > 0).ToList();
-        var investmentsBalance = activePositions.Where(IsFinancialInvestment).Sum(CalculatePositionValue);
-        var tangibleAssetsBalance = activePositions.Where(IsTangibleAsset).Sum(CalculatePositionValue);
+        var investmentsBalance = activePositions.Where(p => IsFinancialInvestment(p) && p.Currency == "BRL").Sum(CalculatePositionValue);
+        var tangibleAssetsBalance = activePositions.Where(p => IsTangibleAsset(p) && p.Currency == "BRL").Sum(CalculatePositionValue);
+        var otherCurrencyInvestmentBalances = activePositions
+            .Where(p => (IsFinancialInvestment(p) || IsTangibleAsset(p)) && p.Currency != "BRL")
+            .GroupBy(p => p.Currency)
+            .ToDictionary(g => g.Key, g => g.Sum(CalculatePositionValue));
+
+        var otherCurrencies = otherCurrencyAccountBalances.Keys
+            .Union(otherCurrencyInvestmentBalances.Keys)
+            .Select(currency =>
+            {
+                var accBalance = otherCurrencyAccountBalances.GetValueOrDefault(currency);
+                var invBalance = otherCurrencyInvestmentBalances.GetValueOrDefault(currency);
+                return new OtherCurrencyBalanceResponse(currency, accBalance, invBalance, accBalance + invBalance);
+            })
+            .ToList();
 
         var openLiabilities = await BuildOpenDebtItemsAsync(userId, cancellationToken);
         var cardDebt = openLiabilities.Where(i => i.Family == "card").Sum(i => i.OpenAmount);
@@ -229,7 +248,7 @@ public class AccountAnalyticsService(
 
         var result = new NetWorthSummaryResponse(
             anchorDate,
-            new WealthAssetBreakdownResponse(accountsBalance, investmentsBalance, tangibleAssetsBalance, totalAssets),
+            new WealthAssetBreakdownResponse(accountsBalance, investmentsBalance, tangibleAssetsBalance, totalAssets, otherCurrencies),
             new WealthLiabilityBreakdownResponse(cardDebt, otherOpenLiabilities, totalLiabilities),
             totalAssets - totalLiabilities,
             activePositions.Count,
@@ -292,7 +311,7 @@ public class AccountAnalyticsService(
             var monthEndUtc = ToMonthEndUtc(month);
             var accountsBalance = accounts.Sum(account =>
             {
-                if (account.CreatedAt > monthEndUtc) return 0m;
+                if (account.CreatedAt > monthEndUtc || account.Currency != "BRL") return 0m;
                 var tx = accountTransactions.GetValueOrDefault(account.Id) ?? [];
                 var signed = tx
                     .Where(t => t.OccurredAt <= monthEndUtc)
@@ -301,13 +320,13 @@ public class AccountAnalyticsService(
             });
 
             var pointEstimated = false;
-            var investmentsBalance = enrichedPositions.Where(IsFinancialInvestment).Sum(position =>
+            var investmentsBalance = enrichedPositions.Where(p => IsFinancialInvestment(p) && p.Currency == "BRL").Sum(position =>
             {
                 var value = CalculateInvestmentValueAt(position, month, out var estimated);
                 pointEstimated |= estimated;
                 return value;
             });
-            var tangibleAssetsBalance = enrichedPositions.Where(IsTangibleAsset).Sum(position =>
+            var tangibleAssetsBalance = enrichedPositions.Where(p => IsTangibleAsset(p) && p.Currency == "BRL").Sum(position =>
             {
                 var value = CalculateInvestmentValueAt(position, month, out var estimated);
                 pointEstimated |= estimated;

@@ -18,7 +18,7 @@ public class AccountCommandService(
         if (await accountRepository.ExistsByNameAsync(userId, request.Name, null, cancellationToken))
             throw new ArgumentException("Já existe uma conta com esse nome.");
 
-        var account = new Account(userId, request.Name, request.Type, request.InitialBalance);
+        var account = new Account(userId, request.Name, request.Type, request.InitialBalance, request.Currency);
         if (!request.IsActive) account.Deactivate();
 
         await accountRepository.AddAsync(account, cancellationToken);
@@ -36,7 +36,7 @@ public class AccountCommandService(
         if (await accountRepository.ExistsByNameAsync(userId, request.Name, accountId, cancellationToken))
             throw new ArgumentException("Já existe uma conta com esse nome.");
 
-        account.Update(request.Name, request.Type, request.InitialBalance);
+        account.Update(request.Name, request.Type, request.InitialBalance, request.Currency);
         if (request.IsActive) account.Activate();
         else account.Deactivate();
 

@@ -23,6 +23,7 @@ public class InvestmentPositionConfiguration : IEntityTypeConfiguration<Investme
         builder.Property(x => x.InstitutionId).IsRequired(false);
         builder.Property(x => x.Category).HasMaxLength(80);
         builder.Property(x => x.Note).HasMaxLength(400);
+        builder.Property(x => x.Currency).HasMaxLength(3).IsRequired();
 
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired();

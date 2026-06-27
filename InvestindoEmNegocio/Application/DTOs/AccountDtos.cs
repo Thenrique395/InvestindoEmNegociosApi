@@ -19,7 +19,8 @@ public record AccountRequest(
     string Name,
     AccountType Type,
     decimal InitialBalance = 0m,
-    bool IsActive = true);
+    bool IsActive = true,
+    string Currency = "BRL");
 
 public record AccountResponse(
     Guid Id,
@@ -29,7 +30,8 @@ public record AccountResponse(
     decimal CurrentBalance,
     bool IsActive,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    string Currency = "BRL");
 
 public record AccountTransactionResponse(
     Guid Id,
@@ -156,11 +158,18 @@ public record RecommendationEngineResponse(
     int MinScoreApplied,
     IReadOnlyList<RecommendationItemResponse> Items);
 
+public record OtherCurrencyBalanceResponse(
+    string Currency,
+    decimal AccountsBalance,
+    decimal InvestmentsBalance,
+    decimal TotalAssets);
+
 public record WealthAssetBreakdownResponse(
     decimal AccountsBalance,
     decimal InvestmentsBalance,
     decimal TangibleAssetsBalance,
-    decimal TotalAssets);
+    decimal TotalAssets,
+    IReadOnlyList<OtherCurrencyBalanceResponse>? OtherCurrencies = null);
 
 public record WealthLiabilityBreakdownResponse(
     decimal CardDebt,

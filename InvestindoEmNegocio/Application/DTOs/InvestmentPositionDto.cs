@@ -13,6 +13,7 @@ public record InvestmentPositionDto(
     string Category,
     string? Note,
     List<InvestmentMovementDto> Movements,
+    string Currency = "BRL",
     string? MarketSymbol = null,
     decimal? MarketPrice = null,
     decimal? MarketChangePercent = null,

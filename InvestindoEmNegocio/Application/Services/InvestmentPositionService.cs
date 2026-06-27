@@ -48,7 +48,8 @@ public class InvestmentPositionService(
             request.OpenedAt,
             request.Account,
             request.Category,
-            request.Note);
+            request.Note,
+            request.Currency);
 
         await positionRepository.AddAsync(position, cancellationToken);
         await positionRepository.SaveChangesAsync(cancellationToken);
@@ -63,7 +64,7 @@ public class InvestmentPositionService(
         var position = await positionRepository.GetByIdAsync(id, userId, cancellationToken);
         if (position is null) return null;
 
-        position.Update(request.Type, request.Asset, request.Quantity, request.AvgPrice, request.OpenedAt, request.Account, request.Category, request.Note);
+        position.Update(request.Type, request.Asset, request.Quantity, request.AvgPrice, request.OpenedAt, request.Account, request.Category, request.Note, request.Currency);
         await positionRepository.SaveChangesAsync(cancellationToken);
         InvalidatePositionsCache(userId);
         _logger.LogInformation("Investment position updated {UserId} {PositionId}", userId, position.Id);
@@ -114,7 +115,7 @@ public class InvestmentPositionService(
             quantity -= request.Quantity;
         }
 
-        position.Update(position.Type, position.Asset, quantity, avgPrice, position.OpenedAt, position.Account, position.Category, position.Note);
+        position.Update(position.Type, position.Asset, quantity, avgPrice, position.OpenedAt, position.Account, position.Category, position.Note, position.Currency);
         position.ApplyMovement(movement);
 
         await positionRepository.SaveChangesAsync(cancellationToken);

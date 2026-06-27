@@ -1145,6 +1145,11 @@ ALTER TABLE money_payments ADD COLUMN IF NOT EXISTS "DeletedAt" timestamp with t
 ALTER TABLE investment_positions ADD COLUMN IF NOT EXISTS "DeletedAt" timestamp with time zone;
 ALTER TABLE investment_movements ADD COLUMN IF NOT EXISTS "DeletedAt" timestamp with time zone;
 
+-- Multi-moeda (Fase 1, feature inspirada no Budgi): contas e posições de investimento podem
+-- ser denominadas em moeda diferente de BRL. Default BRL preserva 100% do comportamento atual.
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS "Currency" character varying(3) NOT NULL DEFAULT 'BRL';
+ALTER TABLE investment_positions ADD COLUMN IF NOT EXISTS "Currency" character varying(3) NOT NULL DEFAULT 'BRL';
+
 -- Índices únicos parciais: uma linha soft-deletada não pode mais ocupar o slot do índice
 -- único, senão o usuário não conseguiria recriar uma conta com o mesmo nome ou recadastrar
 -- o mesmo cartão depois de excluir o anterior.
