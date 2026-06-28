@@ -61,6 +61,7 @@ Observacao:
 - `feature.subscriptions.manage`
 - `feature.profile.manage`
 - `feature.preferences.manage`
+- `feature.spaces.manage`
 - `feature.onboarding.manage`
 - `feature.notifications.access`
 - `feature.lookups.read`
@@ -105,6 +106,7 @@ Observacao:
 - `subscriptions.manage`
 - `profile.manage`
 - `preferences.manage`
+- `spaces.manage`
 - `onboarding.manage`
 - `notifications.access`
 - `lookups.read`
@@ -152,7 +154,7 @@ Observacao:
 ## Leitura rapida por faixa de acesso
 
 - `Publico`: autenticacao publica, recuperacao de acesso e webhook do provedor
-- `Basic via feature`: seguranca da conta, perfil, preferencias, onboarding, notificacoes, consultas gerais, portabilidade (exportacao), billing self-service (incluindo refund, trial e retry-payment), assinaturas, planos, receitas (lista simples), metas, parcelas basicas, leitura de contas, cartoes basicos e leitura de categorias
+- `Basic via feature`: seguranca da conta, perfil, preferencias, gestao de areas/espacos, onboarding, notificacoes, consultas gerais, portabilidade (exportacao), billing self-service (incluindo refund, trial e retry-payment), assinaturas, planos, receitas (lista simples), metas, parcelas basicas (incluindo anexo de comprovante de pagamento), leitura de contas, cartoes basicos e leitura de categorias
 - `Intermediate+ via feature`: gestao e analytics de contas, faturas de cartao, gestao de categorias, importacoes (incluindo `data-portability.import`), antecipacao de parcelas, assistente financeiro, snapshots mensais, emprestimos (incluindo pagamento de parcela), receitas com analytics, orcamento mensal, simulador de cenarios e relatorios mensais
 - `Advanced+ via feature`: investimentos e market data
 - `Administrativo via feature`: usuarios, parametros, robos e categorias padrao
@@ -212,6 +214,13 @@ Classificacao:
   - `GET /api/v1/preferences/security-summary`
   - `POST /api/v1/preferences/sessions/revoke`
   - `POST /api/v1/preferences/account/delete`
+
+- `feature.spaces.manage`
+  - `GET /api/v1/spaces`
+  - `POST /api/v1/spaces`
+  - `PUT /api/v1/spaces/{id}`
+  - `DELETE /api/v1/spaces/{id}`
+  - `POST /api/v1/spaces/{id}/enter`
 
 - `feature.onboarding.manage`
   - `GET /api/v1/onboarding`
@@ -280,6 +289,7 @@ Classificacao:
 - `feature.installments.pay`
   - `POST /api/v1/installments/{id}/payments`
   - `POST /api/v1/installments/{id}/payments/{paymentId}/reversals`
+  - `POST /api/v1/installments/{id}/payments/{paymentId}/receipt`
 
 - `feature.installments.manage`
   - `DELETE /api/v1/installments/{id}`
@@ -294,7 +304,7 @@ Classificacao:
 
 Regra atual:
 
-- `Basic` recebe os recursos comuns acima, `accounts.read`, `cards.read`, `cards.create-update`, `cards.delete`, `categories.read` e `incomes.read` (lista simples de receitas, sem analytics)
+- `Basic` recebe os recursos comuns acima, `accounts.read`, `cards.read`, `cards.create-update`, `cards.delete`, `categories.read`, `incomes.read` (lista simples de receitas, sem analytics) e `spaces.manage` (gestao das proprias areas/espacos)
 - `Basic` nao recebe faturas de cartao, gestao de contas, analytics, importacoes, antecipacao, assistente financeiro, snapshots, emprestimos, orcamento, simulador de cenarios, relatorios, `incomes.summary.read` nem investimentos
 
 ### Intermediate+ via feature gate
