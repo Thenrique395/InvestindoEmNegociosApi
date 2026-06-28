@@ -88,6 +88,7 @@ public static class ServiceCollectionExtensions
             });
         });
 
+        services.AddHttpContextAccessor();
         services.AddControllers()
             .AddJsonOptions(opts =>
             {
@@ -277,6 +278,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserProfileRepository, UserProfileRepository>();
         services.AddScoped<ICardRepository, CardRepository>();
         services.AddScoped<IAccountRepository, AccountRepository>();
+        services.AddScoped<ISpaceRepository, SpaceRepository>();
         services.AddScoped<IAccountTransactionRepository, AccountTransactionRepository>();
         services.AddScoped<ICardBrandRepository, CardBrandRepository>();
         services.AddScoped<IPaymentMethodRepository, PaymentMethodRepository>();
@@ -301,6 +303,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<INotificationSettingsRepository, NotificationSettingsRepository>();
         services.AddScoped<IRobotSettingsRepository, RobotSettingsRepository>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddScoped<ICurrentSpaceAccessor, CurrentSpaceAccessor>();
         services.AddSingleton<IAuthCookieService, AuthCookieService>();
         services.AddScoped<IAuthRegistrationService, AuthRegistrationService>();
         services.AddScoped<IAuthAvailabilityService, AuthAvailabilityService>();
@@ -352,6 +355,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMonthlyFinancialSnapshotService, MonthlyFinancialSnapshotService>();
         services.AddScoped<IFinancialAssistantService, FinancialAssistantService>();
         services.AddScoped<IUserAccountBootstrapService, UserAccountBootstrapService>();
+        services.AddScoped<ISpaceBootstrapService, SpaceBootstrapService>();
+        services.AddScoped<ISpaceService, SpaceService>();
         services.AddScoped<IOfxImportService, OfxImportService>();
         services.AddScoped<ICsvImportService, CsvImportService>();
         services.AddScoped<ICategoriesService, CategoriesService>();

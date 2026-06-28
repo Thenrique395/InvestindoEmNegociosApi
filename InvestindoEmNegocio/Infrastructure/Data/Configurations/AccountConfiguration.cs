@@ -29,6 +29,9 @@ public class AccountConfiguration : IEntityTypeConfiguration<Account>
             .HasMaxLength(3)
             .IsRequired();
 
+        builder.Property(a => a.SpaceId)
+            .IsRequired();
+
         builder.Property(a => a.IsActive)
             .IsRequired();
 
@@ -36,8 +39,8 @@ public class AccountConfiguration : IEntityTypeConfiguration<Account>
         builder.Property(a => a.UpdatedAt).IsRequired();
         builder.Property(a => a.DeletedAt);
 
-        builder.HasIndex(a => new { a.UserId, a.Name }).IsUnique().HasFilter("\"DeletedAt\" IS NULL");
-        builder.HasIndex(a => new { a.UserId, a.IsActive });
+        builder.HasIndex(a => new { a.UserId, a.SpaceId, a.Name }).IsUnique().HasFilter("\"DeletedAt\" IS NULL");
+        builder.HasIndex(a => new { a.UserId, a.SpaceId, a.IsActive });
 
         builder.HasQueryFilter(a => a.DeletedAt == null);
 

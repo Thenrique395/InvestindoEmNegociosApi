@@ -16,6 +16,7 @@ public static class AppAuthorizationPolicies
     public const string FeatureSubscriptionsManage = "feature.subscriptions.manage";
     public const string FeatureProfileManage = "feature.profile.manage";
     public const string FeaturePreferencesManage = "feature.preferences.manage";
+    public const string FeatureSpacesManage = "feature.spaces.manage";
     public const string FeatureOnboardingManage = "feature.onboarding.manage";
     public const string FeatureNotificationsAccess = "feature.notifications.access";
     public const string FeatureLookupsRead = "feature.lookups.read";
@@ -84,6 +85,7 @@ public static class AppAuthorizationPolicies
         AddFeaturePolicy(options, FeatureSubscriptionsManage, AppFeatureKeys.SubscriptionsManage);
         AddFeaturePolicy(options, FeatureProfileManage, AppFeatureKeys.ProfileManage);
         AddFeaturePolicy(options, FeaturePreferencesManage, AppFeatureKeys.PreferencesManage);
+        AddFeaturePolicy(options, FeatureSpacesManage, AppFeatureKeys.SpacesManage);
         AddFeaturePolicy(options, FeatureOnboardingManage, AppFeatureKeys.OnboardingManage);
         AddFeaturePolicy(options, FeatureNotificationsAccess, AppFeatureKeys.NotificationsAccess);
         AddFeaturePolicy(options, FeatureLookupsRead, AppFeatureKeys.LookupsRead);

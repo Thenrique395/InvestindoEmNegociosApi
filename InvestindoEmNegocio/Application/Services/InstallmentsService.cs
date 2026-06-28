@@ -88,7 +88,7 @@ public class InstallmentsService(
 
         var account = await ResolveAccountForPaymentAsync(userId, request.AccountId, cancellationToken);
 
-        var payment = new MoneyPayment(installmentId, userId, request.PaidAt.ToUniversalTime(), request.PaidAmount, request.MethodId, request.Note, account?.Id);
+        var payment = new MoneyPayment(installmentId, userId, installment.SpaceId, request.PaidAt.ToUniversalTime(), request.PaidAmount, request.MethodId, request.Note, account?.Id);
         await paymentRepository.AddAsync(payment, cancellationToken);
 
         if (account is not null)
@@ -106,6 +106,7 @@ public class InstallmentsService(
             var transaction = new AccountTransaction(
                 account.Id,
                 userId,
+                account.SpaceId,
                 request.PaidAt.ToUniversalTime(),
                 transactionKind,
                 request.PaidAmount,
@@ -156,6 +157,7 @@ public class InstallmentsService(
         var reversalPayment = new MoneyPayment(
             installmentId,
             userId,
+            installment.SpaceId,
             reversedAt,
             -payment.PaidAmount,
             payment.MethodId,
@@ -179,6 +181,7 @@ public class InstallmentsService(
                 var reversalTransaction = new AccountTransaction(
                     account.Id,
                     userId,
+                    account.SpaceId,
                     reversedAt,
                     reversalKind,
                     payment.PaidAmount,

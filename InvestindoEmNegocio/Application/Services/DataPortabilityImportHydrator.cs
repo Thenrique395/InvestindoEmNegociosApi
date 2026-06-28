@@ -42,10 +42,11 @@ internal static class DataPortabilityImportHydrator
             data.NotifyDaysBeforeDue);
     }
 
-    internal static MoneyPlan CreateMoneyPlan(Guid userId, MoneyPlanData data, string title, Guid? categoryId, Guid? cardId)
+    internal static MoneyPlan CreateMoneyPlan(Guid userId, Guid spaceId, MoneyPlanData data, string title, Guid? categoryId, Guid? cardId)
     {
         var plan = new MoneyPlan(
             userId,
+            spaceId,
             data.Type,
             title,
             data.Amount,
@@ -61,9 +62,9 @@ internal static class DataPortabilityImportHydrator
         return plan;
     }
 
-    internal static MoneyInstallment CreateMoneyInstallment(Guid userId, Guid planId, MoneyInstallmentData data)
+    internal static MoneyInstallment CreateMoneyInstallment(Guid userId, Guid spaceId, Guid planId, MoneyInstallmentData data)
     {
-        var installment = new MoneyInstallment(planId, userId, data.InstallmentNo, data.DueDate, data.Amount, data.OriginalDueDate);
+        var installment = new MoneyInstallment(planId, userId, spaceId, data.InstallmentNo, data.DueDate, data.Amount, data.OriginalDueDate);
         installment.RestoreStatus(data.Status);
         return installment;
     }

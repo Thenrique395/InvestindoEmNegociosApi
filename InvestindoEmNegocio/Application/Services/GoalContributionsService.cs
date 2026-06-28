@@ -35,7 +35,7 @@ public class GoalContributionsService(
         if (restante <= 0) throw new InvalidOperationException("Meta já atingiu o valor alvo.");
         if (request.Amount > restante) throw new InvalidOperationException("Valor do aporte excede o restante da meta.");
 
-        var contrib = new GoalContribution(goalId, userId, request.Amount, request.Date, request.Note);
+        var contrib = new GoalContribution(goalId, userId, goal.SpaceId, request.Amount, request.Date, request.Note);
         await goalContributionRepository.AddAsync(contrib, cancellationToken);
 
         var novoAcumulado = goal.CurrentAmount + request.Amount;

@@ -1,4 +1,5 @@
 using InvestindoEmNegocio.Application.Exceptions;
+using InvestindoEmNegocio.Infrastructure.Auth;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 
@@ -70,6 +71,12 @@ public abstract class AuthenticatedControllerBase : ControllerBase
     {
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(ClaimTypes.Name);
         return Guid.TryParse(claim, out var id) ? id : null;
+    }
+
+    protected Guid GetSpaceId()
+    {
+        var claim = User.FindFirstValue(JwtTokenGenerator.SpaceIdClaim);
+        return Guid.TryParse(claim, out var id) ? id : throw new UnauthorizedAccessException("Espaço ativo não encontrado.");
     }
 
     protected string? GetIpAddress()

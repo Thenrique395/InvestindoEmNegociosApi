@@ -7,6 +7,7 @@ public class GoalContribution : ISoftDeletable
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid GoalId { get; private set; }
     public Guid UserId { get; private set; }
+    public Guid SpaceId { get; private set; }
     public decimal Amount { get; private set; }
     public DateOnly Date { get; private set; }
     public string? Note { get; private set; }
@@ -15,10 +16,11 @@ public class GoalContribution : ISoftDeletable
 
     private GoalContribution() { }
 
-    public GoalContribution(Guid goalId, Guid userId, decimal amount, DateOnly date, string? note = null)
+    public GoalContribution(Guid goalId, Guid userId, Guid spaceId, decimal amount, DateOnly date, string? note = null)
     {
         GoalId = goalId;
         UserId = userId;
+        SpaceId = spaceId;
         Amount = amount;
         Date = date;
         Note = note;

@@ -14,8 +14,9 @@ public class CashflowProjectionEngineTests
     public async Task ProjectAsync_Should_Group_Overdue_Items_On_Reference_Day_And_Find_Risk_Date()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var today = new DateOnly(2026, 3, 9);
-        var account = new Account(userId, "Conta", AccountType.Checking, 1000m);
+        var account = new Account(userId, spaceId, "Conta", AccountType.Checking, 1000m);
         var accountId = account.Id;
 
         var accountRepository = new Mock<IAccountRepository>();
@@ -29,12 +30,12 @@ public class CashflowProjectionEngineTests
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository.Setup(x => x.ListByUserAsync(userId, null, null, It.IsAny<DateOnly?>(), MoneyType.Expense, It.IsAny<CancellationToken>()))
             .ReturnsAsync([
-                new MoneyInstallment(Guid.NewGuid(), userId, 1, today.AddDays(-2), 300m),
-                new MoneyInstallment(Guid.NewGuid(), userId, 2, today.AddDays(1), 900m)
+                new MoneyInstallment(Guid.NewGuid(), userId, spaceId, 1, today.AddDays(-2), 300m),
+                new MoneyInstallment(Guid.NewGuid(), userId, spaceId, 2, today.AddDays(1), 900m)
             ]);
         installmentRepository.Setup(x => x.ListByUserAsync(userId, InstallmentStatus.Open, null, It.IsAny<DateOnly?>(), MoneyType.Income, It.IsAny<CancellationToken>()))
             .ReturnsAsync([
-                new MoneyInstallment(Guid.NewGuid(), userId, 1, today.AddDays(3), 500m)
+                new MoneyInstallment(Guid.NewGuid(), userId, spaceId, 1, today.AddDays(3), 500m)
             ]);
 
         var loanInstallmentRepository = new Mock<ILoanInstallmentRepository>();

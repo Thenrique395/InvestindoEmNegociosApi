@@ -1215,3 +1215,118 @@ BEGIN
         ALTER TABLE money_payments ADD COLUMN IF NOT EXISTS "ReceiptUrl" character varying(500);
     END IF;
 END $$;
+
+-- Spaces (áreas segmentadas e opcionalmente protegidas por senha, feature inspirada no
+-- Budgi). Cada usuário pode ter várias áreas; exatamente uma é marcada como padrão
+-- (IsDefault) e é criada automaticamente no primeiro login/registro. A área ativa viaja
+-- como claim no JWT (espelha o mecanismo já existente do TokenVersion), nunca como
+-- parâmetro de request — por isso nenhuma tabela de leitura precisa de "SpaceId" vindo de
+-- fora, só as 9 entidades financeiras centrais abaixo, que ganham a coluna diretamente.
+CREATE TABLE IF NOT EXISTS spaces (
+    "Id" uuid NOT NULL,
+    "UserId" uuid NOT NULL,
+    "Name" character varying(120) NOT NULL,
+    "PasswordHash" character varying(200),
+    "IsDefault" boolean NOT NULL DEFAULT FALSE,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    "UpdatedAt" timestamp with time zone NOT NULL,
+    "DeletedAt" timestamp with time zone,
+    CONSTRAINT "PK_spaces" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_spaces_users_UserId" FOREIGN KEY ("UserId") REFERENCES users ("Id") ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS "IX_spaces_UserId" ON spaces ("UserId");
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_spaces_UserId_Default" ON spaces ("UserId") WHERE "IsDefault" AND "DeletedAt" IS NULL;
+
+-- Coluna SpaceId adicionada nula nas 9 tabelas (para o backfill abaixo funcionar) e só
+-- depois travada como NOT NULL.
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS "SpaceId" uuid;
+ALTER TABLE cards ADD COLUMN IF NOT EXISTS "SpaceId" uuid;
+ALTER TABLE money_plans ADD COLUMN IF NOT EXISTS "SpaceId" uuid;
+ALTER TABLE money_installments ADD COLUMN IF NOT EXISTS "SpaceId" uuid;
+ALTER TABLE money_payments ADD COLUMN IF NOT EXISTS "SpaceId" uuid;
+ALTER TABLE investment_positions ADD COLUMN IF NOT EXISTS "SpaceId" uuid;
+ALTER TABLE goals ADD COLUMN IF NOT EXISTS "SpaceId" uuid;
+ALTER TABLE goal_contributions ADD COLUMN IF NOT EXISTS "SpaceId" uuid;
+ALTER TABLE account_transactions ADD COLUMN IF NOT EXISTS "SpaceId" uuid;
+
+-- Backfill idempotente: todo usuário sem nenhuma área ganha um "Espaço Principal" padrão;
+-- toda linha das 9 tabelas ainda sem SpaceId é associada à área padrão do respectivo
+-- usuário. Roda em todo startup, mas só afeta linhas que ainda não têm área (seguro de
+-- re-executar).
+DO $$
+BEGIN
+    INSERT INTO spaces ("Id", "UserId", "Name", "IsDefault", "CreatedAt", "UpdatedAt")
+    SELECT gen_random_uuid(), u."Id", 'Espaço Principal', TRUE, now(), now()
+    FROM users u
+    WHERE NOT EXISTS (SELECT 1 FROM spaces s WHERE s."UserId" = u."Id" AND s."IsDefault" AND s."DeletedAt" IS NULL);
+
+    UPDATE accounts a SET "SpaceId" = s."Id"
+    FROM spaces s WHERE s."UserId" = a."UserId" AND s."IsDefault" AND a."SpaceId" IS NULL;
+
+    UPDATE cards c SET "SpaceId" = s."Id"
+    FROM spaces s WHERE s."UserId" = c."UserId" AND s."IsDefault" AND c."SpaceId" IS NULL;
+
+    UPDATE money_plans p SET "SpaceId" = s."Id"
+    FROM spaces s WHERE s."UserId" = p."UserId" AND s."IsDefault" AND p."SpaceId" IS NULL;
+
+    UPDATE money_installments i SET "SpaceId" = s."Id"
+    FROM spaces s WHERE s."UserId" = i."UserId" AND s."IsDefault" AND i."SpaceId" IS NULL;
+
+    UPDATE money_payments mp SET "SpaceId" = s."Id"
+    FROM spaces s WHERE s."UserId" = mp."UserId" AND s."IsDefault" AND mp."SpaceId" IS NULL;
+
+    UPDATE investment_positions ip SET "SpaceId" = s."Id"
+    FROM spaces s WHERE s."UserId" = ip."UserId" AND s."IsDefault" AND ip."SpaceId" IS NULL;
+
+    UPDATE goals g SET "SpaceId" = s."Id"
+    FROM spaces s WHERE s."UserId" = g."UserId" AND s."IsDefault" AND g."SpaceId" IS NULL;
+
+    UPDATE goal_contributions gc SET "SpaceId" = s."Id"
+    FROM spaces s WHERE s."UserId" = gc."UserId" AND s."IsDefault" AND gc."SpaceId" IS NULL;
+
+    UPDATE account_transactions at SET "SpaceId" = s."Id"
+    FROM spaces s WHERE s."UserId" = at."UserId" AND s."IsDefault" AND at."SpaceId" IS NULL;
+END $$;
+
+ALTER TABLE accounts ALTER COLUMN "SpaceId" SET NOT NULL;
+ALTER TABLE cards ALTER COLUMN "SpaceId" SET NOT NULL;
+ALTER TABLE money_plans ALTER COLUMN "SpaceId" SET NOT NULL;
+ALTER TABLE money_installments ALTER COLUMN "SpaceId" SET NOT NULL;
+ALTER TABLE money_payments ALTER COLUMN "SpaceId" SET NOT NULL;
+ALTER TABLE investment_positions ALTER COLUMN "SpaceId" SET NOT NULL;
+ALTER TABLE goals ALTER COLUMN "SpaceId" SET NOT NULL;
+ALTER TABLE goal_contributions ALTER COLUMN "SpaceId" SET NOT NULL;
+ALTER TABLE account_transactions ALTER COLUMN "SpaceId" SET NOT NULL;
+
+-- Índices de listagem por (UserId, SpaceId) nas entidades "donas" (espelha o índice por
+-- UserId já existente, agora também filtrado pela área ativa).
+CREATE INDEX IF NOT EXISTS "IX_accounts_UserId_SpaceId" ON accounts ("UserId", "SpaceId");
+CREATE INDEX IF NOT EXISTS "IX_money_plans_UserId_SpaceId" ON money_plans ("UserId", "SpaceId");
+CREATE INDEX IF NOT EXISTS "IX_money_installments_UserId_SpaceId" ON money_installments ("UserId", "SpaceId");
+CREATE INDEX IF NOT EXISTS "IX_investment_positions_UserId_SpaceId" ON investment_positions ("UserId", "SpaceId");
+CREATE INDEX IF NOT EXISTS "IX_goals_UserId_SpaceId" ON goals ("UserId", "SpaceId");
+CREATE INDEX IF NOT EXISTS "IX_account_transactions_UserId_SpaceId" ON account_transactions ("UserId", "SpaceId");
+
+-- RefreshToken também ganha SpaceId (área ativa daquele dispositivo/sessão); cada
+-- refresh/rotação de token preserva a área da sessão em vez de resetar para a padrão.
+ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS "SpaceId" uuid;
+DO $$
+BEGIN
+    UPDATE refresh_tokens rt SET "SpaceId" = s."Id"
+    FROM spaces s WHERE s."UserId" = rt."UserId" AND s."IsDefault" AND rt."SpaceId" IS NULL;
+END $$;
+ALTER TABLE refresh_tokens ALTER COLUMN "SpaceId" SET NOT NULL;
+
+-- O índice único parcial de nome de conta passa a considerar a área: o mesmo usuário pode
+-- ter uma conta "Conta Principal" em mais de uma área, mas não duas vezes na mesma área.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_indexes WHERE tablename = 'accounts' AND indexname = 'IX_accounts_UserId_Name'
+    ) THEN
+        DROP INDEX "IX_accounts_UserId_Name";
+    END IF;
+
+    CREATE UNIQUE INDEX IF NOT EXISTS "IX_accounts_UserId_SpaceId_Name" ON accounts ("UserId", "SpaceId", "Name") WHERE "DeletedAt" IS NULL;
+END $$;

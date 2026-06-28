@@ -64,8 +64,9 @@ public class AccountsServiceTests : IDisposable
     public async Task TransferAsync_Should_Create_Debit_And_Credit_With_Same_SourceId()
     {
         var userId = Guid.NewGuid();
-        var from = new Account(userId, "Conta A", AccountType.Checking, 0);
-        var to = new Account(userId, "Conta B", AccountType.Savings, 0);
+        var spaceId = Guid.NewGuid();
+        var from = new Account(userId, spaceId, "Conta A", AccountType.Checking, 0);
+        var to = new Account(userId, spaceId, "Conta B", AccountType.Savings, 0);
         var fromId = from.Id;
         var toId = to.Id;
 
@@ -97,7 +98,8 @@ public class AccountsServiceTests : IDisposable
     public async Task ListTransactionsAsync_Should_Map_Transfer_Type()
     {
         var userId = Guid.NewGuid();
-        var account = new Account(userId, "Conta", AccountType.Checking, 0);
+        var spaceId = Guid.NewGuid();
+        var account = new Account(userId, spaceId, "Conta", AccountType.Checking, 0);
         var accountId = account.Id;
 
         var accountRepository = new Mock<IAccountRepository>();
@@ -107,7 +109,7 @@ public class AccountsServiceTests : IDisposable
         transactionRepository
             .Setup(x => x.ListByAccountAsync(accountId, userId, null, null, It.IsAny<CancellationToken>(), It.IsAny<bool>()))
             .ReturnsAsync([
-                new AccountTransaction(accountId, userId, DateTime.UtcNow, AccountTransactionKind.Credit, 100m, "Transfer", "AccountTransfer", Guid.NewGuid())
+                new AccountTransaction(accountId, userId, spaceId, DateTime.UtcNow, AccountTransactionKind.Credit, 100m, "Transfer", "AccountTransfer", Guid.NewGuid())
             ]);
 
         var sut = BuildSut(accountRepository, transactionRepository);
@@ -128,6 +130,7 @@ public class AccountsServiceTests : IDisposable
         var command = new AccountCommandService(
             accountRepository?.Object ?? Mock.Of<IAccountRepository>(),
             transactionRepository?.Object ?? Mock.Of<IAccountTransactionRepository>(),
+            Mock.Of<ICurrentSpaceAccessor>(),
             NullLogger<AccountCommandService>.Instance);
         var transactionQuery = new AccountTransactionQueryService(
             accountRepository?.Object ?? Mock.Of<IAccountRepository>(),

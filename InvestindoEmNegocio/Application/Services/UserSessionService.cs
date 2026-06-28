@@ -10,15 +10,16 @@ namespace InvestindoEmNegocio.Application.Services;
 
 public sealed class UserSessionService(
     IRefreshTokenRepository refreshTokenRepository,
+    ISpaceBootstrapService spaceBootstrapService,
     IJwtTokenGenerator jwtTokenGenerator,
     ILogger<UserSessionService> logger) : IUserSessionService
 {
-    public async Task<AuthResponse> IssueAsync(User user, CancellationToken cancellationToken = default)
+    public async Task<AuthResponse> IssueAsync(User user, Guid spaceId, CancellationToken cancellationToken = default)
     {
-        var access = jwtTokenGenerator.Generate(user);
+        var access = jwtTokenGenerator.Generate(user, spaceId);
         var rawRefreshToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
         var hashedRefreshToken = HashToken(rawRefreshToken);
-        var refreshEntity = new RefreshToken(user.Id, hashedRefreshToken, DateTime.UtcNow.AddDays(30));
+        var refreshEntity = new RefreshToken(user.Id, spaceId, hashedRefreshToken, DateTime.UtcNow.AddDays(30));
         await refreshTokenRepository.AddAsync(refreshEntity, cancellationToken);
         await refreshTokenRepository.SaveChangesAsync(cancellationToken);
 
@@ -28,12 +29,13 @@ public sealed class UserSessionService(
     public async Task<AuthResponse> ReissueAsync(User user, DateTime nowUtc, CancellationToken cancellationToken = default)
     {
         await RevokeActiveAsync(user.Id, nowUtc, cancellationToken);
-        return await IssueAsync(user, cancellationToken);
+        var spaceId = await spaceBootstrapService.EnsureDefaultSpaceAsync(user, cancellationToken);
+        return await IssueAsync(user, spaceId, cancellationToken);
     }
 
     public async Task<AuthResponse> RotateAsync(User user, RefreshToken currentToken, DateTime nowUtc, CancellationToken cancellationToken = default)
     {
-        var issued = await IssueAsync(user, cancellationToken);
+        var issued = await IssueAsync(user, currentToken.SpaceId, cancellationToken);
         currentToken.Revoke(nowUtc, HashToken(issued.RefreshToken));
         await refreshTokenRepository.SaveChangesAsync(cancellationToken);
         return issued;

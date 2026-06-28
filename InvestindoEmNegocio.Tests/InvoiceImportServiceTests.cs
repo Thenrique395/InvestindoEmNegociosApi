@@ -38,8 +38,9 @@ public class InvoiceImportServiceTests
     public async Task ImportAsync_Should_Create_And_Skip_Duplicated_Items()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var cardId = Guid.NewGuid();
-        var card = new Card(userId, 1, "Titular", "Cartão principal", "1234", null, 1000m, 10, 20);
+        var card = new Card(userId, spaceId, 1, "Titular", "Cartão principal", "1234", null, 1000m, 10, 20);
 
         var plansService = new Mock<IPlansService>();
         plansService
@@ -108,12 +109,14 @@ public class InvoiceImportServiceTests
     public async Task ReconcileAsync_Should_Flag_Duplicates_And_Project_Cycle_Total()
     {
         var userId = Guid.NewGuid();
-        var card = new Card(userId, 1, "Titular", "Cartão principal", "1234", null, 1000m, 10, 20);
+        var spaceId = Guid.NewGuid();
+        var card = new Card(userId, spaceId, 1, "Titular", "Cartão principal", "1234", null, 1000m, 10, 20);
         var cardId = card.Id;
-        var plan = new MoneyPlan(userId, MoneyType.Expense, "Streaming", 39.90m, ScheduleType.OneTime, new DateOnly(2026, 3, 5), cardId: cardId);
+        var plan = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Streaming", 39.90m, ScheduleType.OneTime, new DateOnly(2026, 3, 5), cardId: cardId);
         var existingInstallment = new MoneyInstallment(
             plan.Id,
             userId,
+            spaceId,
             1,
             new DateOnly(2026, 3, 20),
             39.90m,

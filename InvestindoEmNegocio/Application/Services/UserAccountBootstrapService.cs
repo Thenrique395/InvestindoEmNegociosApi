@@ -9,7 +9,7 @@ public sealed class UserAccountBootstrapService(
     IAccountRepository accountRepository,
     ILogger<UserAccountBootstrapService> logger) : IUserAccountBootstrapService
 {
-    public async Task EnsureDefaultAccountForBasicAsync(User user, CancellationToken cancellationToken = default)
+    public async Task EnsureDefaultAccountForBasicAsync(User user, Guid spaceId, CancellationToken cancellationToken = default)
     {
         if (user.Role != UserRole.Basic)
             return;
@@ -17,7 +17,7 @@ public sealed class UserAccountBootstrapService(
         var accounts = await accountRepository.ListByUserAsync(user.Id, cancellationToken) ?? [];
         if (accounts.Count == 0)
         {
-            var account = new Account(user.Id, "Conta principal", AccountType.Checking, 0m);
+            var account = new Account(user.Id, spaceId, "Conta principal", AccountType.Checking, 0m);
             await accountRepository.AddAsync(account, cancellationToken);
             await accountRepository.SaveChangesAsync(cancellationToken);
             logger.LogInformation("Default account created for basic user {UserId}", user.Id);

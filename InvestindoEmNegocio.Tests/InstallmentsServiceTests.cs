@@ -31,7 +31,8 @@ public class InstallmentsServiceTests
     public async Task PayAsync_Should_Require_Account_When_NonBasic_User_Has_Multiple_Active_Accounts_And_None_Informed()
     {
         var userId = Guid.NewGuid();
-        var installment = new MoneyInstallment(Guid.NewGuid(), userId, 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100m);
+        var spaceId = Guid.NewGuid();
+        var installment = new MoneyInstallment(Guid.NewGuid(), userId, spaceId, 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100m);
 
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository
@@ -49,8 +50,8 @@ public class InstallmentsServiceTests
         accountRepository
             .Setup(x => x.ListByUserAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync([
-                new Account(userId, "Conta A", AccountType.Checking, 0m),
-                new Account(userId, "Conta B", AccountType.DigitalWallet, 0m)
+                new Account(userId, spaceId, "Conta A", AccountType.Checking, 0m),
+                new Account(userId, spaceId, "Conta B", AccountType.DigitalWallet, 0m)
             ]);
 
         var sut = BuildSut(
@@ -69,7 +70,7 @@ public class InstallmentsServiceTests
     {
         var userId = Guid.NewGuid();
         var installmentId = Guid.NewGuid();
-        var installment = new MoneyInstallment(Guid.NewGuid(), userId, 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100);
+        var installment = new MoneyInstallment(Guid.NewGuid(), userId, Guid.NewGuid(), 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100);
 
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository
@@ -93,7 +94,7 @@ public class InstallmentsServiceTests
     public async Task AnticipateAsync_Should_Throw_When_Installment_Is_Current_Month()
     {
         var userId = Guid.NewGuid();
-        var installment = new MoneyInstallment(Guid.NewGuid(), userId, 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100);
+        var installment = new MoneyInstallment(Guid.NewGuid(), userId, Guid.NewGuid(), 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100);
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository
             .Setup(x => x.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
@@ -112,7 +113,7 @@ public class InstallmentsServiceTests
     [Fact]
     public async Task DeleteAsync_Should_Throw_Unauthorized_When_Other_User()
     {
-        var installment = new MoneyInstallment(Guid.NewGuid(), Guid.NewGuid(), 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100);
+        var installment = new MoneyInstallment(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100);
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository
             .Setup(x => x.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
@@ -128,12 +129,14 @@ public class InstallmentsServiceTests
     public async Task DeleteAsync_Should_MarkDeleted_On_Ledger_Transactions_From_Installment_Payments()
     {
         var userId = Guid.NewGuid();
-        var installment = new MoneyInstallment(Guid.NewGuid(), userId, 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100);
+        var spaceId = Guid.NewGuid();
+        var installment = new MoneyInstallment(Guid.NewGuid(), userId, spaceId, 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100);
         var installmentId = installment.Id;
-        var payment = new MoneyPayment(installmentId, userId, DateTime.UtcNow, 100m);
+        var payment = new MoneyPayment(installmentId, userId, spaceId, DateTime.UtcNow, 100m);
         var transaction = new AccountTransaction(
             Guid.NewGuid(),
             userId,
+            spaceId,
             DateTime.UtcNow,
             AccountTransactionKind.Debit,
             100m,
@@ -174,7 +177,7 @@ public class InstallmentsServiceTests
     {
         var userId = Guid.NewGuid();
         var installmentId = Guid.NewGuid();
-        var installment = new MoneyInstallment(Guid.NewGuid(), userId, 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100);
+        var installment = new MoneyInstallment(Guid.NewGuid(), userId, Guid.NewGuid(), 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100);
 
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository
@@ -199,7 +202,7 @@ public class InstallmentsServiceTests
     {
         var userId = Guid.NewGuid();
         var installmentId = Guid.NewGuid();
-        var installment = new MoneyInstallment(Guid.NewGuid(), userId, 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100);
+        var installment = new MoneyInstallment(Guid.NewGuid(), userId, Guid.NewGuid(), 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100);
         var paidTotals = new Queue<decimal>([60m, 120m]);
 
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
@@ -227,9 +230,10 @@ public class InstallmentsServiceTests
     public async Task ReversePaymentAsync_Should_Add_Reversal_Payment_And_Opposite_Ledger_Entry()
     {
         var userId = Guid.NewGuid();
-        var account = new Account(userId, "Conta principal", AccountType.Checking, 0m);
-        var installment = new MoneyInstallment(Guid.NewGuid(), userId, 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100m);
-        var originalPayment = new MoneyPayment(installment.Id, userId, DateTime.UtcNow.AddMinutes(-5), 100m, accountId: account.Id);
+        var spaceId = Guid.NewGuid();
+        var account = new Account(userId, spaceId, "Conta principal", AccountType.Checking, 0m);
+        var installment = new MoneyInstallment(Guid.NewGuid(), userId, spaceId, 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100m);
+        var originalPayment = new MoneyPayment(installment.Id, userId, spaceId, DateTime.UtcNow.AddMinutes(-5), 100m, accountId: account.Id);
 
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository
@@ -249,6 +253,7 @@ public class InstallmentsServiceTests
             .Setup(x => x.GetByIdAsync(installment.PlanId, userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MoneyPlan(
                 userId,
+                spaceId,
                 MoneyType.Expense,
                 "Plano teste",
                 100m,
@@ -299,7 +304,7 @@ public class InstallmentsServiceTests
     {
         var userId = Guid.NewGuid();
         var installmentId = Guid.NewGuid();
-        var payment = new MoneyPayment(installmentId, userId, DateTime.UtcNow, 100m);
+        var payment = new MoneyPayment(installmentId, userId, Guid.NewGuid(), DateTime.UtcNow, 100m);
 
         var paymentRepository = new Mock<IMoneyPaymentRepository>();
         paymentRepository
@@ -342,7 +347,7 @@ public class InstallmentsServiceTests
     public async Task AttachReceiptAsync_Should_Return_Null_When_Payment_Belongs_To_Different_Installment()
     {
         var userId = Guid.NewGuid();
-        var payment = new MoneyPayment(Guid.NewGuid(), userId, DateTime.UtcNow, 100m);
+        var payment = new MoneyPayment(Guid.NewGuid(), userId, Guid.NewGuid(), DateTime.UtcNow, 100m);
 
         var paymentRepository = new Mock<IMoneyPaymentRepository>();
         paymentRepository
@@ -379,6 +384,7 @@ public class InstallmentsServiceTests
             .ReturnsAsync((Guid _, Guid userId, CancellationToken _) =>
                 new MoneyPlan(
                     userId,
+                    Guid.NewGuid(),
                     MoneyType.Expense,
                     "Plano teste",
                     100m,
@@ -411,7 +417,7 @@ public class InstallmentsServiceTests
         var accountRepo = new Mock<IAccountRepository>();
         accountRepo
             .Setup(x => x.ListByUserAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Guid userId, CancellationToken _) => [new Account(userId, "Conta principal", AccountType.Checking, 0m)]);
+            .ReturnsAsync((Guid userId, CancellationToken _) => [new Account(userId, Guid.NewGuid(), "Conta principal", AccountType.Checking, 0m)]);
         return accountRepo;
     }
 }

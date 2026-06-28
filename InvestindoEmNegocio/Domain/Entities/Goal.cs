@@ -7,6 +7,7 @@ public class Goal : ISoftDeletable
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid UserId { get; private set; }
+    public Guid SpaceId { get; private set; }
     public string Title { get; private set; } = string.Empty;
     public decimal TargetAmount { get; private set; }
     public decimal CurrentAmount { get; private set; }
@@ -22,9 +23,10 @@ public class Goal : ISoftDeletable
 
     private Goal() { }
 
-    public Goal(Guid userId, string title, decimal targetAmount, int year, string? description = null, GoalStatus status = GoalStatus.Planned, decimal currentAmount = 0, decimal expectedMonthly = 0, DateOnly? targetDate = null, GoalKind kind = GoalKind.General)
+    public Goal(Guid userId, Guid spaceId, string title, decimal targetAmount, int year, string? description = null, GoalStatus status = GoalStatus.Planned, decimal currentAmount = 0, decimal expectedMonthly = 0, DateOnly? targetDate = null, GoalKind kind = GoalKind.General)
     {
         UserId = userId;
+        SpaceId = spaceId;
         Title = title;
         TargetAmount = targetAmount;
         Year = year;

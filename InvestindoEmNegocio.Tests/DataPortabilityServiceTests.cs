@@ -10,6 +10,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
+using Moq;
 using System.Text.Json;
 
 namespace InvestindoEmNegocio.Tests;
@@ -192,7 +193,7 @@ public class DataPortabilityServiceTests
     private static IDataPortabilityService BuildSut(InvestDbContext dbContext, MemoryCache cache, IOptions<DataPortabilityOptions> options)
     {
         var exportService = new DataPortabilityExportService(dbContext, cache, options);
-        var importService = new DataPortabilityImportService(dbContext, cache);
+        var importService = new DataPortabilityImportService(dbContext, Mock.Of<ICurrentSpaceAccessor>(), cache);
         return new DataPortabilityService(exportService, importService);
     }
 
@@ -278,19 +279,20 @@ public class DataPortabilityServiceTests
 
     private static async Task SeedExistingUserDataAsync(InvestDbContext dbContext, Guid userId)
     {
+        var spaceId = Guid.NewGuid();
         var category = new Category(userId, "Categoria Antiga", MoneyType.Expense);
-        var card = new Card(userId, 1, "Usuario", "Cartao Antigo", "1111", "Banco Antigo", 1000m, 5, 15);
-        var goal = new Goal(userId, "Meta Antiga", 5000m, 2025, status: GoalStatus.Planned, currentAmount: 0, expectedMonthly: 200m);
-        var plan = new MoneyPlan(userId, MoneyType.Expense, "Plano Antigo", 100m, ScheduleType.OneTime, DateOnly.FromDateTime(DateTime.UtcNow), null, 1, 1, category.Id, card.Id);
-        var installment = new MoneyInstallment(plan.Id, userId, 1, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(3)), 100m);
-        var payment = new MoneyPayment(installment.Id, userId, DateTime.UtcNow, 100m, 1, "Pago");
+        var card = new Card(userId, spaceId, 1, "Usuario", "Cartao Antigo", "1111", "Banco Antigo", 1000m, 5, 15);
+        var goal = new Goal(userId, spaceId, "Meta Antiga", 5000m, 2025, status: GoalStatus.Planned, currentAmount: 0, expectedMonthly: 200m);
+        var plan = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Plano Antigo", 100m, ScheduleType.OneTime, DateOnly.FromDateTime(DateTime.UtcNow), null, 1, 1, category.Id, card.Id);
+        var installment = new MoneyInstallment(plan.Id, userId, spaceId, 1, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(3)), 100m);
+        var payment = new MoneyPayment(installment.Id, userId, spaceId, DateTime.UtcNow, 100m, 1, "Pago");
         var profile = new UserProfile(userId);
         var onboarding = new UserOnboarding(userId, 1, false);
         var investmentGoal = new InvestmentGoal(userId, 50000m);
         var allocationTarget = new InvestmentAllocationTarget(userId, 25m, 25m, 25m, 25m);
-        var position = new InvestmentPosition(userId, InvestmentType.RF, "TESOURO", 1m, 100m, DateOnly.FromDateTime(DateTime.UtcNow), "Conta", "RF");
+        var position = new InvestmentPosition(userId, spaceId, InvestmentType.RF, "TESOURO", 1m, 100m, DateOnly.FromDateTime(DateTime.UtcNow), "Conta", "RF");
         var movement = new InvestmentMovement(position.Id, InvestmentMovementType.APORTE, 1m, 100m, DateOnly.FromDateTime(DateTime.UtcNow), "Inicial");
-        var contribution = new GoalContribution(goal.Id, userId, 50m, DateOnly.FromDateTime(DateTime.UtcNow), "Aporte");
+        var contribution = new GoalContribution(goal.Id, userId, spaceId, 50m, DateOnly.FromDateTime(DateTime.UtcNow), "Aporte");
         var notification = new UserNotification(userId, NotificationKind.ExpenseUpcoming, "Antigo", "Mensagem", "old-notification-ref");
 
         await dbContext.Categories.AddAsync(category);

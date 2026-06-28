@@ -11,6 +11,8 @@ namespace InvestindoEmNegocio.Tests;
 
 public class UserSessionServiceTests
 {
+    private static readonly Guid TestSpaceId = Guid.NewGuid();
+
     [Fact]
     public async Task IssueAsync_Should_Create_New_Refresh_Token()
     {
@@ -18,12 +20,12 @@ public class UserSessionServiceTests
         var refreshTokenRepository = new Mock<IRefreshTokenRepository>();
         var jwtTokenGenerator = new Mock<IJwtTokenGenerator>();
         jwtTokenGenerator
-            .Setup(x => x.Generate(user))
+            .Setup(x => x.Generate(user, TestSpaceId))
             .Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
 
-        var sut = new UserSessionService(refreshTokenRepository.Object, jwtTokenGenerator.Object, Mock.Of<ILogger<UserSessionService>>());
+        var sut = new UserSessionService(refreshTokenRepository.Object, Mock.Of<ISpaceBootstrapService>(), jwtTokenGenerator.Object, Mock.Of<ILogger<UserSessionService>>());
 
-        var result = await sut.IssueAsync(user);
+        var result = await sut.IssueAsync(user, TestSpaceId);
 
         result.Token.Should().Be("jwt-token");
         result.RefreshToken.Should().NotBeNullOrWhiteSpace();
@@ -38,10 +40,12 @@ public class UserSessionServiceTests
         var refreshTokenRepository = new Mock<IRefreshTokenRepository>();
         var jwtTokenGenerator = new Mock<IJwtTokenGenerator>();
         jwtTokenGenerator
-            .Setup(x => x.Generate(user))
+            .Setup(x => x.Generate(user, TestSpaceId))
             .Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
+        var spaceBootstrapService = new Mock<ISpaceBootstrapService>();
+        spaceBootstrapService.Setup(x => x.EnsureDefaultSpaceAsync(user, It.IsAny<CancellationToken>())).ReturnsAsync(TestSpaceId);
 
-        var sut = new UserSessionService(refreshTokenRepository.Object, jwtTokenGenerator.Object, Mock.Of<ILogger<UserSessionService>>());
+        var sut = new UserSessionService(refreshTokenRepository.Object, spaceBootstrapService.Object, jwtTokenGenerator.Object, Mock.Of<ILogger<UserSessionService>>());
 
         var result = await sut.ReissueAsync(user, DateTime.UtcNow);
 
@@ -56,14 +60,14 @@ public class UserSessionServiceTests
     public async Task RotateAsync_Should_Revoke_Current_Token_With_Replacement_Hash()
     {
         var user = new User("Teste", "teste@teste.com", "hash");
-        var currentToken = new RefreshToken(user.Id, "stored-hash", DateTime.UtcNow.AddDays(1));
+        var currentToken = new RefreshToken(user.Id, TestSpaceId, "stored-hash", DateTime.UtcNow.AddDays(1));
         var refreshTokenRepository = new Mock<IRefreshTokenRepository>();
         var jwtTokenGenerator = new Mock<IJwtTokenGenerator>();
         jwtTokenGenerator
-            .Setup(x => x.Generate(user))
+            .Setup(x => x.Generate(user, TestSpaceId))
             .Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
 
-        var sut = new UserSessionService(refreshTokenRepository.Object, jwtTokenGenerator.Object, Mock.Of<ILogger<UserSessionService>>());
+        var sut = new UserSessionService(refreshTokenRepository.Object, Mock.Of<ISpaceBootstrapService>(), jwtTokenGenerator.Object, Mock.Of<ILogger<UserSessionService>>());
 
         var result = await sut.RotateAsync(user, currentToken, DateTime.UtcNow);
 

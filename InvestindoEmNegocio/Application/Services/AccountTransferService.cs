@@ -38,6 +38,7 @@ public class AccountTransferService(
             await accountTransactionRepository.AddAsync(new AccountTransaction(
                 from.Id,
                 userId,
+                from.SpaceId,
                 occurredAt,
                 Domain.Enums.AccountTransactionKind.Debit,
                 request.Amount,
@@ -48,6 +49,7 @@ public class AccountTransferService(
             await accountTransactionRepository.AddAsync(new AccountTransaction(
                 to.Id,
                 userId,
+                to.SpaceId,
                 occurredAt,
                 Domain.Enums.AccountTransactionKind.Credit,
                 request.Amount,

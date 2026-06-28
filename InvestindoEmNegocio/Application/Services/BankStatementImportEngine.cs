@@ -90,6 +90,7 @@ public sealed class BankStatementImportEngine(
             await accountTransactionRepository.AddAsync(new AccountTransaction(
                 account.Id,
                 userId,
+                account.SpaceId,
                 occurredAt,
                 normalized.Kind,
                 normalized.Amount,

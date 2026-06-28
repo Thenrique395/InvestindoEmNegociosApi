@@ -7,6 +7,7 @@ public class MoneyPlan : ISoftDeletable
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid UserId { get; private set; }
+    public Guid SpaceId { get; private set; }
     public MoneyType Type { get; private set; }
     public string Title { get; private set; } = string.Empty;
     public Guid? CategoryId { get; private set; }
@@ -24,10 +25,11 @@ public class MoneyPlan : ISoftDeletable
 
     private MoneyPlan() { }
 
-    public MoneyPlan(Guid userId, MoneyType type, string title, decimal amount, ScheduleType schedule, DateOnly startDate,
+    public MoneyPlan(Guid userId, Guid spaceId, MoneyType type, string title, decimal amount, ScheduleType schedule, DateOnly startDate,
         FrequencyType? frequency = null, int? installmentsCount = null, int? defaultPaymentMethodId = null, Guid? categoryId = null, Guid? cardId = null)
     {
         UserId = userId;
+        SpaceId = spaceId;
         ApplyDetails(type, title, amount, schedule, startDate, frequency, installmentsCount, defaultPaymentMethodId, categoryId, cardId);
     }
 

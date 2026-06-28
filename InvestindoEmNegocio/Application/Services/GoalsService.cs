@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Application.Services;
 
-public class GoalsService(IGoalRepository goalRepository, IGoalContributionRepository goalContributionRepository, ILogger<GoalsService> logger) : IGoalsService
+public class GoalsService(IGoalRepository goalRepository, IGoalContributionRepository goalContributionRepository, ICurrentSpaceAccessor currentSpaceAccessor, ILogger<GoalsService> logger) : IGoalsService
 {
     private readonly ILogger<GoalsService> _logger = logger;
     private const string IncomeGoalTitle = "Meta de Receita";
@@ -44,6 +44,7 @@ public class GoalsService(IGoalRepository goalRepository, IGoalContributionRepos
         {
             var goal = new Goal(
                 userId,
+                currentSpaceAccessor.RequireSpaceId(),
                 IncomeGoalTitle,
                 targetAmount,
                 request.Year,
@@ -76,7 +77,7 @@ public class GoalsService(IGoalRepository goalRepository, IGoalContributionRepos
     public async Task<GoalResponse> CreateAsync(Guid userId, CreateGoalRequest request, CancellationToken cancellationToken = default)
     {
         Validate(request);
-        var goal = new Goal(userId, request.Title.Trim(), request.TargetAmount, request.Year, request.Description, GoalStatus.Planned, request.CurrentAmount, request.ExpectedMonthly, request.TargetDate, request.Kind);
+        var goal = new Goal(userId, currentSpaceAccessor.RequireSpaceId(), request.Title.Trim(), request.TargetAmount, request.Year, request.Description, GoalStatus.Planned, request.CurrentAmount, request.ExpectedMonthly, request.TargetDate, request.Kind);
         await goalRepository.AddAsync(goal, cancellationToken);
         await goalRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Goal created {UserId} {GoalId}", userId, goal.Id);

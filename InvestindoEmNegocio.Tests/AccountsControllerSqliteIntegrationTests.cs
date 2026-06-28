@@ -23,6 +23,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Moq;
 
 namespace InvestindoEmNegocio.Tests;
 
@@ -52,6 +53,7 @@ public class AccountsControllerSqliteIntegrationTests
         await host.SeedTransactionAsync(new AccountTransaction(
             created.Id,
             TestAccountsApiHost.TestUserId,
+            Guid.NewGuid(),
             DateTime.UtcNow,
             AccountTransactionKind.Credit,
             300m,
@@ -120,17 +122,19 @@ public class AccountsControllerSqliteIntegrationTests
         Account? account = null;
         await host.SeedAsync(db =>
         {
+            var spaceId = Guid.NewGuid();
             db.CardBrands.Add(new CardBrand(1, "Visa", "visa"));
 
-            account = new Account(TestAccountsApiHost.TestUserId, "Conta resumo", AccountType.Checking, 1000m);
+            account = new Account(TestAccountsApiHost.TestUserId, spaceId, "Conta resumo", AccountType.Checking, 1000m);
             db.Accounts.Add(account);
-            db.AccountTransactions.Add(new AccountTransaction(account.Id, TestAccountsApiHost.TestUserId, DateTime.UtcNow, AccountTransactionKind.Credit, 200m, "Saldo extra"));
+            db.AccountTransactions.Add(new AccountTransaction(account.Id, TestAccountsApiHost.TestUserId, spaceId, DateTime.UtcNow, AccountTransactionKind.Credit, 200m, "Saldo extra"));
 
-            var card = new Card(TestAccountsApiHost.TestUserId, 1, "Henrique Santos", "Visa resumo", "1234", "Banco X", 5000m, 10, 18);
+            var card = new Card(TestAccountsApiHost.TestUserId, spaceId, 1, "Henrique Santos", "Visa resumo", "1234", "Banco X", 5000m, 10, 18);
             db.Cards.Add(card);
 
             var cardPlan = new MoneyPlan(
                 TestAccountsApiHost.TestUserId,
+                spaceId,
                 MoneyType.Expense,
                 "Mercado cartao",
                 500m,
@@ -139,6 +143,7 @@ public class AccountsControllerSqliteIntegrationTests
                 cardId: card.Id);
             var otherPlan = new MoneyPlan(
                 TestAccountsApiHost.TestUserId,
+                spaceId,
                 MoneyType.Expense,
                 "Seguro anual",
                 400m,
@@ -149,6 +154,7 @@ public class AccountsControllerSqliteIntegrationTests
             var cardInstallment = new MoneyInstallment(
                 cardPlan.Id,
                 TestAccountsApiHost.TestUserId,
+                spaceId,
                 1,
                 new DateOnly(2026, 3, 18),
                 500m,
@@ -159,11 +165,12 @@ public class AccountsControllerSqliteIntegrationTests
             var otherInstallment = new MoneyInstallment(
                 otherPlan.Id,
                 TestAccountsApiHost.TestUserId,
+                spaceId,
                 1,
                 new DateOnly(2026, 3, 25),
                 400m);
             db.MoneyInstallments.AddRange(cardInstallment, otherInstallment);
-            db.MoneyPayments.Add(new MoneyPayment(cardInstallment.Id, TestAccountsApiHost.TestUserId, DateTime.UtcNow, 200m));
+            db.MoneyPayments.Add(new MoneyPayment(cardInstallment.Id, TestAccountsApiHost.TestUserId, spaceId, DateTime.UtcNow, 200m));
 
             return Task.CompletedTask;
         });
@@ -209,7 +216,7 @@ public class AccountsControllerSqliteIntegrationTests
         var created = await createResponse.Content.ReadFromJsonAsync<AccountResponse>();
 
         await host.SeedTransactionAsync(new AccountTransaction(
-            created!.Id, TestAccountsApiHost.TestUserId, DateTime.UtcNow, AccountTransactionKind.Credit, 50m, "Aporte"));
+            created!.Id, TestAccountsApiHost.TestUserId, Guid.NewGuid(), DateTime.UtcNow, AccountTransactionKind.Credit, 50m, "Aporte"));
 
         var deleteRequest = new HttpRequestMessage(HttpMethod.Delete, $"/api/v1/accounts/{created.Id}");
         deleteRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "token");
@@ -259,6 +266,7 @@ public class AccountsControllerSqliteIntegrationTests
             builder.Services.AddControllers().AddApplicationPart(typeof(AccountsController).Assembly);
             builder.Services.AddDbContext<InvestDbContext>(options => options.UseSqlite(connection));
             builder.Services.AddScoped<IInvestDbContext>(sp => sp.GetRequiredService<InvestDbContext>());
+            builder.Services.AddSingleton<ICurrentSpaceAccessor>(Mock.Of<ICurrentSpaceAccessor>());
 
             builder.Services.AddScoped<IAccountRepository, AccountRepository>();
             builder.Services.AddScoped<IAccountTransactionRepository, AccountTransactionRepository>();

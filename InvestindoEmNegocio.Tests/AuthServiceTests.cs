@@ -102,7 +102,7 @@ public class AuthServiceTests
     {
         var user = new User("User", "user@local", BCrypt.Net.BCrypt.HashPassword("Password123!"));
         user.Deactivate();
-        var stored = new RefreshToken(user.Id, "hashed-token", DateTime.UtcNow.AddDays(1));
+        var stored = new RefreshToken(user.Id, Guid.NewGuid(), "hashed-token", DateTime.UtcNow.AddDays(1));
 
         var refreshTokenRepository = new Mock<IRefreshTokenRepository>();
         refreshTokenRepository
@@ -125,7 +125,7 @@ public class AuthServiceTests
     [Fact]
     public async Task LogoutAsync_Should_Revoke_RefreshToken_When_Valid()
     {
-        var refreshToken = new RefreshToken(Guid.NewGuid(), "hashed-token", DateTime.UtcNow.AddDays(1));
+        var refreshToken = new RefreshToken(Guid.NewGuid(), Guid.NewGuid(), "hashed-token", DateTime.UtcNow.AddDays(1));
         var refreshTokenRepository = new Mock<IRefreshTokenRepository>();
         refreshTokenRepository
             .Setup(x => x.GetByTokenHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -143,7 +143,7 @@ public class AuthServiceTests
     public async Task RefreshAsync_Should_Rotate_RefreshToken_When_Valid()
     {
         var user = new User("User", "user@local", BCrypt.Net.BCrypt.HashPassword("Password123!"));
-        var storedRefreshToken = new RefreshToken(user.Id, "stored-hash", DateTime.UtcNow.AddDays(1));
+        var storedRefreshToken = new RefreshToken(user.Id, Guid.NewGuid(), "stored-hash", DateTime.UtcNow.AddDays(1));
         var refreshTokenRepository = new Mock<IRefreshTokenRepository>();
         refreshTokenRepository
             .Setup(x => x.GetByTokenHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -156,7 +156,7 @@ public class AuthServiceTests
 
         var jwtTokenGenerator = new Mock<IJwtTokenGenerator>();
         jwtTokenGenerator
-            .Setup(x => x.Generate(It.IsAny<User>()))
+            .Setup(x => x.Generate(It.IsAny<User>(), It.IsAny<Guid>()))
             .Returns(new TokenResult("new-access-token", DateTime.UtcNow.AddMinutes(30)));
 
         var sut = BuildSut(
@@ -341,8 +341,10 @@ public class AuthServiceTests
         Mock<IJwtTokenGenerator>? jwtTokenGenerator = null,
         Mock<IEmailSender>? emailSender = null)
     {
+        var spaceBootstrapService = Mock.Of<ISpaceBootstrapService>(x => x.EnsureDefaultSpaceAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()) == Task.FromResult(Guid.NewGuid()));
         var sessionService = new UserSessionService(
             refreshTokenRepository?.Object ?? Mock.Of<IRefreshTokenRepository>(),
+            spaceBootstrapService,
             jwtTokenGenerator?.Object ?? CreateDefaultTokenGenerator().Object,
             NullLogger<UserSessionService>.Instance);
         var bootstrapService = new UserAccountBootstrapService(
@@ -363,11 +365,13 @@ public class AuthServiceTests
         var authRegistrationService = new AuthRegistrationService(
             userRepository?.Object ?? Mock.Of<IUserRepository>(),
             bootstrapService,
+            spaceBootstrapService,
             sessionService,
             NullLogger<AuthRegistrationService>.Instance);
         var authAccessService = new AuthAccessService(
             userRepository?.Object ?? Mock.Of<IUserRepository>(),
             bootstrapService,
+            spaceBootstrapService,
             sessionService,
             NullLogger<AuthAccessService>.Instance);
         var authPasswordService = new AuthPasswordService(
@@ -386,7 +390,7 @@ public class AuthServiceTests
     {
         var jwt = new Mock<IJwtTokenGenerator>();
         jwt
-            .Setup(x => x.Generate(It.IsAny<User>()))
+            .Setup(x => x.Generate(It.IsAny<User>(), It.IsAny<Guid>()))
             .Returns(new TokenResult("access-token", DateTime.UtcNow.AddHours(1)));
         return jwt;
     }

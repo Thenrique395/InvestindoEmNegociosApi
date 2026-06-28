@@ -16,7 +16,8 @@ public class BankStatementImportEngineTests
     public async Task ImportAsync_Should_Skip_Duplicate_Transactions_When_Enabled()
     {
         var userId = Guid.NewGuid();
-        var account = new Account(userId, "Conta", AccountType.Checking, 0);
+        var spaceId = Guid.NewGuid();
+        var account = new Account(userId, spaceId, "Conta", AccountType.Checking, 0);
         var accountId = account.Id;
 
         var accountRepository = new Mock<IAccountRepository>();
@@ -29,7 +30,7 @@ public class BankStatementImportEngineTests
             .ReturnsAsync((Guid _, string _, IEnumerable<Guid> ids, CancellationToken _) =>
             {
                 var duplicate = ids.First();
-                return [new AccountTransaction(accountId, userId, DateTime.UtcNow, AccountTransactionKind.Debit, 10m, "Existente", "BankStatementImport", duplicate)];
+                return [new AccountTransaction(accountId, userId, spaceId, DateTime.UtcNow, AccountTransactionKind.Debit, 10m, "Existente", "BankStatementImport", duplicate)];
             });
         transactionRepository
             .Setup(x => x.AddAsync(It.IsAny<AccountTransaction>(), It.IsAny<CancellationToken>()))

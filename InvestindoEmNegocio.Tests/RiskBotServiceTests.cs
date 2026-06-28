@@ -16,6 +16,7 @@ public class RiskBotServiceTests
     public async Task AssessAsync_Should_Return_Critical_When_Projection_Is_Negative_And_Expenses_Are_Overdue()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var projection = new CashflowProjectionResponse(
             "month",
             new DateOnly(2026, 3, 9),
@@ -35,12 +36,12 @@ public class RiskBotServiceTests
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository.Setup(x => x.ListByUserAsync(userId, null, projection.ProjectionStart, projection.ProjectionEnd, MoneyType.Expense, It.IsAny<CancellationToken>()))
             .ReturnsAsync([
-                new MoneyInstallment(Guid.NewGuid(), userId, 1, new DateOnly(2026, 3, 8), 300m),
-                new MoneyInstallment(Guid.NewGuid(), userId, 2, new DateOnly(2026, 3, 10), 200m)
+                new MoneyInstallment(Guid.NewGuid(), userId, spaceId, 1, new DateOnly(2026, 3, 8), 300m),
+                new MoneyInstallment(Guid.NewGuid(), userId, spaceId, 2, new DateOnly(2026, 3, 10), 200m)
             ]);
         installmentRepository.Setup(x => x.ListByUserAsync(userId, InstallmentStatus.Open, projection.ProjectionStart, projection.ProjectionEnd, MoneyType.Income, It.IsAny<CancellationToken>()))
             .ReturnsAsync([
-                new MoneyInstallment(Guid.NewGuid(), userId, 1, new DateOnly(2026, 3, 15), 500m)
+                new MoneyInstallment(Guid.NewGuid(), userId, spaceId, 1, new DateOnly(2026, 3, 15), 500m)
             ]);
 
         var sut = new RiskBotService(installmentRepository.Object, projectionEngine.Object);

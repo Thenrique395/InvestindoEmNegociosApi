@@ -9,6 +9,7 @@ namespace InvestindoEmNegocio.Application.Services;
 public class AccountCommandService(
     IAccountRepository accountRepository,
     IAccountTransactionRepository accountTransactionRepository,
+    ICurrentSpaceAccessor currentSpaceAccessor,
     ILogger<AccountCommandService> logger) : IAccountCommandService
 {
     private readonly ILogger<AccountCommandService> _logger = logger;
@@ -18,7 +19,7 @@ public class AccountCommandService(
         if (await accountRepository.ExistsByNameAsync(userId, request.Name, null, cancellationToken))
             throw new ArgumentException("Já existe uma conta com esse nome.");
 
-        var account = new Account(userId, request.Name, request.Type, request.InitialBalance, request.Currency);
+        var account = new Account(userId, currentSpaceAccessor.RequireSpaceId(), request.Name, request.Type, request.InitialBalance, request.Currency);
         if (!request.IsActive) account.Deactivate();
 
         await accountRepository.AddAsync(account, cancellationToken);

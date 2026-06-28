@@ -88,6 +88,7 @@ public class NotificationApplicationServicesTests
     public async Task GenerateAsync_Should_Create_Income_Upcoming_Notification()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var profileRepository = new Mock<IUserProfileRepository>();
         profileRepository
@@ -113,8 +114,8 @@ public class NotificationApplicationServicesTests
                 goalInactivityEnabled: false,
                 goalInactivityDays: 0));
 
-        var plan = new MoneyPlan(userId, MoneyType.Income, "Salário", 150m, ScheduleType.OneTime, today, null, 1);
-        var installment = new MoneyInstallment(plan.Id, userId, 1, today.AddDays(1), 150m);
+        var plan = new MoneyPlan(userId, spaceId, MoneyType.Income, "Salário", 150m, ScheduleType.OneTime, today, null, 1);
+        var installment = new MoneyInstallment(plan.Id, userId, spaceId, 1, today.AddDays(1), 150m);
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository
             .Setup(x => x.ListByUserAsync(userId, null, null, null, null, It.IsAny<CancellationToken>()))
@@ -148,6 +149,7 @@ public class NotificationApplicationServicesTests
     public async Task GenerateAsync_Should_Not_Create_Duplicate_Notification_When_Reference_Exists()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var profileRepository = new Mock<IUserProfileRepository>();
         profileRepository
@@ -159,8 +161,8 @@ public class NotificationApplicationServicesTests
             .Setup(x => x.GetOrCreateAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new NotificationSettings(true, 3, false, 0, false, false, 0, false, false, false, false, false, false, 0));
 
-        var plan = new MoneyPlan(userId, MoneyType.Income, "Salário", 150m, ScheduleType.OneTime, today, null, 1);
-        var installment = new MoneyInstallment(plan.Id, userId, 1, today.AddDays(1), 150m);
+        var plan = new MoneyPlan(userId, spaceId, MoneyType.Income, "Salário", 150m, ScheduleType.OneTime, today, null, 1);
+        var installment = new MoneyInstallment(plan.Id, userId, spaceId, 1, today.AddDays(1), 150m);
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository
             .Setup(x => x.ListByUserAsync(userId, null, null, null, null, It.IsAny<CancellationToken>()))
@@ -212,6 +214,7 @@ public class NotificationApplicationServicesTests
     public async Task GenerateAsync_Should_Create_Card_Closing_Day_Notification()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var profileRepository = new Mock<IUserProfileRepository>();
         profileRepository
@@ -240,7 +243,7 @@ public class NotificationApplicationServicesTests
         var cardRepository = new Mock<ICardRepository>();
         cardRepository
             .Setup(x => x.ListByUserAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new Card(userId, 1, "User", "Cartão principal", "1234", null, 1000m, today.Day, today.Day == 28 ? 27 : 28)]);
+            .ReturnsAsync([new Card(userId, spaceId, 1, "User", "Cartão principal", "1234", null, 1000m, today.Day, today.Day == 28 ? 27 : 28)]);
 
         var notificationRepository = new Mock<IUserNotificationRepository>();
         notificationRepository
@@ -265,6 +268,7 @@ public class NotificationApplicationServicesTests
     public async Task GenerateAsync_Should_Create_Expense_Upcoming_And_Overdue_Notifications()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var profileRepository = new Mock<IUserProfileRepository>();
         profileRepository
@@ -290,10 +294,10 @@ public class NotificationApplicationServicesTests
                 goalInactivityEnabled: false,
                 goalInactivityDays: 0));
 
-        var expensePlan = new MoneyPlan(userId, MoneyType.Expense, "Conta", 200m, ScheduleType.Recurring, today, FrequencyType.Monthly, null);
-        var expensePlan2 = new MoneyPlan(userId, MoneyType.Expense, "Aluguel", 500m, ScheduleType.Recurring, today, FrequencyType.Monthly, null);
-        var upcomingInstallment = new MoneyInstallment(expensePlan.Id, userId, 1, today.AddDays(2), 100m);
-        var overdueInstallment = new MoneyInstallment(expensePlan2.Id, userId, 1, today.AddDays(-2), 200m);
+        var expensePlan = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Conta", 200m, ScheduleType.Recurring, today, FrequencyType.Monthly, null);
+        var expensePlan2 = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Aluguel", 500m, ScheduleType.Recurring, today, FrequencyType.Monthly, null);
+        var upcomingInstallment = new MoneyInstallment(expensePlan.Id, userId, spaceId, 1, today.AddDays(2), 100m);
+        var overdueInstallment = new MoneyInstallment(expensePlan2.Id, userId, spaceId, 1, today.AddDays(-2), 200m);
 
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository
@@ -331,6 +335,7 @@ public class NotificationApplicationServicesTests
     public async Task GenerateAsync_Should_Create_Goal_Notifications_For_Completed_Below_And_Inactive()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var profileRepository = new Mock<IUserProfileRepository>();
         profileRepository
@@ -356,9 +361,9 @@ public class NotificationApplicationServicesTests
                 goalInactivityEnabled: true,
                 goalInactivityDays: 5));
 
-        var completed = new Goal(userId, "Meta 1", 1000m, today.Year, status: GoalStatus.Completed, currentAmount: 1000m, expectedMonthly: 50m);
-        var below = new Goal(userId, "Meta 2", 1000m, today.Year, status: GoalStatus.InProgress, currentAmount: 10m, expectedMonthly: 200m);
-        var inactive = new Goal(userId, "Meta 3", 1000m, today.Year, status: GoalStatus.InProgress, currentAmount: 100m, expectedMonthly: 10m);
+        var completed = new Goal(userId, spaceId, "Meta 1", 1000m, today.Year, status: GoalStatus.Completed, currentAmount: 1000m, expectedMonthly: 50m);
+        var below = new Goal(userId, spaceId, "Meta 2", 1000m, today.Year, status: GoalStatus.InProgress, currentAmount: 10m, expectedMonthly: 200m);
+        var inactive = new Goal(userId, spaceId, "Meta 3", 1000m, today.Year, status: GoalStatus.InProgress, currentAmount: 100m, expectedMonthly: 10m);
 
         var goalRepository = new Mock<IGoalRepository>();
         goalRepository.Setup(x => x.ListByUserAsync(userId, null, null, It.IsAny<CancellationToken>()))
@@ -366,7 +371,7 @@ public class NotificationApplicationServicesTests
 
         var goalContributionRepository = new Mock<IGoalContributionRepository>();
         goalContributionRepository.Setup(x => x.ListByGoalAsync(inactive.Id, userId, It.IsAny<CancellationToken>(), It.IsAny<bool>()))
-            .ReturnsAsync([new GoalContribution(inactive.Id, userId, 50m, today.AddDays(-10))]);
+            .ReturnsAsync([new GoalContribution(inactive.Id, userId, spaceId, 50m, today.AddDays(-10))]);
         goalContributionRepository.Setup(x => x.ListByGoalAsync(completed.Id, userId, It.IsAny<CancellationToken>(), It.IsAny<bool>()))
             .ReturnsAsync([]);
         goalContributionRepository.Setup(x => x.ListByGoalAsync(below.Id, userId, It.IsAny<CancellationToken>(), It.IsAny<bool>()))
@@ -417,6 +422,7 @@ public class NotificationApplicationServicesTests
     public async Task GenerateAsync_Should_Create_CashflowInsight_With_Critical_Overdue_Expenses()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var profileRepository = new Mock<IUserProfileRepository>();
@@ -443,10 +449,10 @@ public class NotificationApplicationServicesTests
                 goalInactivityEnabled: false,
                 goalInactivityDays: 0));
 
-        var expensePlan = new MoneyPlan(userId, MoneyType.Expense, "Aluguel", 900m, ScheduleType.OneTime, today, null, 1);
-        var incomePlan = new MoneyPlan(userId, MoneyType.Income, "Salário", 1000m, ScheduleType.OneTime, today, null, 1);
-        var overdueExpense = new MoneyInstallment(expensePlan.Id, userId, 1, today.AddDays(-1), 900m);
-        var pendingIncome = new MoneyInstallment(incomePlan.Id, userId, 1, today.AddDays(5), 1000m);
+        var expensePlan = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Aluguel", 900m, ScheduleType.OneTime, today, null, 1);
+        var incomePlan = new MoneyPlan(userId, spaceId, MoneyType.Income, "Salário", 1000m, ScheduleType.OneTime, today, null, 1);
+        var overdueExpense = new MoneyInstallment(expensePlan.Id, userId, spaceId, 1, today.AddDays(-1), 900m);
+        var pendingIncome = new MoneyInstallment(incomePlan.Id, userId, spaceId, 1, today.AddDays(5), 1000m);
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository
             .Setup(x => x.ListByUserAsync(userId, null, null, null, null, It.IsAny<CancellationToken>()))
@@ -490,6 +496,7 @@ public class NotificationApplicationServicesTests
     public async Task GenerateAsync_Should_Create_CashflowInsight_With_Projected_Deficit_And_Risk_Day()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var profileRepository = new Mock<IUserProfileRepository>();
@@ -516,13 +523,13 @@ public class NotificationApplicationServicesTests
                 goalInactivityEnabled: false,
                 goalInactivityDays: 0));
 
-        var incomePlan = new MoneyPlan(userId, MoneyType.Income, "Salário", 100m, ScheduleType.OneTime, today, null, 1);
-        var expensePlan = new MoneyPlan(userId, MoneyType.Expense, "Cartão", 600m, ScheduleType.OneTime, today, null, 1);
-        var openIncomePlan = new MoneyPlan(userId, MoneyType.Income, "Freela", 100m, ScheduleType.OneTime, today, null, 1);
-        var receivedIncome = new MoneyInstallment(incomePlan.Id, userId, 1, today, 100m);
+        var incomePlan = new MoneyPlan(userId, spaceId, MoneyType.Income, "Salário", 100m, ScheduleType.OneTime, today, null, 1);
+        var expensePlan = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Cartão", 600m, ScheduleType.OneTime, today, null, 1);
+        var openIncomePlan = new MoneyPlan(userId, spaceId, MoneyType.Income, "Freela", 100m, ScheduleType.OneTime, today, null, 1);
+        var receivedIncome = new MoneyInstallment(incomePlan.Id, userId, spaceId, 1, today, 100m);
         SetInstallmentStatus(receivedIncome, InstallmentStatus.Paid);
-        var openExpense = new MoneyInstallment(expensePlan.Id, userId, 1, today.AddDays(1), 600m);
-        var openIncome = new MoneyInstallment(openIncomePlan.Id, userId, 1, today.AddDays(10), 100m);
+        var openExpense = new MoneyInstallment(expensePlan.Id, userId, spaceId, 1, today.AddDays(1), 600m);
+        var openIncome = new MoneyInstallment(openIncomePlan.Id, userId, spaceId, 1, today.AddDays(10), 100m);
 
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository
@@ -566,6 +573,7 @@ public class NotificationApplicationServicesTests
     public async Task GenerateAsync_Should_Create_Warning_Insight_When_Overdue_Expense_Is_Covered_By_Received_Income()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var profileRepository = new Mock<IUserProfileRepository>();
@@ -592,11 +600,11 @@ public class NotificationApplicationServicesTests
                 goalInactivityEnabled: false,
                 goalInactivityDays: 0));
 
-        var incomePlan = new MoneyPlan(userId, MoneyType.Income, "Salário", 1000m, ScheduleType.OneTime, today, null, 1);
-        var expensePlan = new MoneyPlan(userId, MoneyType.Expense, "Condomínio", 300m, ScheduleType.OneTime, today, null, 1);
-        var receivedIncome = new MoneyInstallment(incomePlan.Id, userId, 1, today, 1000m);
+        var incomePlan = new MoneyPlan(userId, spaceId, MoneyType.Income, "Salário", 1000m, ScheduleType.OneTime, today, null, 1);
+        var expensePlan = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Condomínio", 300m, ScheduleType.OneTime, today, null, 1);
+        var receivedIncome = new MoneyInstallment(incomePlan.Id, userId, spaceId, 1, today, 1000m);
         SetInstallmentStatus(receivedIncome, InstallmentStatus.Paid);
-        var overdueExpense = new MoneyInstallment(expensePlan.Id, userId, 1, today.AddDays(-1), 300m);
+        var overdueExpense = new MoneyInstallment(expensePlan.Id, userId, spaceId, 1, today.AddDays(-1), 300m);
 
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository
@@ -641,6 +649,7 @@ public class NotificationApplicationServicesTests
     public async Task GenerateAsync_Should_Include_Prioritized_Recommendations_And_ReasonCodes_In_Cashflow_Payload()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var profileRepository = new Mock<IUserProfileRepository>();
@@ -667,10 +676,10 @@ public class NotificationApplicationServicesTests
                 goalInactivityEnabled: false,
                 goalInactivityDays: 0));
 
-        var expensePlan = new MoneyPlan(userId, MoneyType.Expense, "Aluguel", 900m, ScheduleType.OneTime, today, null, 1);
-        var incomePlan = new MoneyPlan(userId, MoneyType.Income, "Salário", 500m, ScheduleType.OneTime, today, null, 1);
-        var overdueExpense = new MoneyInstallment(expensePlan.Id, userId, 1, today.AddDays(-1), 900m);
-        var pendingIncome = new MoneyInstallment(incomePlan.Id, userId, 1, today.AddDays(2), 500m);
+        var expensePlan = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Aluguel", 900m, ScheduleType.OneTime, today, null, 1);
+        var incomePlan = new MoneyPlan(userId, spaceId, MoneyType.Income, "Salário", 500m, ScheduleType.OneTime, today, null, 1);
+        var overdueExpense = new MoneyInstallment(expensePlan.Id, userId, spaceId, 1, today.AddDays(-1), 900m);
+        var pendingIncome = new MoneyInstallment(incomePlan.Id, userId, spaceId, 1, today.AddDays(2), 500m);
 
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository
@@ -727,6 +736,7 @@ public class NotificationApplicationServicesTests
     public async Task GenerateAsync_Should_Skip_Create_When_ListReferenceKeys_Returns_All_Candidates()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var profileRepository = new Mock<IUserProfileRepository>();
@@ -753,8 +763,8 @@ public class NotificationApplicationServicesTests
                 goalInactivityEnabled: false,
                 goalInactivityDays: 0));
 
-        var incomePlan = new MoneyPlan(userId, MoneyType.Income, "Receita", 500m, ScheduleType.OneTime, today, null, 1);
-        var installment = new MoneyInstallment(incomePlan.Id, userId, 1, today.AddDays(2), 500m);
+        var incomePlan = new MoneyPlan(userId, spaceId, MoneyType.Income, "Receita", 500m, ScheduleType.OneTime, today, null, 1);
+        var installment = new MoneyInstallment(incomePlan.Id, userId, spaceId, 1, today.AddDays(2), 500m);
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository
             .Setup(x => x.ListByUserAsync(userId, null, null, null, null, It.IsAny<CancellationToken>()))

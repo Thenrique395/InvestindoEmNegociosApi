@@ -9,10 +9,12 @@ namespace InvestindoEmNegocio.Application.Services;
 
 public sealed class DataPortabilityImportService(
     IInvestDbContext dbContext,
+    ICurrentSpaceAccessor currentSpaceAccessor,
     IMemoryCache cache) : IDataPortabilityImportService
 {
     public async Task<ImportUserDataResult> ImportAsync(Guid userId, Stream stream, bool replaceExisting, CancellationToken cancellationToken = default)
     {
+        var spaceId = currentSpaceAccessor.RequireSpaceId();
         var snapshot = await JsonSerializer.DeserializeAsync<UserDataSnapshot>(stream, DataPortabilityShared.JsonOptions, cancellationToken)
             ?? throw new InvalidOperationException("Arquivo de importação inválido.");
 
@@ -100,6 +102,7 @@ public sealed class DataPortabilityImportService(
 
             var card = new Card(
                 userId,
+                spaceId,
                 c.BrandId,
                 holderName,
                 nickname,
@@ -126,6 +129,7 @@ public sealed class DataPortabilityImportService(
 
             var goal = new Goal(
                 userId,
+                spaceId,
                 title,
                 g.TargetAmount,
                 g.Year,
@@ -150,7 +154,7 @@ public sealed class DataPortabilityImportService(
                 ? newCardId
                 : p.CardId;
 
-            var plan = DataPortabilityImportHydrator.CreateMoneyPlan(userId, p, title, categoryId, cardId);
+            var plan = DataPortabilityImportHydrator.CreateMoneyPlan(userId, spaceId, p, title, categoryId, cardId);
             await dbContext.MoneyPlans.AddAsync(plan, cancellationToken);
             planMap[p.Id] = plan.Id;
             importedRecords++;
@@ -161,7 +165,7 @@ public sealed class DataPortabilityImportService(
             if (!planMap.TryGetValue(i.PlanId, out var mappedPlanId))
                 continue;
 
-            var installment = DataPortabilityImportHydrator.CreateMoneyInstallment(userId, mappedPlanId, i);
+            var installment = DataPortabilityImportHydrator.CreateMoneyInstallment(userId, spaceId, mappedPlanId, i);
             await dbContext.MoneyInstallments.AddAsync(installment, cancellationToken);
             installmentMap[i.Id] = installment.Id;
             importedRecords++;
@@ -172,7 +176,7 @@ public sealed class DataPortabilityImportService(
             if (!installmentMap.TryGetValue(p.InstallmentId, out var mappedInstallmentId))
                 continue;
 
-            var payment = new MoneyPayment(mappedInstallmentId, userId, p.PaidAt, p.PaidAmount, p.MethodId, p.Note);
+            var payment = new MoneyPayment(mappedInstallmentId, userId, spaceId, p.PaidAt, p.PaidAmount, p.MethodId, p.Note);
             await dbContext.MoneyPayments.AddAsync(payment, cancellationToken);
             importedRecords++;
         }
@@ -182,7 +186,7 @@ public sealed class DataPortabilityImportService(
             if (!goalMap.TryGetValue(c.GoalId, out var mappedGoalId))
                 continue;
 
-            var contribution = new GoalContribution(mappedGoalId, userId, c.Amount, c.Date, c.Note);
+            var contribution = new GoalContribution(mappedGoalId, userId, spaceId, c.Amount, c.Date, c.Note);
             await dbContext.GoalContributions.AddAsync(contribution, cancellationToken);
             importedRecords++;
         }
@@ -223,6 +227,7 @@ public sealed class DataPortabilityImportService(
         {
             var position = new InvestmentPosition(
                 userId,
+                spaceId,
                 p.Type,
                 DataPortabilityShared.RequireTrimmedValue(p.Asset, $"investmentPositions[{p.Id}].asset"),
                 p.Quantity,

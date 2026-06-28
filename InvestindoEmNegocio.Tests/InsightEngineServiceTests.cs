@@ -16,6 +16,7 @@ public class InsightEngineServiceTests
     public async Task BuildAsync_Should_Prioritize_Reactive_Insight_When_There_Are_Overdue_Expenses()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var risk = new RiskBotAssessmentResponse(
             "month",
             new DateOnly(2026, 3, 9),
@@ -52,12 +53,12 @@ public class InsightEngineServiceTests
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository.Setup(x => x.ListByUserAsync(userId, null, projection.ProjectionStart, projection.ProjectionEnd, MoneyType.Expense, It.IsAny<CancellationToken>()))
             .ReturnsAsync([
-                new MoneyInstallment(Guid.NewGuid(), userId, 1, new DateOnly(2026, 3, 8), 200m),
-                new MoneyInstallment(Guid.NewGuid(), userId, 2, new DateOnly(2026, 3, 11), 120m)
+                new MoneyInstallment(Guid.NewGuid(), userId, Guid.NewGuid(), 1, new DateOnly(2026, 3, 8), 200m),
+                new MoneyInstallment(Guid.NewGuid(), userId, Guid.NewGuid(), 2, new DateOnly(2026, 3, 11), 120m)
             ]);
         installmentRepository.Setup(x => x.ListByUserAsync(userId, InstallmentStatus.Open, projection.ProjectionStart, projection.ProjectionEnd, MoneyType.Income, It.IsAny<CancellationToken>()))
             .ReturnsAsync([
-                new MoneyInstallment(Guid.NewGuid(), userId, 1, new DateOnly(2026, 3, 15), 300m)
+                new MoneyInstallment(Guid.NewGuid(), userId, Guid.NewGuid(), 1, new DateOnly(2026, 3, 15), 300m)
             ]);
 
         var profileRepository = new Mock<IUserProfileRepository>();

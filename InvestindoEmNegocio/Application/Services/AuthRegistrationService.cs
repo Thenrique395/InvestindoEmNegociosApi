@@ -12,6 +12,7 @@ using BCryptNet = BCrypt.Net.BCrypt;
 public class AuthRegistrationService(
     IUserRepository userRepository,
     IUserAccountBootstrapService userAccountBootstrapService,
+    ISpaceBootstrapService spaceBootstrapService,
     IUserSessionService userSessionService,
     ILogger<AuthRegistrationService> logger) : IAuthRegistrationService
 {
@@ -32,9 +33,10 @@ public class AuthRegistrationService(
 
         await userRepository.AddAsync(user, cancellationToken);
         await userRepository.SaveChangesAsync(cancellationToken);
-        await userAccountBootstrapService.EnsureDefaultAccountForBasicAsync(user, cancellationToken);
+        var spaceId = await spaceBootstrapService.EnsureDefaultSpaceAsync(user, cancellationToken);
+        await userAccountBootstrapService.EnsureDefaultAccountForBasicAsync(user, spaceId, cancellationToken);
 
         _logger.LogInformation("User registered {UserId}", user.Id);
-        return await userSessionService.IssueAsync(user, cancellationToken);
+        return await userSessionService.IssueAsync(user, spaceId, cancellationToken);
     }
 }

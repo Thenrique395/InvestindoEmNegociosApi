@@ -76,8 +76,8 @@ public class PreferenceSettingsAndPrivacyCenterServiceTests
         await dbContext.Users.AddAsync(user);
         await dbContext.UserProfiles.AddAsync(new UserProfile(userId));
         await dbContext.Categories.AddAsync(new Category(userId, "Moradia", MoneyType.Expense));
-        await dbContext.Accounts.AddAsync(new Account(userId, "Conta principal", AccountType.Checking, 1000m));
-        await dbContext.RefreshTokens.AddAsync(new RefreshToken(userId, "refresh-hash", DateTime.UtcNow.AddDays(7)));
+        await dbContext.Accounts.AddAsync(new Account(userId, Guid.NewGuid(), "Conta principal", AccountType.Checking, 1000m));
+        await dbContext.RefreshTokens.AddAsync(new RefreshToken(userId, Guid.NewGuid(), "refresh-hash", DateTime.UtcNow.AddDays(7)));
         await dbContext.PasswordResetTokens.AddAsync(new PasswordResetToken(userId, "reset-hash", DateTime.UtcNow.AddHours(1)));
         await dbContext.AuditLogs.AddAsync(new AuditLog(userId, "account.delete.requested", "User", userId.ToString(), null, null, null));
         await dbContext.SaveChangesAsync();
@@ -140,8 +140,8 @@ public class PreferenceSettingsAndPrivacyCenterServiceTests
 
         await dbContext.Users.AddAsync(user);
         await dbContext.RefreshTokens.AddRangeAsync(
-            new RefreshToken(userId, "refresh-1", DateTime.UtcNow.AddHours(2)),
-            new RefreshToken(userId, "refresh-2", DateTime.UtcNow.AddHours(-1)));
+            new RefreshToken(userId, Guid.NewGuid(), "refresh-1", DateTime.UtcNow.AddHours(2)),
+            new RefreshToken(userId, Guid.NewGuid(), "refresh-2", DateTime.UtcNow.AddHours(-1)));
         await dbContext.PasswordResetTokens.AddAsync(new PasswordResetToken(userId, "reset-1", DateTime.UtcNow.AddHours(2)));
         await dbContext.AuditLogs.AddRangeAsync(
             new AuditLog(userId, "login", "Auth", null, null, null, null),
@@ -171,9 +171,9 @@ public class PreferenceSettingsAndPrivacyCenterServiceTests
 
         await dbContext.Users.AddAsync(user);
         await dbContext.RefreshTokens.AddRangeAsync(
-            new RefreshToken(userId, "refresh-1", DateTime.UtcNow.AddHours(2)),
-            new RefreshToken(userId, "refresh-2", DateTime.UtcNow.AddHours(2)),
-            new RefreshToken(userId, "refresh-3", DateTime.UtcNow.AddHours(-2)));
+            new RefreshToken(userId, Guid.NewGuid(), "refresh-1", DateTime.UtcNow.AddHours(2)),
+            new RefreshToken(userId, Guid.NewGuid(), "refresh-2", DateTime.UtcNow.AddHours(2)),
+            new RefreshToken(userId, Guid.NewGuid(), "refresh-3", DateTime.UtcNow.AddHours(-2)));
         await dbContext.SaveChangesAsync();
 
         var sut = new UserPrivacyCenterService(userRepository, refreshTokenRepository, Mock.Of<IAuditService>(), dbContext);
@@ -197,7 +197,7 @@ public class PreferenceSettingsAndPrivacyCenterServiceTests
         var userId = user.Id;
 
         await dbContext.Users.AddAsync(user);
-        await dbContext.RefreshTokens.AddAsync(new RefreshToken(userId, "refresh-1", DateTime.UtcNow.AddHours(2)));
+        await dbContext.RefreshTokens.AddAsync(new RefreshToken(userId, Guid.NewGuid(), "refresh-1", DateTime.UtcNow.AddHours(2)));
         await dbContext.SaveChangesAsync();
 
         var sut = new UserPrivacyCenterService(userRepository, refreshTokenRepository, Mock.Of<IAuditService>(), dbContext);

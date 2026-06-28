@@ -17,6 +17,7 @@ public class CardsService(
     IMoneyInstallmentRepository installmentRepository,
     IMoneyPaymentRepository paymentRepository,
     IMoneyPlanRepository planRepository,
+    ICurrentSpaceAccessor currentSpaceAccessor,
     ILogger<CardsService> logger)
     : ICardsService
 {
@@ -39,6 +40,7 @@ public class CardsService(
 
         var card = new Card(
             userId,
+            currentSpaceAccessor.RequireSpaceId(),
             request.BrandId,
             request.HolderName,
             nickname,

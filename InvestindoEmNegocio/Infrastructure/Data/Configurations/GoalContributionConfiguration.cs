@@ -16,6 +16,8 @@ public class GoalContributionConfiguration : IEntityTypeConfiguration<GoalContri
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.DeletedAt);
 
+        builder.Property(x => x.SpaceId).IsRequired();
+
         builder.HasIndex(x => new { x.GoalId, x.Date });
 
         builder.HasQueryFilter(x => x.DeletedAt == null);

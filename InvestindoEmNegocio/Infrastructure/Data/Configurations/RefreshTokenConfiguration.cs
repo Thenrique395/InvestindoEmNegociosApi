@@ -15,6 +15,9 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
         builder.Property(rt => rt.UserId)
             .IsRequired();
 
+        builder.Property(rt => rt.SpaceId)
+            .IsRequired();
+
         builder.Property(rt => rt.TokenHash)
             .IsRequired()
             .HasMaxLength(200);

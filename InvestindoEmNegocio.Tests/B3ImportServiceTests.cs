@@ -1,5 +1,6 @@
 using FluentAssertions;
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
@@ -8,6 +9,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using System.Reflection;
 
 namespace InvestindoEmNegocio.Tests;
@@ -18,7 +20,7 @@ public class B3ImportServiceTests
     public async Task ConfirmAsync_Should_Throw_When_Token_Does_Not_Exist()
     {
         await using var dbContext = CreateDbContext();
-        var sut = new B3ImportService(dbContext, new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
+        var sut = new B3ImportService(dbContext, CreateSpaceAccessor(), new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
 
         Func<Task> act = async () => await sut.ConfirmAsync(Guid.NewGuid(), new ConfirmB3ImportRequest("missing"), CancellationToken.None);
 
@@ -30,7 +32,7 @@ public class B3ImportServiceTests
     public async Task ImportSnapshotAsync_Should_Create_New_Position_When_Not_Exists()
     {
         await using var dbContext = CreateDbContext();
-        var sut = new B3ImportService(dbContext, new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
+        var sut = new B3ImportService(dbContext, CreateSpaceAccessor(), new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
 
         var userId = Guid.NewGuid();
         var snapshot = new B3ImportSnapshot(
@@ -55,7 +57,7 @@ public class B3ImportServiceTests
     {
         await using var dbContext = CreateDbContext();
         var cache = new MemoryCache(new MemoryCacheOptions());
-        var sut = new B3ImportService(dbContext, cache, NullLogger<B3ImportService>.Instance);
+        var sut = new B3ImportService(dbContext, CreateSpaceAccessor(), cache, NullLogger<B3ImportService>.Instance);
 
         var token = "foreign-token";
         var ownerUserId = Guid.NewGuid();
@@ -75,11 +77,13 @@ public class B3ImportServiceTests
     public async Task ImportSnapshotAsync_Should_Replace_Matching_Position_When_Strategy_Is_Replace()
     {
         await using var dbContext = CreateDbContext();
-        var sut = new B3ImportService(dbContext, new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
+        var sut = new B3ImportService(dbContext, CreateSpaceAccessor(), new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
         var userId = Guid.NewGuid();
 
+        var spaceId = Guid.NewGuid();
         var oldImported = new InvestmentPosition(
             userId,
+            spaceId,
             InvestmentType.ACOES,
             "PETR4",
             5m,
@@ -89,6 +93,7 @@ public class B3ImportServiceTests
             "B3");
         var unrelated = new InvestmentPosition(
             userId,
+            spaceId,
             InvestmentType.ACOES,
             "VALE3",
             3m,
@@ -122,11 +127,12 @@ public class B3ImportServiceTests
     public async Task ImportSnapshotAsync_Should_Not_Duplicate_Trade_Movement_When_Already_Exists()
     {
         await using var dbContext = CreateDbContext();
-        var sut = new B3ImportService(dbContext, new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
+        var sut = new B3ImportService(dbContext, CreateSpaceAccessor(), new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
         var userId = Guid.NewGuid();
 
         var position = new InvestmentPosition(
             userId,
+            Guid.NewGuid(),
             InvestmentType.ACOES,
             "PETR4",
             10m,
@@ -171,7 +177,7 @@ public class B3ImportServiceTests
     {
         await using var dbContext = CreateDbContext();
         var cache = new MemoryCache(new MemoryCacheOptions());
-        var sut = new B3ImportService(dbContext, cache, NullLogger<B3ImportService>.Instance);
+        var sut = new B3ImportService(dbContext, CreateSpaceAccessor(), cache, NullLogger<B3ImportService>.Instance);
         var userId = Guid.NewGuid();
         var token = "valid-token";
         cache.Set(token, BuildCachedSnapshot(userId));
@@ -187,7 +193,7 @@ public class B3ImportServiceTests
     {
         await using var dbContext = CreateDbContext();
         var cache = new MemoryCache(new MemoryCacheOptions());
-        var sut = new B3ImportService(dbContext, cache, NullLogger<B3ImportService>.Instance);
+        var sut = new B3ImportService(dbContext, CreateSpaceAccessor(), cache, NullLogger<B3ImportService>.Instance);
 
         Func<Task> act = async () => await sut.ConfirmAsync(Guid.NewGuid(), new ConfirmB3ImportRequest(""), CancellationToken.None);
 
@@ -199,10 +205,11 @@ public class B3ImportServiceTests
     public async Task ImportSnapshotAsync_Should_Add_Income_Movements_With_Correct_Types()
     {
         await using var dbContext = CreateDbContext();
-        var sut = new B3ImportService(dbContext, new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
+        var sut = new B3ImportService(dbContext, CreateSpaceAccessor(), new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
         var userId = Guid.NewGuid();
         var position = new InvestmentPosition(
             userId,
+            Guid.NewGuid(),
             InvestmentType.ACOES,
             "PETR4",
             10m,
@@ -239,7 +246,7 @@ public class B3ImportServiceTests
     public async Task ImportSnapshotAsync_Should_Ignore_Position_When_AssetCode_Is_Empty()
     {
         await using var dbContext = CreateDbContext();
-        var sut = new B3ImportService(dbContext, new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
+        var sut = new B3ImportService(dbContext, CreateSpaceAccessor(), new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
 
         var snapshot = new B3ImportSnapshot(
             "02/2026",
@@ -259,11 +266,12 @@ public class B3ImportServiceTests
     public async Task ImportSnapshotAsync_Should_Add_Sell_Trade_And_Income_With_Default_Quantity_And_Price()
     {
         await using var dbContext = CreateDbContext();
-        var sut = new B3ImportService(dbContext, new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
+        var sut = new B3ImportService(dbContext, CreateSpaceAccessor(), new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
         var userId = Guid.NewGuid();
 
         var position = new InvestmentPosition(
             userId,
+            Guid.NewGuid(),
             InvestmentType.ACOES,
             "PETR4",
             10m,
@@ -295,11 +303,12 @@ public class B3ImportServiceTests
     public async Task ImportSnapshotAsync_Should_Update_Existing_Account_And_Category_When_Empty()
     {
         await using var dbContext = CreateDbContext();
-        var sut = new B3ImportService(dbContext, new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
+        var sut = new B3ImportService(dbContext, CreateSpaceAccessor(), new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
         var userId = Guid.NewGuid();
 
         var existing = new InvestmentPosition(
             userId,
+            Guid.NewGuid(),
             InvestmentType.ACOES,
             "PETR4",
             1m,
@@ -331,6 +340,15 @@ public class B3ImportServiceTests
         created.Category.Should().Be("B3");
         created.Quantity.Should().Be(5m);
         created.AvgPrice.Should().Be(35m);
+    }
+
+    private static ICurrentSpaceAccessor CreateSpaceAccessor()
+    {
+        var spaceId = Guid.NewGuid();
+        var spaceAccessor = new Mock<ICurrentSpaceAccessor>();
+        spaceAccessor.Setup(x => x.SpaceId).Returns(spaceId);
+        spaceAccessor.Setup(x => x.RequireSpaceId()).Returns(spaceId);
+        return spaceAccessor.Object;
     }
 
     private static InvestDbContext CreateDbContext()

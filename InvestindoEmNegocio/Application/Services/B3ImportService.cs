@@ -13,6 +13,7 @@ namespace InvestindoEmNegocio.Application.Services;
 
 public sealed class B3ImportService(
     IInvestDbContext dbContext,
+    ICurrentSpaceAccessor currentSpaceAccessor,
     IMemoryCache memoryCache,
     ILogger<B3ImportService> logger) : IB3ImportService
 {
@@ -138,6 +139,7 @@ public sealed class B3ImportService(
             {
                 var created = new InvestmentPosition(
                     userId,
+                    currentSpaceAccessor.RequireSpaceId(),
                     ResolveInvestmentType(assetCode),
                     assetCode,
                     parsedPosition.Quantity,

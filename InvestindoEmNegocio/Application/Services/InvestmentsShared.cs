@@ -8,7 +8,7 @@ internal static class InvestmentsShared
 {
     public const decimal TotalAllocation = 100m;
 
-    public static string PositionsCacheKey(Guid userId) => $"investments:positions:{userId:N}";
+    public static string PositionsCacheKey(Guid userId, Guid? spaceId) => $"investments:positions:{userId:N}:{spaceId:N}";
 
     public static InvestmentAllocationTargetDto MapAllocation(decimal rf, decimal acoes, decimal fundos, decimal cripto)
     {

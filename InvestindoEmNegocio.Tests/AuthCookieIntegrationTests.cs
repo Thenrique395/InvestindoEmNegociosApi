@@ -308,7 +308,7 @@ public class AuthCookieIntegrationTests
 
         private AuthResponse BuildAuthResponse()
         {
-            var token = jwtTokenGenerator.Generate(TestUser);
+            var token = jwtTokenGenerator.Generate(TestUser, Guid.NewGuid());
             return new AuthResponse(TestUser.Id, TestUser.Name, TestUser.Email, TestUser.Role.ToString(), token.Token, "refresh-token-value", token.ExpiresAt);
         }
 

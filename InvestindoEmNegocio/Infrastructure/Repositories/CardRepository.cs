@@ -1,3 +1,4 @@
+using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Repositories;
 using InvestindoEmNegocio.Infrastructure.Data;
@@ -5,19 +6,23 @@ using Microsoft.EntityFrameworkCore;
 
 namespace InvestindoEmNegocio.Infrastructure.Repositories;
 
-public class CardRepository(InvestDbContext context) : ICardRepository
+public class CardRepository(InvestDbContext context, ICurrentSpaceAccessor currentSpaceAccessor) : ICardRepository
 {
     public async Task<List<Card>> ListByUserAsync(Guid userId, CancellationToken cancellationToken = default)
     {
+        var spaceId = currentSpaceAccessor.SpaceId;
         return await context.Cards.AsNoTracking()
-            .Where(c => c.UserId == userId)
+            .Where(c => c.UserId == userId && (!spaceId.HasValue || c.SpaceId == spaceId.Value))
             .OrderBy(c => c.Nickname)
             .ToListAsync(cancellationToken);
     }
 
     public async Task<Card?> GetByIdAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
     {
-        return await context.Cards.FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId, cancellationToken);
+        var spaceId = currentSpaceAccessor.SpaceId;
+        return await context.Cards.FirstOrDefaultAsync(
+            c => c.Id == id && c.UserId == userId && (!spaceId.HasValue || c.SpaceId == spaceId.Value),
+            cancellationToken);
     }
 
     public async Task<bool> NicknameExistsAsync(Guid userId, string nickname, Guid? excludeCardId = null, CancellationToken cancellationToken = default)

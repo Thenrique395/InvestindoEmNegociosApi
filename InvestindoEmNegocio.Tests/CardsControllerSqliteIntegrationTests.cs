@@ -24,6 +24,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Moq;
 
 namespace InvestindoEmNegocio.Tests;
 
@@ -61,6 +62,7 @@ public class CardsControllerSqliteIntegrationTests
         {
             var plan = new MoneyPlan(
                 TestCardsApiHost.TestUserId,
+                Guid.NewGuid(),
                 MoneyType.Expense,
                 "Mercado mensal",
                 300m,
@@ -72,6 +74,7 @@ public class CardsControllerSqliteIntegrationTests
             var installment = new MoneyInstallment(
                 plan.Id,
                 TestCardsApiHost.TestUserId,
+                plan.SpaceId,
                 1,
                 dueDate,
                 300m,
@@ -80,7 +83,7 @@ public class CardsControllerSqliteIntegrationTests
                 statementCloseDate: closeDate,
                 statementDueDate: dueDate);
             db.MoneyInstallments.Add(installment);
-            db.MoneyPayments.Add(new MoneyPayment(installment.Id, TestCardsApiHost.TestUserId, DateTime.UtcNow, 120m));
+            db.MoneyPayments.Add(new MoneyPayment(installment.Id, TestCardsApiHost.TestUserId, installment.SpaceId, DateTime.UtcNow, 120m));
             return Task.CompletedTask;
         });
 
@@ -179,6 +182,7 @@ public class CardsControllerSqliteIntegrationTests
             builder.Services.AddScoped<IMoneyPaymentRepository, MoneyPaymentRepository>();
             builder.Services.AddScoped<IMoneyPlanRepository, MoneyPlanRepository>();
             builder.Services.AddScoped<ICardsService, CardsService>();
+            builder.Services.AddSingleton<ICurrentSpaceAccessor>(Mock.Of<ICurrentSpaceAccessor>(x => x.RequireSpaceId() == Guid.NewGuid()));
             builder.Services.AddSingleton<IAuditService, NoOpAuditService>();
 
             builder.Services.AddAuthentication(options =>

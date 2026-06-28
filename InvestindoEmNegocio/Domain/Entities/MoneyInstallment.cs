@@ -8,6 +8,7 @@ public class MoneyInstallment : ISoftDeletable
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid PlanId { get; private set; }
     public Guid UserId { get; private set; }
+    public Guid SpaceId { get; private set; }
     public int InstallmentNo { get; private set; }
     public DateOnly DueDate { get; private set; }
     public DateOnly? OriginalDueDate { get; private set; }
@@ -26,6 +27,7 @@ public class MoneyInstallment : ISoftDeletable
     public MoneyInstallment(
         Guid planId,
         Guid userId,
+        Guid spaceId,
         int installmentNo,
         DateOnly dueDate,
         decimal amount,
@@ -37,6 +39,7 @@ public class MoneyInstallment : ISoftDeletable
     {
         PlanId = planId;
         UserId = userId;
+        SpaceId = spaceId;
         InstallmentNo = installmentNo;
         DueDate = dueDate;
         OriginalDueDate = originalDueDate;

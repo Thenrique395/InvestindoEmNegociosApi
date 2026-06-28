@@ -45,7 +45,7 @@ public class GoalContributionsServiceTests
     {
         var userId = Guid.NewGuid();
         var goalId = Guid.NewGuid();
-        var goal = new Goal(userId, "Reserva", 1000, 2026, currentAmount: 900, status: GoalStatus.InProgress);
+        var goal = new Goal(userId, Guid.NewGuid(), "Reserva", 1000, 2026, currentAmount: 900, status: GoalStatus.InProgress);
 
         var goalRepository = new Mock<IGoalRepository>();
         goalRepository

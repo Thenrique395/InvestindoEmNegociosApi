@@ -27,7 +27,7 @@ public class DomainEntitiesTests
     [Fact]
     public void Goal_AddContribution_Should_Move_Status_And_Cap_At_Target()
     {
-        var goal = new Goal(Guid.NewGuid(), "Reserva", targetAmount: 1000m, year: 2026);
+        var goal = new Goal(Guid.NewGuid(), Guid.NewGuid(), "Reserva", targetAmount: 1000m, year: 2026);
 
         goal.AddContribution(200m);
         goal.CurrentAmount.Should().Be(200m);
@@ -41,7 +41,7 @@ public class DomainEntitiesTests
     [Fact]
     public void Goal_AddContribution_Should_Not_Change_When_Amount_Is_Not_Positive()
     {
-        var goal = new Goal(Guid.NewGuid(), "Viagem", targetAmount: 500m, year: 2026, currentAmount: 100m, status: GoalStatus.Planned);
+        var goal = new Goal(Guid.NewGuid(), Guid.NewGuid(), "Viagem", targetAmount: 500m, year: 2026, currentAmount: 100m, status: GoalStatus.Planned);
 
         goal.AddContribution(0m);
         goal.AddContribution(-10m);
@@ -54,9 +54,10 @@ public class DomainEntitiesTests
     public void MoneyPlan_Should_Enforce_Schedule_Invariants()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
 
-        var invalidOneTime = () => new MoneyPlan(userId, MoneyType.Expense, "Plano", 100m, ScheduleType.OneTime, new DateOnly(2026, 1, 1), installmentsCount: 2);
-        var invalidRecurring = () => new MoneyPlan(userId, MoneyType.Expense, "Plano", 100m, ScheduleType.Recurring, new DateOnly(2026, 1, 1), frequency: null, installmentsCount: null);
+        var invalidOneTime = () => new MoneyPlan(userId, spaceId, MoneyType.Expense, "Plano", 100m, ScheduleType.OneTime, new DateOnly(2026, 1, 1), installmentsCount: 2);
+        var invalidRecurring = () => new MoneyPlan(userId, spaceId, MoneyType.Expense, "Plano", 100m, ScheduleType.Recurring, new DateOnly(2026, 1, 1), frequency: null, installmentsCount: null);
 
         invalidOneTime.Should().Throw<ArgumentException>().WithMessage("*ONE_TIME requer installmentsCount = 1*");
         invalidRecurring.Should().Throw<ArgumentException>().WithMessage("*RECURRING requer frequency*");

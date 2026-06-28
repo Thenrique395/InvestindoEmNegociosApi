@@ -10,6 +10,7 @@ using BCryptNet = BCrypt.Net.BCrypt;
 public class AuthAccessService(
     IUserRepository userRepository,
     IUserAccountBootstrapService userAccountBootstrapService,
+    ISpaceBootstrapService spaceBootstrapService,
     IUserSessionService userSessionService,
     ILogger<AuthAccessService> logger) : IAuthAccessService
 {
@@ -52,12 +53,13 @@ public class AuthAccessService(
         if (user.FailedLoginAttempts > 0 || user.LockoutUntil.HasValue)
             user.ResetFailedLogins(now);
 
-        await userAccountBootstrapService.EnsureDefaultAccountForBasicAsync(user, cancellationToken);
+        var spaceId = await spaceBootstrapService.EnsureDefaultSpaceAsync(user, cancellationToken);
+        await userAccountBootstrapService.EnsureDefaultAccountForBasicAsync(user, spaceId, cancellationToken);
         user.UpdateLastLogin(now);
         await userRepository.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("User logged in {UserId}", user.Id);
-        return await userSessionService.IssueAsync(user, cancellationToken);
+        return await userSessionService.IssueAsync(user, spaceId, cancellationToken);
     }
 
     public async Task<AuthResponse> RefreshAsync(RefreshTokenRequest request, CancellationToken cancellationToken = default)

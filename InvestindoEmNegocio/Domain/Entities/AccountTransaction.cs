@@ -8,6 +8,7 @@ public class AccountTransaction : ISoftDeletable
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid AccountId { get; private set; }
     public Guid UserId { get; private set; }
+    public Guid SpaceId { get; private set; }
     public DateTime OccurredAt { get; private set; }
     public AccountTransactionKind Kind { get; private set; }
     public decimal Amount { get; private set; }
@@ -22,6 +23,7 @@ public class AccountTransaction : ISoftDeletable
     public AccountTransaction(
         Guid accountId,
         Guid userId,
+        Guid spaceId,
         DateTime occurredAt,
         AccountTransactionKind kind,
         decimal amount,
@@ -34,6 +36,7 @@ public class AccountTransaction : ISoftDeletable
 
         AccountId = accountId;
         UserId = userId;
+        SpaceId = spaceId;
         OccurredAt = occurredAt.Kind == DateTimeKind.Utc ? occurredAt : DateTime.SpecifyKind(occurredAt, DateTimeKind.Utc);
         Kind = kind;
         Amount = amount;

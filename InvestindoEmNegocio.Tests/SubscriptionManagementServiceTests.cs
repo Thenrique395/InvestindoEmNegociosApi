@@ -24,7 +24,8 @@ public class SubscriptionManagementServiceTests
         IBillingCheckoutRepository? billingCheckoutRepository = null)
     {
         var jwtMock = jwt ?? Mock.Of<IJwtTokenGenerator>();
-        var userSessionService = new UserSessionService(new RefreshTokenRepository(dbContext), jwtMock, Mock.Of<ILogger<UserSessionService>>());
+        var spaceBootstrapServiceMock = Mock.Of<ISpaceBootstrapService>(x => x.EnsureDefaultSpaceAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()) == Task.FromResult(Guid.NewGuid()));
+        var userSessionService = new UserSessionService(new RefreshTokenRepository(dbContext), spaceBootstrapServiceMock, jwtMock, Mock.Of<ILogger<UserSessionService>>());
         return new SubscriptionManagementService(
             new UserRepository(dbContext),
             new UserSubscriptionRepository(dbContext),
@@ -45,7 +46,7 @@ public class SubscriptionManagementServiceTests
         await dbContext.SaveChangesAsync();
 
         var jwt = new Mock<IJwtTokenGenerator>();
-        jwt.Setup(x => x.Generate(It.IsAny<User>()))
+        jwt.Setup(x => x.Generate(It.IsAny<User>(), It.IsAny<Guid>()))
             .Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
 
         var result = await CreateSut(dbContext, jwt.Object).ChangeAsync(user.Id, new("basic", "Monthly"));
@@ -74,7 +75,7 @@ public class SubscriptionManagementServiceTests
         await dbContext.SaveChangesAsync();
 
         var jwt = new Mock<IJwtTokenGenerator>();
-        jwt.Setup(x => x.Generate(It.IsAny<User>()))
+        jwt.Setup(x => x.Generate(It.IsAny<User>(), It.IsAny<Guid>()))
             .Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
 
         var result = await CreateSut(dbContext, jwt.Object).CancelAsync(user.Id);
@@ -119,7 +120,7 @@ public class SubscriptionManagementServiceTests
         await dbContext2.SaveChangesAsync();
 
         var jwt = new Mock<IJwtTokenGenerator>();
-        jwt.Setup(x => x.Generate(It.IsAny<User>())).Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
+        jwt.Setup(x => x.Generate(It.IsAny<User>(), It.IsAny<Guid>())).Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
 
         var result = await CreateSut(dbContext1, jwt.Object).CancelAsync(user.Id);
 
@@ -148,7 +149,7 @@ public class SubscriptionManagementServiceTests
         await dbContext.SaveChangesAsync();
 
         var jwt = new Mock<IJwtTokenGenerator>();
-        jwt.Setup(x => x.Generate(It.IsAny<User>())).Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
+        jwt.Setup(x => x.Generate(It.IsAny<User>(), It.IsAny<Guid>())).Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
         var mercadoPagoGateway = new Mock<IMercadoPagoBillingGateway>();
 
         var result = await CreateSut(dbContext, jwt.Object, mercadoPagoGateway.Object).CancelAsync(user.Id);
@@ -177,7 +178,7 @@ public class SubscriptionManagementServiceTests
         await dbContext.SaveChangesAsync();
 
         var jwt = new Mock<IJwtTokenGenerator>();
-        jwt.Setup(x => x.Generate(It.IsAny<User>())).Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
+        jwt.Setup(x => x.Generate(It.IsAny<User>(), It.IsAny<Guid>())).Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
         var mercadoPagoGateway = new Mock<IMercadoPagoBillingGateway>();
 
         var result = await CreateSut(dbContext, jwt.Object, mercadoPagoGateway.Object).RequestRefundAsync(user.Id);
@@ -207,7 +208,7 @@ public class SubscriptionManagementServiceTests
         await dbContext.SaveChangesAsync();
 
         var jwt = new Mock<IJwtTokenGenerator>();
-        jwt.Setup(x => x.Generate(It.IsAny<User>())).Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
+        jwt.Setup(x => x.Generate(It.IsAny<User>(), It.IsAny<Guid>())).Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
         var mercadoPagoGateway = new Mock<IMercadoPagoBillingGateway>();
 
         var checkout = new BillingCheckout(user.Id, "advanced", UserRole.Advanced, SubscriptionBillingCycle.Monthly, 59.90m, "BRL");
@@ -266,7 +267,7 @@ public class SubscriptionManagementServiceTests
         await dbContext.SaveChangesAsync();
 
         var jwt = new Mock<IJwtTokenGenerator>();
-        jwt.Setup(x => x.Generate(It.IsAny<User>()))
+        jwt.Setup(x => x.Generate(It.IsAny<User>(), It.IsAny<Guid>()))
             .Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
 
         var result = await CreateSut(dbContext, jwt.Object).RequestRefundAsync(user.Id);
@@ -311,7 +312,7 @@ public class SubscriptionManagementServiceTests
         await dbContext.SaveChangesAsync();
 
         var jwt = new Mock<IJwtTokenGenerator>();
-        jwt.Setup(x => x.Generate(It.IsAny<User>()))
+        jwt.Setup(x => x.Generate(It.IsAny<User>(), It.IsAny<Guid>()))
             .Returns(new TokenResult("jwt-token", DateTime.UtcNow.AddHours(1)));
 
         await CreateSut(dbContext, jwt.Object).RequestTrialAsync(user.Id);

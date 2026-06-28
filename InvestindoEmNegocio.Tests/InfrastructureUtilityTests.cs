@@ -34,7 +34,7 @@ public class InfrastructureUtilityTests
 
         var sut = new JwtTokenGenerator(options);
 
-        var token = sut.Generate(user);
+        var token = sut.Generate(user, Guid.NewGuid());
 
         token.Token.Should().NotBeNullOrWhiteSpace();
         token.ExpiresAt.Should().BeAfter(DateTime.UtcNow.AddMinutes(29));
@@ -47,7 +47,7 @@ public class InfrastructureUtilityTests
         var user = new User("Henrique", "henrique@test.com", "hash");
         var sut = new JwtTokenGenerator(options);
 
-        Action act = () => sut.Generate(user);
+        Action act = () => sut.Generate(user, Guid.NewGuid());
 
         act.Should().Throw<InvalidOperationException>();
     }

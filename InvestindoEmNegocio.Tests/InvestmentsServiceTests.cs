@@ -17,9 +17,10 @@ public class InvestmentsServiceTests
     public async Task ListPositionsAsync_Should_Use_Cache_On_Second_Call()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var positions = new List<InvestmentPosition>
         {
-            new(userId, InvestmentType.ACOES, "PETR4", 10, 20, DateOnly.FromDateTime(DateTime.UtcNow), "B3", "Acoes", null)
+            new(userId, spaceId, InvestmentType.ACOES, "PETR4", 10, 20, DateOnly.FromDateTime(DateTime.UtcNow), "B3", "Acoes", null)
         };
 
         var positionRepository = new Mock<IInvestmentPositionRepository>();
@@ -211,7 +212,8 @@ public class InvestmentsServiceTests
     public async Task UpdatePositionAsync_Should_Update_When_Position_Exists()
     {
         var userId = Guid.NewGuid();
-        var position = new InvestmentPosition(userId, InvestmentType.ACOES, "PETR4", 1, 10, DateOnly.FromDateTime(DateTime.UtcNow), string.Empty, string.Empty, string.Empty);
+        var spaceId = Guid.NewGuid();
+        var position = new InvestmentPosition(userId, spaceId, InvestmentType.ACOES, "PETR4", 1, 10, DateOnly.FromDateTime(DateTime.UtcNow), string.Empty, string.Empty, string.Empty);
         var positionRepository = new Mock<IInvestmentPositionRepository>();
         positionRepository
             .Setup(x => x.GetByIdAsync(position.Id, userId, It.IsAny<CancellationToken>()))
@@ -249,7 +251,8 @@ public class InvestmentsServiceTests
     public async Task DeletePositionAsync_Should_MarkDeleted_And_Return_True_When_Position_Exists()
     {
         var userId = Guid.NewGuid();
-        var position = new InvestmentPosition(userId, InvestmentType.ACOES, "PETR4", 2, 10, DateOnly.FromDateTime(DateTime.UtcNow), string.Empty, string.Empty, string.Empty);
+        var spaceId = Guid.NewGuid();
+        var position = new InvestmentPosition(userId, spaceId, InvestmentType.ACOES, "PETR4", 2, 10, DateOnly.FromDateTime(DateTime.UtcNow), string.Empty, string.Empty, string.Empty);
         var positionRepository = new Mock<IInvestmentPositionRepository>();
         positionRepository
             .Setup(x => x.GetByIdAsync(position.Id, userId, It.IsAny<CancellationToken>()))
@@ -267,7 +270,8 @@ public class InvestmentsServiceTests
     public async Task DeletePositionAsync_Should_MarkDeleted_On_Movements_Cascade()
     {
         var userId = Guid.NewGuid();
-        var position = new InvestmentPosition(userId, InvestmentType.ACOES, "PETR4", 2, 10, DateOnly.FromDateTime(DateTime.UtcNow), string.Empty, string.Empty, string.Empty);
+        var spaceId = Guid.NewGuid();
+        var position = new InvestmentPosition(userId, spaceId, InvestmentType.ACOES, "PETR4", 2, 10, DateOnly.FromDateTime(DateTime.UtcNow), string.Empty, string.Empty, string.Empty);
         var movement = new InvestmentMovement(position.Id, InvestmentMovementType.COMPRA, 1, 10, DateOnly.FromDateTime(DateTime.UtcNow));
         position.ApplyMovement(movement);
 
@@ -286,8 +290,10 @@ public class InvestmentsServiceTests
     public async Task AddMovementAsync_Should_Throw_When_Output_Quantity_Is_Greater_Than_Position()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var position = new InvestmentPosition(
             userId,
+            spaceId,
             InvestmentType.ACOES,
             "PETR4",
             10,
@@ -323,8 +329,10 @@ public class InvestmentsServiceTests
     public async Task AddMovementAsync_Should_Recalculate_AvgPrice_On_COMPRA()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var position = new InvestmentPosition(
             userId,
+            spaceId,
             InvestmentType.ACOES,
             "PETR4",
             10,
@@ -362,8 +370,10 @@ public class InvestmentsServiceTests
     public async Task AddMovementAsync_Should_Decrease_Quantity_On_VENDA()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var position = new InvestmentPosition(
             userId,
+            spaceId,
             InvestmentType.ACOES,
             "VALE3",
             10,
@@ -469,6 +479,7 @@ public class InvestmentsServiceTests
             NullLogger<InvestmentPlanningService>.Instance);
         var positionService = new InvestmentPositionService(
             positionRepository?.Object ?? Mock.Of<IInvestmentPositionRepository>(),
+            Mock.Of<ICurrentSpaceAccessor>(),
             new MemoryCache(new MemoryCacheOptions()),
             NullLogger<InvestmentPositionService>.Instance);
         var marketEnrichmentService = new InvestmentMarketEnrichmentService(

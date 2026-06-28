@@ -14,7 +14,9 @@ public class JwtTokenGenerator(IOptions<JwtOptions> options) : IJwtTokenGenerato
 
     private readonly JwtOptions _options = options.Value;
 
-    public TokenResult Generate(User user)
+    public const string SpaceIdClaim = "space_id";
+
+    public TokenResult Generate(User user, Guid spaceId)
     {
         if (string.IsNullOrWhiteSpace(_options.SecretKey))
             throw new InvalidOperationException("JWT SecretKey não configurada.");
@@ -31,6 +33,7 @@ public class JwtTokenGenerator(IOptions<JwtOptions> options) : IJwtTokenGenerato
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Role, user.Role.ToString()),
             new(TokenVersionClaim, user.TokenVersion.ToString()),
+            new(SpaceIdClaim, spaceId.ToString()),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 

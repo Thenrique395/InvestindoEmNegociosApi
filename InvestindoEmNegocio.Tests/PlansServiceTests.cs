@@ -1,5 +1,6 @@
 using FluentAssertions;
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
@@ -170,12 +171,14 @@ public class PlansServiceTests
     public async Task CreateAsync_Should_Compute_Card_Statement_Competence_When_Card_Is_Informed()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var cardId = Guid.NewGuid();
         var cardRepository = new Mock<ICardRepository>();
         cardRepository
             .Setup(x => x.GetByIdAsync(cardId, userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Card(
                 userId,
+                spaceId,
                 brandId: 1,
                 holderName: "Teste",
                 nickname: "Meu cartao",
@@ -186,7 +189,7 @@ public class PlansServiceTests
                 dueDay: 15));
 
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
-        var sut = BuildSut(installmentRepository: installmentRepository, cardRepository: cardRepository);
+        var sut = BuildSut(installmentRepository: installmentRepository, cardRepository: cardRepository, spaceId: spaceId);
 
         var request = new CreatePlanRequest(
             MoneyType.Expense,
@@ -271,11 +274,12 @@ public class PlansServiceTests
     public async Task ListAsync_Should_Return_Mapped_Plans()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var planRepository = new Mock<IMoneyPlanRepository>();
         var plans = new List<MoneyPlan>
         {
-            new(userId, MoneyType.Expense, "Plano A", 100, ScheduleType.OneTime, new DateOnly(2026, 1, 1), null, 1, null, null, null),
-            new(userId, MoneyType.Income, "Plano B", 200, ScheduleType.Recurring, new DateOnly(2026, 1, 1), FrequencyType.Monthly, null, null, null, null)
+            new(userId, spaceId, MoneyType.Expense, "Plano A", 100, ScheduleType.OneTime, new DateOnly(2026, 1, 1), null, 1, null, null, null),
+            new(userId, spaceId, MoneyType.Income, "Plano B", 200, ScheduleType.Recurring, new DateOnly(2026, 1, 1), FrequencyType.Monthly, null, null, null, null)
         };
 
         planRepository.Setup(x => x.ListByUserAsync(userId, null, It.IsAny<CancellationToken>())).ReturnsAsync(plans);
@@ -304,12 +308,13 @@ public class PlansServiceTests
     public async Task GetByIdAsync_Should_Return_Details_With_Installments()
     {
         var userId = Guid.NewGuid();
-        var plan = new MoneyPlan(userId, MoneyType.Expense, "Plano", 100, ScheduleType.OneTime, new DateOnly(2026, 1, 1), null, 1, null, null, null);
+        var spaceId = Guid.NewGuid();
+        var plan = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Plano", 100, ScheduleType.OneTime, new DateOnly(2026, 1, 1), null, 1, null, null, null);
         var planId = plan.Id;
 
         var installments = new List<MoneyInstallment>
         {
-            new(planId, userId, 1, new DateOnly(2026, 1, 10), 100)
+            new(planId, userId, spaceId, 1, new DateOnly(2026, 1, 10), 100)
         };
 
         var planRepository = new Mock<IMoneyPlanRepository>();
@@ -329,18 +334,19 @@ public class PlansServiceTests
     public async Task UpdateAsync_Should_Regenerate_Installments_And_Remove_Old_Payments()
     {
         var userId = Guid.NewGuid();
-        var plan = new MoneyPlan(userId, MoneyType.Expense, "Plano", 100, ScheduleType.OneTime, new DateOnly(2026, 1, 1), null, 1, null, null, null);
+        var spaceId = Guid.NewGuid();
+        var plan = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Plano", 100, ScheduleType.OneTime, new DateOnly(2026, 1, 1), null, 1, null, null, null);
         var planId = plan.Id;
 
         var oldInstallments = new List<MoneyInstallment>
         {
-            new(planId, userId, 1, new DateOnly(2026, 1, 10), 100),
-            new(planId, userId, 2, new DateOnly(2026, 2, 10), 100)
+            new(planId, userId, spaceId, 1, new DateOnly(2026, 1, 10), 100),
+            new(planId, userId, spaceId, 2, new DateOnly(2026, 2, 10), 100)
         };
 
         var oldPayments = new List<MoneyPayment>
         {
-            new(oldInstallments[0].Id, userId, new DateTime(2026, 1, 10, 0, 0, 0, DateTimeKind.Utc), 100, 1, "ok")
+            new(oldInstallments[0].Id, userId, spaceId, new DateTime(2026, 1, 10, 0, 0, 0, DateTimeKind.Utc), 100, 1, "ok")
         };
 
         var planRepository = new Mock<IMoneyPlanRepository>();
@@ -360,6 +366,7 @@ public class PlansServiceTests
                 new AccountTransaction(
                     Guid.NewGuid(),
                     userId,
+                    spaceId,
                     DateTime.UtcNow,
                     AccountTransactionKind.Debit,
                     100m,
@@ -368,7 +375,7 @@ public class PlansServiceTests
                     oldPayments[0].Id)
             ]);
 
-        var sut = BuildSut(planRepository, installmentRepository, paymentRepository, accountTransactionRepository: accountTransactionRepository);
+        var sut = BuildSut(planRepository, installmentRepository, paymentRepository, accountTransactionRepository: accountTransactionRepository, spaceId: spaceId);
 
         var request = new CreatePlanRequest(
             MoneyType.Expense,
@@ -394,12 +401,13 @@ public class PlansServiceTests
     public async Task DeleteAsync_Should_MarkDeleted_On_Plan_When_Found()
     {
         var userId = Guid.NewGuid();
-        var plan = new MoneyPlan(userId, MoneyType.Expense, "Plano", 100, ScheduleType.OneTime, new DateOnly(2026, 1, 1), null, 1, null, null, null);
+        var spaceId = Guid.NewGuid();
+        var plan = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Plano", 100, ScheduleType.OneTime, new DateOnly(2026, 1, 1), null, 1, null, null, null);
 
         var planRepository = new Mock<IMoneyPlanRepository>();
         planRepository.Setup(x => x.GetByIdAsync(It.IsAny<Guid>(), userId, It.IsAny<CancellationToken>())).ReturnsAsync(plan);
 
-        var sut = BuildSut(planRepository: planRepository);
+        var sut = BuildSut(planRepository: planRepository, spaceId: spaceId);
 
         var result = await sut.DeleteAsync(userId, Guid.NewGuid());
 
@@ -412,10 +420,11 @@ public class PlansServiceTests
     public async Task DeleteAsync_Should_Cascade_MarkDeleted_To_Installments_Payments_And_Transactions()
     {
         var userId = Guid.NewGuid();
-        var plan = new MoneyPlan(userId, MoneyType.Expense, "Plano", 100, ScheduleType.Installments, new DateOnly(2026, 1, 1), null, 2, null, null, null);
-        var installment = new MoneyInstallment(plan.Id, userId, 1, new DateOnly(2026, 2, 1), 50);
-        var payment = new MoneyPayment(installment.Id, userId, DateTime.UtcNow, 50);
-        var transaction = new AccountTransaction(Guid.NewGuid(), userId, DateTime.UtcNow, AccountTransactionKind.Debit, 50, "Parcela", AccountTransactionSourceTypes.InstallmentPayment, payment.Id);
+        var spaceId = Guid.NewGuid();
+        var plan = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Plano", 100, ScheduleType.Installments, new DateOnly(2026, 1, 1), null, 2, null, null, null);
+        var installment = new MoneyInstallment(plan.Id, userId, spaceId, 1, new DateOnly(2026, 2, 1), 50);
+        var payment = new MoneyPayment(installment.Id, userId, spaceId, DateTime.UtcNow, 50);
+        var transaction = new AccountTransaction(Guid.NewGuid(), userId, spaceId, DateTime.UtcNow, AccountTransactionKind.Debit, 50, "Parcela", AccountTransactionSourceTypes.InstallmentPayment, payment.Id);
 
         var planRepository = new Mock<IMoneyPlanRepository>();
         planRepository.Setup(x => x.GetByIdAsync(plan.Id, userId, It.IsAny<CancellationToken>())).ReturnsAsync(plan);
@@ -435,7 +444,8 @@ public class PlansServiceTests
             planRepository: planRepository,
             installmentRepository: installmentRepository,
             paymentRepository: paymentRepository,
-            accountTransactionRepository: accountTransactionRepository);
+            accountTransactionRepository: accountTransactionRepository,
+            spaceId: spaceId);
 
         var result = await sut.DeleteAsync(userId, plan.Id);
 
@@ -451,14 +461,21 @@ public class PlansServiceTests
         Mock<IMoneyInstallmentRepository>? installmentRepository = null,
         Mock<IMoneyPaymentRepository>? paymentRepository = null,
         Mock<IAccountTransactionRepository>? accountTransactionRepository = null,
-        Mock<ICardRepository>? cardRepository = null)
+        Mock<ICardRepository>? cardRepository = null,
+        Guid? spaceId = null)
     {
+        var currentSpaceAccessor = new Mock<ICurrentSpaceAccessor>();
+        var resolvedSpaceId = spaceId ?? Guid.NewGuid();
+        currentSpaceAccessor.Setup(x => x.SpaceId).Returns(resolvedSpaceId);
+        currentSpaceAccessor.Setup(x => x.RequireSpaceId()).Returns(resolvedSpaceId);
+
         return new PlansService(
             planRepository?.Object ?? Mock.Of<IMoneyPlanRepository>(),
             installmentRepository?.Object ?? Mock.Of<IMoneyInstallmentRepository>(),
             paymentRepository?.Object ?? Mock.Of<IMoneyPaymentRepository>(),
             accountTransactionRepository?.Object ?? Mock.Of<IAccountTransactionRepository>(),
             cardRepository?.Object ?? Mock.Of<ICardRepository>(),
+            currentSpaceAccessor.Object,
             NullLogger<PlansService>.Instance);
     }
 }

@@ -1,6 +1,7 @@
 using FluentAssertions;
 using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
@@ -93,7 +94,7 @@ public class CardsServiceTests
         var cardRepository = new Mock<ICardRepository>();
         cardRepository
             .Setup(x => x.GetByIdAsync(cardId, userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Card(userId, 1, "Nome", "Apelido", "1234", "Banco", 1000, 10, 20));
+            .ReturnsAsync(new Card(userId, Guid.NewGuid(), 1, "Nome", "Apelido", "1234", "Banco", 1000, 10, 20));
 
         var brandRepository = new Mock<ICardBrandRepository>();
         brandRepository
@@ -113,7 +114,7 @@ public class CardsServiceTests
     {
         var userId = Guid.NewGuid();
         var cardId = Guid.NewGuid();
-        var existing = new Card(userId, 1, "Nome antigo", "Antigo", "0000", "Banco antigo", 1200, 5, 15);
+        var existing = new Card(userId, Guid.NewGuid(), 1, "Nome antigo", "Antigo", "0000", "Banco antigo", 1200, 5, 15);
 
         var cardRepository = new Mock<ICardRepository>();
         cardRepository
@@ -140,7 +141,7 @@ public class CardsServiceTests
     {
         var userId = Guid.NewGuid();
         var cardId = Guid.NewGuid();
-        var existing = new Card(userId, 1, "Nome antigo", "Antigo", "0000", "Banco antigo", 1200, 5, 15);
+        var existing = new Card(userId, Guid.NewGuid(), 1, "Nome antigo", "Antigo", "0000", "Banco antigo", 1200, 5, 15);
 
         var cardRepository = new Mock<ICardRepository>();
         cardRepository
@@ -193,8 +194,8 @@ public class CardsServiceTests
         var userId = Guid.NewGuid();
         var cards = new List<Card>
         {
-            new(userId, 1, "Nome 1", "Apelido 1", "1111", "Banco 1", 1000, 10, 20),
-            new(userId, 2, "Nome 2", "Apelido 2", "2222", "Banco 2", 2000, 11, 21)
+            new(userId, Guid.NewGuid(), 1, "Nome 1", "Apelido 1", "1111", "Banco 1", 1000, 10, 20),
+            new(userId, Guid.NewGuid(), 2, "Nome 2", "Apelido 2", "2222", "Banco 2", 2000, 11, 21)
         };
 
         var cardRepository = new Mock<ICardRepository>();
@@ -229,7 +230,7 @@ public class CardsServiceTests
     public async Task DeleteAsync_Should_MarkDeleted_And_Save_When_Card_Exists()
     {
         var userId = Guid.NewGuid();
-        var card = new Card(userId, 1, "Nome", "Apelido", "1234", "Banco", 1000, 10, 20);
+        var card = new Card(userId, Guid.NewGuid(), 1, "Nome", "Apelido", "1234", "Banco", 1000, 10, 20);
         var cardRepository = new Mock<ICardRepository>();
         cardRepository
             .Setup(x => x.GetByIdAsync(It.IsAny<Guid>(), userId, It.IsAny<CancellationToken>()))
@@ -276,7 +277,8 @@ public class CardsServiceTests
     public async Task ListStatementCyclesAsync_Should_Consolidate_Cycle()
     {
         var userId = Guid.NewGuid();
-        var card = new Card(userId, 1, "Nome", "Principal", "1234", "Banco", 5000m, 10, 20);
+        var spaceId = Guid.NewGuid();
+        var card = new Card(userId, spaceId, 1, "Nome", "Principal", "1234", "Banco", 5000m, 10, 20);
         var cardId = card.Id;
 
         var cardRepository = new Mock<ICardRepository>();
@@ -284,14 +286,14 @@ public class CardsServiceTests
             .Setup(x => x.GetByIdAsync(cardId, userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(card);
 
-        var plan = new MoneyPlan(userId, MoneyType.Expense, "Internet", 120m, ScheduleType.OneTime, new DateOnly(2026, 2, 5), null, 1, null, null, cardId);
+        var plan = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Internet", 120m, ScheduleType.OneTime, new DateOnly(2026, 2, 5), null, 1, null, null, cardId);
         var planId = plan.Id;
         var planRepository = new Mock<IMoneyPlanRepository>();
         planRepository
             .Setup(x => x.ListByUserAsync(userId, MoneyType.Expense, It.IsAny<CancellationToken>()))
             .ReturnsAsync([plan]);
 
-        var installment = new MoneyInstallment(planId, userId, 1, new DateOnly(2026, 3, 20), 120m, null, 2026, 3, new DateOnly(2026, 3, 10), new DateOnly(2026, 3, 20));
+        var installment = new MoneyInstallment(planId, userId, spaceId, 1, new DateOnly(2026, 3, 20), 120m, null, 2026, 3, new DateOnly(2026, 3, 10), new DateOnly(2026, 3, 20));
         var installmentId = installment.Id;
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository
@@ -301,7 +303,7 @@ public class CardsServiceTests
         var paymentRepository = new Mock<IMoneyPaymentRepository>();
         paymentRepository
             .Setup(x => x.ListByInstallmentIdsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new MoneyPayment(installmentId, userId, DateTime.UtcNow, 20m)]);
+            .ReturnsAsync([new MoneyPayment(installmentId, userId, spaceId, DateTime.UtcNow, 20m)]);
 
         var sut = BuildSut(
             cardRepository: cardRepository,
@@ -334,7 +336,8 @@ public class CardsServiceTests
         Mock<ICardBrandRepository>? brandRepository = null,
         Mock<IMoneyInstallmentRepository>? installmentRepository = null,
         Mock<IMoneyPaymentRepository>? paymentRepository = null,
-        Mock<IMoneyPlanRepository>? planRepository = null)
+        Mock<IMoneyPlanRepository>? planRepository = null,
+        Mock<ICurrentSpaceAccessor>? currentSpaceAccessor = null)
     {
         return new CardsService(
             cardRepository?.Object ?? Mock.Of<ICardRepository>(),
@@ -342,6 +345,16 @@ public class CardsServiceTests
             installmentRepository?.Object ?? Mock.Of<IMoneyInstallmentRepository>(),
             paymentRepository?.Object ?? Mock.Of<IMoneyPaymentRepository>(),
             planRepository?.Object ?? Mock.Of<IMoneyPlanRepository>(),
+            currentSpaceAccessor?.Object ?? BuildDefaultSpaceAccessor(),
             NullLogger<CardsService>.Instance);
+    }
+
+    private static ICurrentSpaceAccessor BuildDefaultSpaceAccessor()
+    {
+        var spaceId = Guid.NewGuid();
+        var accessor = new Mock<ICurrentSpaceAccessor>();
+        accessor.Setup(x => x.SpaceId).Returns(spaceId);
+        accessor.Setup(x => x.RequireSpaceId()).Returns(spaceId);
+        return accessor.Object;
     }
 }

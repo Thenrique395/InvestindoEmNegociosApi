@@ -1,3 +1,4 @@
+using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
@@ -6,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace InvestindoEmNegocio.Infrastructure.Repositories;
 
-public class AccountTransactionRepository(InvestDbContext context) : IAccountTransactionRepository
+public class AccountTransactionRepository(InvestDbContext context, ICurrentSpaceAccessor currentSpaceAccessor) : IAccountTransactionRepository
 {
     public async Task<List<AccountTransaction>> ListByAccountAsync(
         Guid accountId,
@@ -16,9 +17,10 @@ public class AccountTransactionRepository(InvestDbContext context) : IAccountTra
         CancellationToken cancellationToken = default,
         bool track = false)
     {
+        var spaceId = currentSpaceAccessor.SpaceId;
         var query = track
-            ? context.AccountTransactions.Where(t => t.AccountId == accountId && t.UserId == userId)
-            : context.AccountTransactions.AsNoTracking().Where(t => t.AccountId == accountId && t.UserId == userId);
+            ? context.AccountTransactions.Where(t => t.AccountId == accountId && t.UserId == userId && (!spaceId.HasValue || t.SpaceId == spaceId.Value))
+            : context.AccountTransactions.AsNoTracking().Where(t => t.AccountId == accountId && t.UserId == userId && (!spaceId.HasValue || t.SpaceId == spaceId.Value));
 
         if (fromUtc.HasValue) query = query.Where(t => t.OccurredAt >= fromUtc.Value);
         if (toUtc.HasValue) query = query.Where(t => t.OccurredAt <= toUtc.Value);
@@ -40,8 +42,9 @@ public class AccountTransactionRepository(InvestDbContext context) : IAccountTra
         pageSize = Math.Clamp(pageSize, 1, 200);
         page = Math.Max(page, 1);
 
+        var spaceId = currentSpaceAccessor.SpaceId;
         var query = context.AccountTransactions.AsNoTracking()
-            .Where(t => t.AccountId == accountId && t.UserId == userId);
+            .Where(t => t.AccountId == accountId && t.UserId == userId && (!spaceId.HasValue || t.SpaceId == spaceId.Value));
 
         if (fromUtc.HasValue) query = query.Where(t => t.OccurredAt >= fromUtc.Value);
         if (toUtc.HasValue) query = query.Where(t => t.OccurredAt <= toUtc.Value);
@@ -59,9 +62,10 @@ public class AccountTransactionRepository(InvestDbContext context) : IAccountTra
 
     public async Task<decimal> SumSignedAmountByAccountAsync(Guid accountId, Guid userId, CancellationToken cancellationToken = default)
     {
+        var spaceId = currentSpaceAccessor.SpaceId;
         var signedAmounts = await context.AccountTransactions
             .AsNoTracking()
-            .Where(t => t.AccountId == accountId && t.UserId == userId)
+            .Where(t => t.AccountId == accountId && t.UserId == userId && (!spaceId.HasValue || t.SpaceId == spaceId.Value))
             .Select(t => t.Kind == AccountTransactionKind.Credit ? t.Amount : -t.Amount)
             .ToListAsync(cancellationToken);
 

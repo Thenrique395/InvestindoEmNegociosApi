@@ -26,7 +26,7 @@ public class CategorizationServiceTests
             .Setup(x => x.ListForUserAsync(userId, MoneyType.Expense, It.IsAny<CancellationToken>()))
             .ReturnsAsync([category]);
 
-        var plan = new MoneyPlan(userId, MoneyType.Expense, "Ifood Mercado", 100m, ScheduleType.OneTime, DateOnly.FromDateTime(DateTime.UtcNow), categoryId: categoryId);
+        var plan = new MoneyPlan(userId, Guid.NewGuid(), MoneyType.Expense, "Ifood Mercado", 100m, ScheduleType.OneTime, DateOnly.FromDateTime(DateTime.UtcNow), categoryId: categoryId);
         var planRepository = new Mock<IMoneyPlanRepository>();
         planRepository
             .Setup(x => x.ListByUserAsync(userId, MoneyType.Expense, It.IsAny<CancellationToken>()))

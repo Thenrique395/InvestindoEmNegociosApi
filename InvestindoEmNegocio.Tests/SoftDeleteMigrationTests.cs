@@ -18,17 +18,18 @@ public class SoftDeleteMigrationTests
     {
         await using var dbContext = CreateDbContext();
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         await dbContext.CardBrands.AddAsync(new CardBrand(1, "Visa", "visa"));
         await dbContext.SaveChangesAsync();
 
-        var card = new Card(userId, 1, "Titular", "Apelido", "1234", "Banco", 1000m, 10, 20);
+        var card = new Card(userId, spaceId, 1, "Titular", "Apelido", "1234", "Banco", 1000m, 10, 20);
         await dbContext.Cards.AddAsync(card);
         await dbContext.SaveChangesAsync();
 
         card.MarkDeleted(DateTime.UtcNow);
         await dbContext.SaveChangesAsync();
 
-        var recreated = new Card(userId, 1, "Titular", "Apelido", "1234", "Banco", 1000m, 10, 20);
+        var recreated = new Card(userId, spaceId, 1, "Titular", "Apelido", "1234", "Banco", 1000m, 10, 20);
         await dbContext.Cards.AddAsync(recreated);
 
         await dbContext.Invoking(x => x.SaveChangesAsync()).Should().NotThrowAsync();
@@ -49,7 +50,7 @@ public class SoftDeleteMigrationTests
         await dbContext.CardBrands.AddAsync(new CardBrand(1, "Visa", "visa"));
         await dbContext.SaveChangesAsync();
 
-        var card = new Card(user.Id, 1, "Titular", "Apelido", "1234", "Banco", 1000m, 10, 20);
+        var card = new Card(user.Id, Guid.NewGuid(), 1, "Titular", "Apelido", "1234", "Banco", 1000m, 10, 20);
         await dbContext.Cards.AddAsync(card);
         await dbContext.SaveChangesAsync();
 

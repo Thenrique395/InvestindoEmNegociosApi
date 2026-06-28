@@ -1,10 +1,12 @@
 using FluentAssertions;
+using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Infrastructure.Data;
 using InvestindoEmNegocio.Infrastructure.Repositories;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 
 namespace InvestindoEmNegocio.Tests;
 
@@ -36,26 +38,28 @@ public class RepositoryCoverageTests
     [Fact]
     public async Task MoneyInstallmentRepository_Should_Filter_List_And_Sum_CardDebt()
     {
+        var spaceId = Guid.NewGuid();
+        var currentSpaceAccessor = Mock.Of<ICurrentSpaceAccessor>();
         await using var db = CreateDbContext();
-        var repo = new MoneyInstallmentRepository(db);
+        var repo = new MoneyInstallmentRepository(db, currentSpaceAccessor);
 
         var userId = Guid.NewGuid();
         var otherUserId = Guid.NewGuid();
         var brand = new CardBrand(1, "Visa", "visa");
-        var card = new Card(userId, 1, "Nome", "Nick", "1234", "Banco", 1000, 10, 20);
+        var card = new Card(userId, spaceId, 1, "Nome", "Nick", "1234", "Banco", 1000, 10, 20);
 
-        var expensePlan = new MoneyPlan(userId, MoneyType.Expense, "Despesa Cartao", 100, ScheduleType.Installments, new DateOnly(2026, 1, 1), null, 2, null, null, card.Id);
-        var incomePlan = new MoneyPlan(userId, MoneyType.Income, "Receita", 500, ScheduleType.OneTime, new DateOnly(2026, 1, 1), null, 1, null, null, null);
-        var foreignPlan = new MoneyPlan(otherUserId, MoneyType.Expense, "Outro", 70, ScheduleType.OneTime, new DateOnly(2026, 1, 1), null, 1, null, null, card.Id);
+        var expensePlan = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Despesa Cartao", 100, ScheduleType.Installments, new DateOnly(2026, 1, 1), null, 2, null, null, card.Id);
+        var incomePlan = new MoneyPlan(userId, spaceId, MoneyType.Income, "Receita", 500, ScheduleType.OneTime, new DateOnly(2026, 1, 1), null, 1, null, null, null);
+        var foreignPlan = new MoneyPlan(otherUserId, spaceId, MoneyType.Expense, "Outro", 70, ScheduleType.OneTime, new DateOnly(2026, 1, 1), null, 1, null, null, card.Id);
 
         await db.CardBrands.AddAsync(brand);
         await db.Cards.AddAsync(card);
         await db.MoneyPlans.AddRangeAsync(expensePlan, incomePlan, foreignPlan);
 
-        var i1 = new MoneyInstallment(expensePlan.Id, userId, 1, new DateOnly(2026, 2, 10), 120);
-        var i2 = new MoneyInstallment(expensePlan.Id, userId, 2, new DateOnly(2026, 3, 10), 80);
-        var i3 = new MoneyInstallment(incomePlan.Id, userId, 1, new DateOnly(2026, 2, 15), 500);
-        var i4 = new MoneyInstallment(foreignPlan.Id, otherUserId, 1, new DateOnly(2026, 2, 10), 70);
+        var i1 = new MoneyInstallment(expensePlan.Id, userId, spaceId, 1, new DateOnly(2026, 2, 10), 120);
+        var i2 = new MoneyInstallment(expensePlan.Id, userId, spaceId, 2, new DateOnly(2026, 3, 10), 80);
+        var i3 = new MoneyInstallment(incomePlan.Id, userId, spaceId, 1, new DateOnly(2026, 2, 15), 500);
+        var i4 = new MoneyInstallment(foreignPlan.Id, otherUserId, spaceId, 1, new DateOnly(2026, 2, 10), 70);
         i2.RestoreStatus(InstallmentStatus.Paid);
 
         await db.MoneyInstallments.AddRangeAsync(i1, i2, i3, i4);
@@ -86,8 +90,8 @@ public class RepositoryCoverageTests
         var remaining = await db.MoneyInstallments.AsNoTracking().Where(x => x.UserId == userId).ToListAsync();
         remaining.Should().HaveCount(1);
 
-        await repo.AddAsync(new MoneyInstallment(expensePlan.Id, userId, 3, new DateOnly(2026, 4, 10), 50));
-        await repo.AddRangeAsync([new MoneyInstallment(expensePlan.Id, userId, 4, new DateOnly(2026, 5, 10), 60)]);
+        await repo.AddAsync(new MoneyInstallment(expensePlan.Id, userId, spaceId, 3, new DateOnly(2026, 4, 10), 50));
+        await repo.AddRangeAsync([new MoneyInstallment(expensePlan.Id, userId, spaceId, 4, new DateOnly(2026, 5, 10), 60)]);
         await repo.SaveChangesAsync();
 
         var afterAdd = await db.MoneyInstallments.AsNoTracking().Where(x => x.UserId == userId).ToListAsync();

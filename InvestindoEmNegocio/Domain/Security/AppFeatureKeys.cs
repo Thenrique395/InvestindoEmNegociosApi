@@ -7,6 +7,7 @@ public static class AppFeatureKeys
     public const string SubscriptionsManage = "subscriptions.manage";
     public const string ProfileManage = "profile.manage";
     public const string PreferencesManage = "preferences.manage";
+    public const string SpacesManage = "spaces.manage";
     public const string OnboardingManage = "onboarding.manage";
     public const string NotificationsAccess = "notifications.access";
     public const string LookupsRead = "lookups.read";
@@ -51,6 +52,7 @@ public static class AppFeatureKeys
         SubscriptionsManage,
         ProfileManage,
         PreferencesManage,
+        SpacesManage,
         OnboardingManage,
         NotificationsAccess,
         LookupsRead,

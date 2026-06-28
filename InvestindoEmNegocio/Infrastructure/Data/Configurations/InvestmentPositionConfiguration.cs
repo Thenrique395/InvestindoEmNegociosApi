@@ -12,6 +12,7 @@ public class InvestmentPositionConfiguration : IEntityTypeConfiguration<Investme
         builder.HasKey(x => x.Id);
 
         builder.Property(x => x.UserId).IsRequired();
+        builder.Property(x => x.SpaceId).IsRequired();
         builder.Property(x => x.Type)
             .HasConversion<string>()
             .IsRequired();

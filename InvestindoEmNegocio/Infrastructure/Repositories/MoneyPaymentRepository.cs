@@ -1,3 +1,4 @@
+using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Repositories;
 using InvestindoEmNegocio.Infrastructure.Data;
@@ -5,12 +6,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace InvestindoEmNegocio.Infrastructure.Repositories;
 
-public class MoneyPaymentRepository(InvestDbContext context) : IMoneyPaymentRepository
+public class MoneyPaymentRepository(InvestDbContext context, ICurrentSpaceAccessor currentSpaceAccessor) : IMoneyPaymentRepository
 {
     public async Task<MoneyPayment?> GetByIdAsync(Guid paymentId, Guid userId, CancellationToken cancellationToken = default)
     {
+        var spaceId = currentSpaceAccessor.SpaceId;
         return await context.MoneyPayments
-            .FirstOrDefaultAsync(p => p.Id == paymentId && p.UserId == userId, cancellationToken);
+            .FirstOrDefaultAsync(p => p.Id == paymentId && p.UserId == userId && (!spaceId.HasValue || p.SpaceId == spaceId.Value), cancellationToken);
     }
 
     public async Task<List<MoneyPayment>> ListByInstallmentIdAsync(Guid installmentId, CancellationToken cancellationToken = default)

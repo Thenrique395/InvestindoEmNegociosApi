@@ -11,6 +11,7 @@ namespace InvestindoEmNegocio.Application.Services;
 
 public class InvestmentPositionService(
     IInvestmentPositionRepository positionRepository,
+    ICurrentSpaceAccessor currentSpaceAccessor,
     IMemoryCache cache,
     ILogger<InvestmentPositionService> logger) :
     IInvestmentPositionQueryService,
@@ -20,7 +21,7 @@ public class InvestmentPositionService(
 
     public async Task<List<InvestmentPositionDto>> ListPositionsAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        var cacheKey = InvestmentsShared.PositionsCacheKey(userId);
+        var cacheKey = InvestmentsShared.PositionsCacheKey(userId, currentSpaceAccessor.SpaceId);
         if (cache.TryGetValue(cacheKey, out List<InvestmentPositionDto>? cached) && cached is not null)
             return cached;
 
@@ -41,6 +42,7 @@ public class InvestmentPositionService(
         InvestmentsShared.ValidatePosition(request);
         var position = new InvestmentPosition(
             userId,
+            currentSpaceAccessor.RequireSpaceId(),
             request.Type,
             request.Asset,
             request.Quantity,
@@ -124,5 +126,5 @@ public class InvestmentPositionService(
         return InvestmentsShared.CreateInvestmentMovementDto(movement);
     }
 
-    private void InvalidatePositionsCache(Guid userId) => cache.Remove(InvestmentsShared.PositionsCacheKey(userId));
+    private void InvalidatePositionsCache(Guid userId) => cache.Remove(InvestmentsShared.PositionsCacheKey(userId, currentSpaceAccessor.SpaceId));
 }

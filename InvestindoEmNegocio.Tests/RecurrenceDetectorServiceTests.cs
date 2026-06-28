@@ -15,8 +15,10 @@ public class RecurrenceDetectorServiceTests
     {
         await using var dbContext = CreateDbContext();
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         await dbContext.MoneyPlans.AddAsync(new MoneyPlan(
             userId,
+            spaceId,
             MoneyType.Expense,
             "Academia Premium",
             89.90m,
@@ -41,13 +43,14 @@ public class RecurrenceDetectorServiceTests
     {
         await using var dbContext = CreateDbContext();
         var userId = Guid.NewGuid();
-        var account = new Account(userId, "Conta", AccountType.Checking, 0m);
+        var spaceId = Guid.NewGuid();
+        var account = new Account(userId, spaceId, "Conta", AccountType.Checking, 0m);
         await dbContext.Accounts.AddAsync(account);
         var transactions = new[]
         {
-            new AccountTransaction(account.Id, userId, new DateTime(2026, 1, 10, 0, 0, 0, DateTimeKind.Utc), AccountTransactionKind.Debit, 32.90m, "Spotify 01/2026", "BankStatementImport", Guid.NewGuid()),
-            new AccountTransaction(account.Id, userId, new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc), AccountTransactionKind.Debit, 32.90m, "Spotify 02/2026", "BankStatementImport", Guid.NewGuid()),
-            new AccountTransaction(account.Id, userId, new DateTime(2026, 3, 10, 0, 0, 0, DateTimeKind.Utc), AccountTransactionKind.Debit, 32.90m, "Spotify 03/2026", "BankStatementImport", Guid.NewGuid())
+            new AccountTransaction(account.Id, userId, spaceId, new DateTime(2026, 1, 10, 0, 0, 0, DateTimeKind.Utc), AccountTransactionKind.Debit, 32.90m, "Spotify 01/2026", "BankStatementImport", Guid.NewGuid()),
+            new AccountTransaction(account.Id, userId, spaceId, new DateTime(2026, 2, 10, 0, 0, 0, DateTimeKind.Utc), AccountTransactionKind.Debit, 32.90m, "Spotify 02/2026", "BankStatementImport", Guid.NewGuid()),
+            new AccountTransaction(account.Id, userId, spaceId, new DateTime(2026, 3, 10, 0, 0, 0, DateTimeKind.Utc), AccountTransactionKind.Debit, 32.90m, "Spotify 03/2026", "BankStatementImport", Guid.NewGuid())
         };
         await dbContext.AccountTransactions.AddRangeAsync(transactions);
         await dbContext.SaveChangesAsync();

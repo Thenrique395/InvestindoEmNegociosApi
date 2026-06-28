@@ -7,6 +7,7 @@ public class InvestmentPosition : ISoftDeletable
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid UserId { get; private set; }
+    public Guid SpaceId { get; private set; }
     public InvestmentType Type { get; private set; }
     public string Asset { get; private set; } = string.Empty;
     public decimal Quantity { get; private set; }
@@ -27,6 +28,7 @@ public class InvestmentPosition : ISoftDeletable
 
     public InvestmentPosition(
         Guid userId,
+        Guid spaceId,
         InvestmentType type,
         string asset,
         decimal quantity,
@@ -38,6 +40,7 @@ public class InvestmentPosition : ISoftDeletable
         string currency = "BRL")
     {
         UserId = userId;
+        SpaceId = spaceId;
         Update(type, asset, quantity, avgPrice, openedAt, account, category, note, currency);
     }
 

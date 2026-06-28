@@ -7,6 +7,7 @@ public class Account : ISoftDeletable
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid UserId { get; private set; }
+    public Guid SpaceId { get; private set; }
     public string Name { get; private set; } = string.Empty;
     public AccountType Type { get; private set; }
     public decimal InitialBalance { get; private set; }
@@ -18,11 +19,12 @@ public class Account : ISoftDeletable
 
     private Account() { }
 
-    public Account(Guid userId, string name, AccountType type, decimal initialBalance = 0m, string currency = "BRL")
+    public Account(Guid userId, Guid spaceId, string name, AccountType type, decimal initialBalance = 0m, string currency = "BRL")
     {
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Nome da conta é obrigatório.");
 
         UserId = userId;
+        SpaceId = spaceId;
         Name = name.Trim();
         Type = type;
         InitialBalance = initialBalance;

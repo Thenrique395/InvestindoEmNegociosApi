@@ -32,8 +32,11 @@ public class AccountTransactionConfiguration : IEntityTypeConfiguration<AccountT
         builder.Property(t => t.CreatedAt).IsRequired();
         builder.Property(t => t.DeletedAt);
 
+        builder.Property(t => t.SpaceId).IsRequired();
+
         builder.HasIndex(t => new { t.AccountId, t.OccurredAt });
         builder.HasIndex(t => new { t.UserId, t.OccurredAt });
+        builder.HasIndex(t => new { t.UserId, t.SpaceId, t.OccurredAt });
         builder.HasIndex(t => new { t.SourceType, t.SourceId });
 
         builder.HasOne<Account>()

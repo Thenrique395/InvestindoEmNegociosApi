@@ -17,9 +17,10 @@ public class AccountAnalyticsServiceTests
     public async Task GetRealAvailableBalanceAsync_Should_Use_Active_Accounts_And_Open_Items()
     {
         var userId = Guid.NewGuid();
-        var accountA = new Account(userId, "Conta A", AccountType.Checking, 1000m);
-        var accountB = new Account(userId, "Conta B", AccountType.Savings, 500m);
-        var accountInactive = new Account(userId, "Conta C", AccountType.Other, 999m);
+        var spaceId = Guid.NewGuid();
+        var accountA = new Account(userId, spaceId, "Conta A", AccountType.Checking, 1000m);
+        var accountB = new Account(userId, spaceId, "Conta B", AccountType.Savings, 500m);
+        var accountInactive = new Account(userId, spaceId, "Conta C", AccountType.Other, 999m);
         accountInactive.Deactivate();
         var accountAId = accountA.Id;
         var accountBId = accountB.Id;
@@ -37,13 +38,13 @@ public class AccountAnalyticsServiceTests
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         installmentRepository.Setup(x => x.ListByUserAsync(userId, null, It.IsAny<DateOnly?>(), It.IsAny<DateOnly?>(), MoneyType.Expense, It.IsAny<CancellationToken>()))
             .ReturnsAsync([
-                new MoneyInstallment(Guid.NewGuid(), userId, 1, today.AddDays(-1), 300m),
-                new MoneyInstallment(Guid.NewGuid(), userId, 2, today.AddDays(2), 200m),
+                new MoneyInstallment(Guid.NewGuid(), userId, spaceId, 1, today.AddDays(-1), 300m),
+                new MoneyInstallment(Guid.NewGuid(), userId, spaceId, 2, today.AddDays(2), 200m),
                 BuildInstallment(userId, Guid.NewGuid(), today.AddDays(10), 50m, InstallmentStatus.Anticipated)
             ]);
         installmentRepository.Setup(x => x.ListByUserAsync(userId, InstallmentStatus.Open, It.IsAny<DateOnly?>(), It.IsAny<DateOnly?>(), MoneyType.Income, It.IsAny<CancellationToken>()))
             .ReturnsAsync([
-                new MoneyInstallment(Guid.NewGuid(), userId, 1, today.AddDays(3), 400m)
+                new MoneyInstallment(Guid.NewGuid(), userId, spaceId, 1, today.AddDays(3), 400m)
             ]);
 
         var sut = BuildSut(accountRepository: accountRepository, transactionRepository: transactionRepository, installmentRepository: installmentRepository);
@@ -65,7 +66,8 @@ public class AccountAnalyticsServiceTests
     public async Task GetNetWorthSummaryAsync_Should_Compose_Assets_And_Liabilities_Without_Double_Counting_Cards()
     {
         var userId = Guid.NewGuid();
-        var account = new Account(userId, "Conta principal", AccountType.Checking, 1000m);
+        var spaceId = Guid.NewGuid();
+        var account = new Account(userId, spaceId, "Conta principal", AccountType.Checking, 1000m);
         var accountId = account.Id;
 
         var accountRepository = new Mock<IAccountRepository>();
@@ -75,10 +77,10 @@ public class AccountAnalyticsServiceTests
         var transactionRepository = new Mock<IAccountTransactionRepository>();
         transactionRepository.Setup(x => x.SumSignedAmountByAccountAsync(accountId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(250m);
 
-        var card = new Card(userId, 1, "Henrique", "Visa Black", "1234", "Banco", 5000m, 10, 20);
+        var card = new Card(userId, spaceId, 1, "Henrique", "Visa Black", "1234", "Banco", 5000m, 10, 20);
         var cardId = card.Id;
-        var planCard = new MoneyPlan(userId, MoneyType.Expense, "Fatura Visa", 400m, ScheduleType.OneTime, DateOnly.FromDateTime(DateTime.UtcNow), cardId: cardId);
-        var planOther = new MoneyPlan(userId, MoneyType.Expense, "Curso", 200m, ScheduleType.OneTime, DateOnly.FromDateTime(DateTime.UtcNow));
+        var planCard = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Fatura Visa", 400m, ScheduleType.OneTime, DateOnly.FromDateTime(DateTime.UtcNow), cardId: cardId);
+        var planOther = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Curso", 200m, ScheduleType.OneTime, DateOnly.FromDateTime(DateTime.UtcNow));
         var planCardId = planCard.Id;
         var planOtherId = planOther.Id;
 
@@ -91,7 +93,7 @@ public class AccountAnalyticsServiceTests
         var paymentRepository = new Mock<IMoneyPaymentRepository>();
         paymentRepository.Setup(x => x.ListByInstallmentIdsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([
-                new MoneyPayment(otherInstallment.Id, userId, DateTime.UtcNow, 50m)
+                new MoneyPayment(otherInstallment.Id, userId, spaceId, DateTime.UtcNow, 50m)
             ]);
 
         var planRepository = new Mock<IMoneyPlanRepository>();
@@ -141,8 +143,9 @@ public class AccountAnalyticsServiceTests
     public async Task GetNetWorthSummaryAsync_Should_Exclude_NonBrl_Entities_From_Main_Totals_And_Report_Them_Separately()
     {
         var userId = Guid.NewGuid();
-        var accountBrl = new Account(userId, "Conta BRL", AccountType.Checking, 1000m);
-        var accountUsd = new Account(userId, "Conta USD", AccountType.Checking, 500m, "USD");
+        var spaceId = Guid.NewGuid();
+        var accountBrl = new Account(userId, spaceId, "Conta BRL", AccountType.Checking, 1000m);
+        var accountUsd = new Account(userId, spaceId, "Conta USD", AccountType.Checking, 500m, "USD");
         var accountBrlId = accountBrl.Id;
         var accountUsdId = accountUsd.Id;
 
@@ -207,11 +210,12 @@ public class AccountAnalyticsServiceTests
     public async Task GetDebtSummaryAsync_Should_Group_Cards_And_Other_Liabilities_Using_Open_Amount()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var card = new Card(userId, 1, "Henrique", "Master", "9999", "Banco", 3000m, 10, 20);
+        var card = new Card(userId, spaceId, 1, "Henrique", "Master", "9999", "Banco", 3000m, 10, 20);
         var cardId = card.Id;
-        var planCard = new MoneyPlan(userId, MoneyType.Expense, "Fatura principal", 400m, ScheduleType.OneTime, today, cardId: cardId);
-        var planOther = new MoneyPlan(userId, MoneyType.Expense, "Notebook", 300m, ScheduleType.OneTime, today);
+        var planCard = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Fatura principal", 400m, ScheduleType.OneTime, today, cardId: cardId);
+        var planOther = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Notebook", 300m, ScheduleType.OneTime, today);
         var planCardId = planCard.Id;
         var planOtherId = planOther.Id;
 
@@ -224,7 +228,7 @@ public class AccountAnalyticsServiceTests
 
         var paymentRepository = new Mock<IMoneyPaymentRepository>();
         paymentRepository.Setup(x => x.ListByInstallmentIdsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new MoneyPayment(other.Id, userId, DateTime.UtcNow, 120m)]);
+            .ReturnsAsync([new MoneyPayment(other.Id, userId, spaceId, DateTime.UtcNow, 120m)]);
 
         var planRepository = new Mock<IMoneyPlanRepository>();
         planRepository.Setup(x => x.ListByUserAsync(userId, MoneyType.Expense, It.IsAny<CancellationToken>()))
@@ -258,16 +262,17 @@ public class AccountAnalyticsServiceTests
     public async Task GetSubscriptionsSummaryAsync_Should_Only_Count_Active_Recurring_Plans_In_Assinaturas_Category()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var assinaturas = new Category(null, "Assinaturas", MoneyType.Expense);
         var moradia = new Category(null, "Moradia", MoneyType.Expense);
-        var card = new Card(userId, 1, "Henrique", "Roxinho", "1234", "Banco", 3000m, 10, 20);
+        var card = new Card(userId, spaceId, 1, "Henrique", "Roxinho", "1234", "Banco", 3000m, 10, 20);
 
-        var netflix = new MoneyPlan(userId, MoneyType.Expense, "Netflix", 39.90m, ScheduleType.Recurring, today, frequency: FrequencyType.Monthly, categoryId: assinaturas.Id, cardId: card.Id);
-        var spotify = new MoneyPlan(userId, MoneyType.Expense, "Spotify", 21.90m, ScheduleType.Recurring, today, frequency: FrequencyType.Monthly, categoryId: assinaturas.Id);
-        var oneTimeMistagged = new MoneyPlan(userId, MoneyType.Expense, "Compra única", 99.90m, ScheduleType.OneTime, today, categoryId: assinaturas.Id);
-        var recurringOtherCategory = new MoneyPlan(userId, MoneyType.Expense, "Aluguel", 1500m, ScheduleType.Recurring, today, frequency: FrequencyType.Monthly, categoryId: moradia.Id);
-        var canceledSubscription = new MoneyPlan(userId, MoneyType.Expense, "Academia", 89.90m, ScheduleType.Recurring, today, frequency: FrequencyType.Monthly, categoryId: assinaturas.Id);
+        var netflix = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Netflix", 39.90m, ScheduleType.Recurring, today, frequency: FrequencyType.Monthly, categoryId: assinaturas.Id, cardId: card.Id);
+        var spotify = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Spotify", 21.90m, ScheduleType.Recurring, today, frequency: FrequencyType.Monthly, categoryId: assinaturas.Id);
+        var oneTimeMistagged = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Compra única", 99.90m, ScheduleType.OneTime, today, categoryId: assinaturas.Id);
+        var recurringOtherCategory = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Aluguel", 1500m, ScheduleType.Recurring, today, frequency: FrequencyType.Monthly, categoryId: moradia.Id);
+        var canceledSubscription = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Academia", 89.90m, ScheduleType.Recurring, today, frequency: FrequencyType.Monthly, categoryId: assinaturas.Id);
         canceledSubscription.RestoreStatus(PlanStatus.Canceled);
 
         var categoryRepository = new Mock<ICategoryRepository>();
@@ -317,11 +322,12 @@ public class AccountAnalyticsServiceTests
     public async Task GetNetWorthHistoryAsync_Should_Build_Monthly_Series_With_Account_Investment_And_Liability_Context()
     {
         var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
         var january = new DateOnly(2026, 1, 31);
         var february = new DateOnly(2026, 2, 28);
         var march = new DateOnly(2026, 3, 31);
 
-        var account = new Account(userId, "Conta principal", AccountType.Checking, 1000m);
+        var account = new Account(userId, spaceId, "Conta principal", AccountType.Checking, 1000m);
         var accountId = account.Id;
         account.RestoreCreatedAt(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
@@ -332,11 +338,11 @@ public class AccountAnalyticsServiceTests
         var transactionRepository = new Mock<IAccountTransactionRepository>();
         transactionRepository.Setup(x => x.ListByAccountAsync(accountId, userId, null, It.IsAny<DateTime?>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()))
             .ReturnsAsync([
-                new AccountTransaction(accountId, userId, new DateTime(2026, 2, 10, 12, 0, 0, DateTimeKind.Utc), AccountTransactionKind.Credit, 300m, "Receita"),
-                new AccountTransaction(accountId, userId, new DateTime(2026, 3, 20, 12, 0, 0, DateTimeKind.Utc), AccountTransactionKind.Debit, 50m, "Despesa")
+                new AccountTransaction(accountId, userId, spaceId, new DateTime(2026, 2, 10, 12, 0, 0, DateTimeKind.Utc), AccountTransactionKind.Credit, 300m, "Receita"),
+                new AccountTransaction(accountId, userId, spaceId, new DateTime(2026, 3, 20, 12, 0, 0, DateTimeKind.Utc), AccountTransactionKind.Debit, 50m, "Despesa")
             ]);
 
-        var installment = new MoneyInstallment(Guid.NewGuid(), userId, 1, new DateOnly(2026, 2, 15), 500m);
+        var installment = new MoneyInstallment(Guid.NewGuid(), userId, spaceId, 1, new DateOnly(2026, 2, 15), 500m);
         installment.RestoreCreatedAt(new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc));
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository.Setup(x => x.ListByUserAsync(userId, null, null, null, MoneyType.Expense, It.IsAny<CancellationToken>()))
@@ -345,7 +351,7 @@ public class AccountAnalyticsServiceTests
         var paymentRepository = new Mock<IMoneyPaymentRepository>();
         paymentRepository.Setup(x => x.ListByInstallmentIdsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([
-                new MoneyPayment(installment.Id, userId, new DateTime(2026, 3, 5, 12, 0, 0, DateTimeKind.Utc), 200m)
+                new MoneyPayment(installment.Id, userId, spaceId, new DateTime(2026, 3, 5, 12, 0, 0, DateTimeKind.Utc), 200m)
             ]);
 
         var investmentsService = new Mock<IInvestmentsService>();
@@ -434,7 +440,7 @@ public class AccountAnalyticsServiceTests
 
     private static MoneyInstallment BuildInstallment(Guid userId, Guid planId, DateOnly dueDate, decimal amount, InstallmentStatus status)
     {
-        var installment = new MoneyInstallment(planId, userId, 1, dueDate, amount);
+        var installment = new MoneyInstallment(planId, userId, Guid.NewGuid(), 1, dueDate, amount);
         installment.RestoreStatus(status);
         return installment;
     }

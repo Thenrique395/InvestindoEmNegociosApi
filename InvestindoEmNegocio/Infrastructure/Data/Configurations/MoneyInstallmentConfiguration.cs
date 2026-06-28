@@ -39,7 +39,10 @@ public class MoneyInstallmentConfiguration : IEntityTypeConfiguration<MoneyInsta
         builder.Property(i => i.UpdatedAt).IsRequired();
         builder.Property(i => i.DeletedAt);
 
+        builder.Property(i => i.SpaceId).IsRequired();
+
         builder.HasIndex(i => new { i.UserId, i.DueDate });
+        builder.HasIndex(i => new { i.UserId, i.SpaceId, i.DueDate });
         builder.HasIndex(i => new { i.PlanId, i.DueDate });
 
         builder.HasOne<MoneyPlan>()

@@ -24,13 +24,17 @@ public class JwtTokenGeneratorTests
             ExpiresMinutes = 15
         }));
 
-        var result = sut.Generate(user);
+        var spaceId = Guid.NewGuid();
+        var result = sut.Generate(user, spaceId);
 
         var token = new JwtSecurityTokenHandler().ReadJwtToken(result.Token);
         var tokenVersionClaim = token.Claims.FirstOrDefault(c => c.Type == JwtTokenGenerator.TokenVersionClaim);
+        var spaceIdClaim = token.Claims.FirstOrDefault(c => c.Type == JwtTokenGenerator.SpaceIdClaim);
 
         tokenVersionClaim.Should().NotBeNull();
         tokenVersionClaim!.Value.Should().Be(user.TokenVersion.ToString());
+        spaceIdClaim.Should().NotBeNull();
+        spaceIdClaim!.Value.Should().Be(spaceId.ToString());
         user.TokenVersion.Should().Be(2);
     }
 }

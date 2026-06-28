@@ -6,6 +6,7 @@ public class Card : ISoftDeletable
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid UserId { get; private set; }
+    public Guid SpaceId { get; private set; }
     public int BrandId { get; private set; }
     public string? Bank { get; private set; }
     public decimal CreditLimit { get; private set; }
@@ -20,9 +21,10 @@ public class Card : ISoftDeletable
 
     private Card() { }
 
-    public Card(Guid userId, int brandId, string holderName, string nickname, string last4, string? bank, decimal creditLimit, int statementCloseDay, int dueDay)
+    public Card(Guid userId, Guid spaceId, int brandId, string holderName, string nickname, string last4, string? bank, decimal creditLimit, int statementCloseDay, int dueDay)
     {
         UserId = userId;
+        SpaceId = spaceId;
         BrandId = brandId;
         Bank = NormalizeOptional(bank);
         CreditLimit = NormalizeCreditLimit(creditLimit);

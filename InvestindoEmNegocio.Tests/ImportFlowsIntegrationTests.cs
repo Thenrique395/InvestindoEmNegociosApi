@@ -25,6 +25,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Moq;
 
 namespace InvestindoEmNegocio.Tests;
 
@@ -228,6 +229,8 @@ public class ImportFlowsIntegrationTests
             builder.Services.AddDbContext<InvestDbContext>(options => options.UseSqlite(connection));
             builder.Services.AddScoped<IInvestDbContext>(sp => sp.GetRequiredService<InvestDbContext>());
 
+            builder.Services.AddSingleton<ICurrentSpaceAccessor>(Mock.Of<ICurrentSpaceAccessor>());
+
             builder.Services.AddScoped<IAccountRepository, AccountRepository>();
             builder.Services.AddScoped<IAccountTransactionRepository, AccountTransactionRepository>();
             builder.Services.AddScoped<IMoneyInstallmentRepository, MoneyInstallmentRepository>();
@@ -299,7 +302,7 @@ public class ImportFlowsIntegrationTests
         {
             using var scope = App.Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<InvestDbContext>();
-            var account = new Account(TestUserId, name, AccountType.Checking, 1000m);
+            var account = new Account(TestUserId, Guid.NewGuid(), name, AccountType.Checking, 1000m);
             db.Accounts.Add(account);
             await db.SaveChangesAsync();
             return account.Id;
@@ -310,7 +313,7 @@ public class ImportFlowsIntegrationTests
             using var scope = App.Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<InvestDbContext>();
             db.CardBrands.Add(new CardBrand(1, "Visa", "visa"));
-            var card = new Card(TestUserId, 1, "Henrique Santos", nickname, "1234", "Banco X", 5000m, 10, 18);
+            var card = new Card(TestUserId, Guid.NewGuid(), 1, "Henrique Santos", nickname, "1234", "Banco X", 5000m, 10, 18);
             db.Cards.Add(card);
             await db.SaveChangesAsync();
             return card.Id;

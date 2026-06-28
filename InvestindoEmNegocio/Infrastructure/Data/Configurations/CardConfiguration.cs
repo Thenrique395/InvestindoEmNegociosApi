@@ -32,6 +32,7 @@ public class CardConfiguration : IEntityTypeConfiguration<Card>
 
         builder.Property(c => c.StatementCloseDay).IsRequired();
         builder.Property(c => c.DueDay).IsRequired();
+        builder.Property(c => c.SpaceId).IsRequired();
 
         builder.Property(c => c.CreatedAt).IsRequired();
         builder.Property(c => c.UpdatedAt).IsRequired();

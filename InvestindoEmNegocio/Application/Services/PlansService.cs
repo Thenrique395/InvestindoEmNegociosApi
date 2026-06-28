@@ -13,6 +13,7 @@ public class PlansService(
     IMoneyPaymentRepository paymentRepository,
     IAccountTransactionRepository accountTransactionRepository,
     ICardRepository cardRepository,
+    ICurrentSpaceAccessor currentSpaceAccessor,
     ILogger<PlansService> logger)
     : IPlansService
 {
@@ -21,6 +22,7 @@ public class PlansService(
     {
         var plan = new MoneyPlan(
             userId,
+            currentSpaceAccessor.RequireSpaceId(),
             request.Type,
             request.Title,
             request.Amount,
@@ -195,7 +197,7 @@ public class PlansService(
     {
         if (card is null)
         {
-            return new MoneyInstallment(plan.Id, plan.UserId, installmentNo, purchaseDate, plan.Amount);
+            return new MoneyInstallment(plan.Id, plan.UserId, plan.SpaceId, installmentNo, purchaseDate, plan.Amount);
         }
 
         var cycle = CardStatementCycleCalculator.Calculate(
@@ -206,6 +208,7 @@ public class PlansService(
         return new MoneyInstallment(
             plan.Id,
             plan.UserId,
+            plan.SpaceId,
             installmentNo,
             cycle.StatementDueDate,
             plan.Amount,

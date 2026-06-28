@@ -16,6 +16,7 @@ public class InvestDbContext(DbContextOptions<InvestDbContext> options) : DbCont
     public DbSet<CardBrand> CardBrands => Set<CardBrand>();
     public DbSet<Card> Cards => Set<Card>();
     public DbSet<Account> Accounts => Set<Account>();
+    public DbSet<Space> Spaces => Set<Space>();
     public DbSet<AccountTransaction> AccountTransactions => Set<AccountTransaction>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<UserCategorizationFeedback> UserCategorizationFeedback => Set<UserCategorizationFeedback>();
