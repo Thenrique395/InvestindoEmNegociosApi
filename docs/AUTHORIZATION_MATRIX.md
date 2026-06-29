@@ -368,7 +368,17 @@ Classificacao:
 
 - `feature.financial-assistant.access`
   - `GET /api/v1/financial-assistant/context`
-  - `POST /api/v1/financial-assistant/chat`
+  - `POST /api/v1/financial-assistant/chat` — resposta gerada pela API da Anthropic (Claude) a
+    partir do contexto agregado do usuário; rate limit `financial-assistant-chat` (20/hora por
+    usuário); cai em fallback determinístico (motor de regras local) se a Anthropic estiver
+    indisponível ou sem `Anthropic:ApiKey` configurada — nunca retorna erro pro usuário só por
+    causa disso
+  - `GET /api/v1/financial-assistant/health` — agente único de saúde financeira (`AiFinancialHealthService`),
+    veredito por área (caixa, dívida, patrimônio) gerado pela Anthropic a partir do mesmo
+    contexto agregado; cache de 20h por usuário (sem rate limit adicional); cai em fallback
+    determinístico (baseado no `InsightEngineService`/`DebtSummaryResponse`/`NetWorthSummaryResponse`
+    já calculados) se a IA falhar. Mesmo robô diário (`RoboSaudeFinanceiraIA`) que avisa
+    proativamente via notificação (`NotificationKind.AiHealthAlert`) quando o veredito não é "ok"
 
 - `feature.monthly-snapshots.access`
   - `GET /api/v1/monthly-snapshots`

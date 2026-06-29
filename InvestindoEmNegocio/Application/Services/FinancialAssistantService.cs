@@ -1,9 +1,13 @@
+using System.Text.Json;
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 
 namespace InvestindoEmNegocio.Application.Services;
 
-public class FinancialAssistantService(IAccountAnalyticsService accountAnalyticsService) : IFinancialAssistantService
+public class FinancialAssistantService(
+    IAccountAnalyticsService accountAnalyticsService,
+    IAnthropicClient anthropicClient) : IFinancialAssistantService
 {
     private const int MaxQuestionLength = 600;
     private static readonly string[] BlockedTopics =
@@ -13,6 +17,14 @@ public class FinancialAssistantService(IAccountAnalyticsService accountAnalytics
         "movimente meus recursos",
         "faça investimento automaticamente"
     ];
+
+    private const string SystemPrompt =
+        "Você é o assistente financeiro do app Investindo em Negócios. Responda só com base " +
+        "no contexto JSON fornecido pelo usuário (dados financeiros já consolidados dele) — " +
+        "não invente números que não estejam lá. Responda em português, de forma objetiva e " +
+        "curta (poucas frases). Nunca executa ações nem instrui o usuário a automatizar " +
+        "movimentações financeiras. Não substitui aconselhamento financeiro, jurídico, " +
+        "tributário ou regulado.";
 
     public async Task<FinancialAssistantPromptContextResponse> BuildContextAsync(Guid userId, DateOnly? referenceDate = null, CancellationToken cancellationToken = default)
     {
@@ -59,8 +71,17 @@ public class FinancialAssistantService(IAccountAnalyticsService accountAnalytics
             return new FinancialAssistantChatResponse(false, normalizedQuestion, "Posso orientar e priorizar ações, mas não executo movimentações financeiras em seu nome.", BuildDisclaimer(), "blocked_automation", context);
         }
 
-        var answer = BuildAnswer(lowered, context);
-        return new FinancialAssistantChatResponse(true, normalizedQuestion, answer, BuildDisclaimer(), "ok", context);
+        try
+        {
+            var userMessage = $"Pergunta do usuário: {normalizedQuestion}\n\nContexto financeiro (JSON): {JsonSerializer.Serialize(context)}";
+            var aiAnswer = await anthropicClient.CompleteAsync(SystemPrompt, userMessage, cancellationToken);
+            return new FinancialAssistantChatResponse(true, normalizedQuestion, aiAnswer, BuildDisclaimer(), "ok", context);
+        }
+        catch (Exception ex) when (ex is AppProblemException or HttpRequestException or TaskCanceledException)
+        {
+            var fallbackAnswer = BuildAnswer(lowered, context);
+            return new FinancialAssistantChatResponse(true, normalizedQuestion, fallbackAnswer, BuildDisclaimer(), "ok_fallback", context);
+        }
     }
 
     private static string BuildAnswer(string question, FinancialAssistantPromptContextResponse context)

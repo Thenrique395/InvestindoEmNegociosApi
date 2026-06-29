@@ -141,6 +141,7 @@ public static class ServiceCollectionExtensions
         services.Configure<StripeOptions>(configuration.GetSection(StripeOptions.SectionName));
         services.Configure<MercadoPagoOptions>(configuration.GetSection(MercadoPagoOptions.SectionName));
         services.Configure<BillingOptions>(configuration.GetSection(BillingOptions.SectionName));
+        services.Configure<AnthropicOptions>(configuration.GetSection(AnthropicOptions.SectionName));
         return services;
     }
 
@@ -243,6 +244,22 @@ public static class ServiceCollectionExtensions
                         QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                         QueueLimit = 0
                     }));
+
+            // Particionado por usuário, mesmo motivo do billing-checkout — cada chamada ao
+            // assistente financeiro agora tem custo real (API da Anthropic), então um limiter
+            // global deixaria um único usuário esgotar a cota de todo mundo.
+            options.AddPolicy("financial-assistant-chat", context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                        ?? context.Connection.RemoteIpAddress?.ToString()
+                        ?? "anonymous",
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 20,
+                        Window = TimeSpan.FromHours(1),
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 0
+                    }));
         });
 
         return services;
@@ -320,6 +337,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRobotTask, ReminderRobotTask>();
         services.AddScoped<IRobotTask, SubscriptionExpirationRobotTask>();
         services.AddScoped<IRobotTask, MonthlySnapshotRobotTask>();
+        services.AddScoped<IRobotTask, AiFinancialHealthRobotTask>();
         services.AddScoped<IRobotRunner, RobotRunner>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IProfileQueryService, ProfileQueryService>();
@@ -354,6 +372,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IMonthlyFinancialSnapshotService, MonthlyFinancialSnapshotService>();
         services.AddScoped<IFinancialAssistantService, FinancialAssistantService>();
+        services.AddScoped<IAiFinancialHealthService, AiFinancialHealthService>();
         services.AddScoped<IUserAccountBootstrapService, UserAccountBootstrapService>();
         services.AddScoped<ISpaceBootstrapService, SpaceBootstrapService>();
         services.AddScoped<ISpaceService, SpaceService>();
@@ -385,6 +404,13 @@ public static class ServiceCollectionExtensions
             client.BaseAddress = new Uri(mpOptions.ApiBaseUrl);
         });
         services.AddScoped<IMercadoPagoBillingGateway>(sp => sp.GetRequiredService<MercadoPagoBillingGateway>());
+        services.AddHttpClient<AnthropicClient>((sp, client) =>
+        {
+            var anthropicOptions = sp.GetRequiredService<IOptions<AnthropicOptions>>().Value;
+            client.BaseAddress = new Uri(anthropicOptions.ApiBaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+        services.AddScoped<IAnthropicClient>(sp => sp.GetRequiredService<AnthropicClient>());
         services.AddScoped<IPaymentProviderResolver, PaymentProviderResolver>();
         services.AddScoped<IBillingCheckoutCommandService, BillingCheckoutCommandService>();
         services.AddScoped<IBillingCheckoutQueryService, BillingCheckoutQueryService>();

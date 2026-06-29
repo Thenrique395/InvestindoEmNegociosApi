@@ -141,11 +141,27 @@ Mudanças nesses domínios exigem cuidado adicional.
 
 - falha de dependência externa deve manter semântica de erro coerente
 - integração crítica exige caminho de erro explícito e observável
+- integrações HTTP diretas (sem SDK oficial maduro, ex. Mercado Pago, Anthropic) seguem o mesmo
+  molde: classe única injetando `HttpClient` + `IOptions<TOptions>`, `EnsureXConfigured()` lançando
+  `AppProblemException` 503 quando a credencial está vazia, `EnsureSuccessAsync()` lançando 502 em
+  erro do upstream — ver `MercadoPagoBillingGateway.cs` e `AnthropicClient.cs`
+- `FinancialAssistantService.ChatAsync` chama a API da Anthropic (`IAnthropicClient.CompleteAsync`)
+  pra gerar a resposta do assistente financeiro a partir do contexto já agregado do usuário
+  (`FinancialAssistantPromptContextResponse` — sem extrato bruto, só agregados via
+  `IAccountAnalyticsService`); se a chamada falhar (`AppProblemException`, `HttpRequestException`,
+  `TaskCanceledException` — inclui chave não configurada e timeout), cai em fallback pro motor de
+  regras local antigo (`BuildAnswer`, mantido no código de propósito), marcando
+  `ReasonCode = "ok_fallback"` na resposta; a tela nunca quebra por falha do provedor externo
+  nem por ambiente sem `Anthropic:ApiKey` configurada
+- esse mesmo padrão de "IA com fallback determinístico" deve ser repetido em qualquer feature
+  futura que chame um LLM externo — nunca deixar uma dependência de IA externa ser ponto único
+  de falha de uma feature já existente
 
 ### Robôs (`IRobotTask`)
 
 - robôs de automação implementam `IRobotTask` (`Application/Interfaces/IRobotTask.cs`) e retornam `RobotTaskExecutionResult`
-- exemplos atuais: `MonthlySnapshotRobotTask`, `SubscriptionExpirationRobotTask`, `ReminderRobotTask`
+- exemplos atuais: `MonthlySnapshotRobotTask`, `SubscriptionExpirationRobotTask`, `ReminderRobotTask`, `AiFinancialHealthRobotTask`
+- `AiFinancialHealthRobotTask` roda no mesmo ciclo diário (`RobotsHostedService`), filtra só usuários com a feature `financial-assistant.access` (`AppFeatureMatrix.HasRoleFeature`) e chama o mesmo `IAiFinancialHealthService` que o endpoint on-demand usa — o cache de 20h é compartilhado entre o robô e o acesso do próprio usuário, então o que rodar primeiro no dia "paga" pelos dois; só cria notificação (`NotificationKind.AiHealthAlert`) quando o veredito não é "ok", evitando ruído quando está tudo bem
 - quando um robô decide aplicar um efeito penalizador ou irreversível (ex.: downgrade de assinatura por `PastDue`) com base em estado que pode estar desatualizado, ele deve consultar a fonte externa autoritativa antes de agir (`GetSubscriptionAsync` do gateway resolvido via `IPaymentProviderResolver`/`UserSubscription.Provider` — Stripe ou Mercado Pago, conforme a assinatura)
 - se a fonte externa estiver indisponível, o robô deve degradar graciosamente e decidir pelo estado local, registrando log de aviso — nunca falhar silenciosamente nem travar a execução agendada
 - robôs são administráveis via `/admin/robots` (execução manual, monitor de execução)

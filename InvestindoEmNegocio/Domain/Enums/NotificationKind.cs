@@ -21,5 +21,6 @@ public enum NotificationKind
     BillingRenewalApproved = 16,
     BillingGracePeriodReminder = 17,
     BillingDowngraded = 18,
-    BillingReactivated = 19
+    BillingReactivated = 19,
+    AiHealthAlert = 20
 }
