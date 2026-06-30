@@ -146,31 +146,14 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddAppCors(this IServiceCollection services, IConfiguration configuration, string corsPolicy)
+    public static IServiceCollection AddAppCors(this IServiceCollection services, string corsPolicy)
     {
-        var defaultOrigins = new[]
-        {
-            "http://localhost:4200",
-            "http://127.0.0.1:4200",
-            "http://localhost:4000",
-            "http://127.0.0.1:4000",
-            "http://localhost:4300",
-            "http://127.0.0.1:4300",
-            "https://localhost:4200",
-            "https://127.0.0.1:4200",
-            "https://localhost:4000",
-            "https://127.0.0.1:4000"
-        };
-        var configuredOrigins = ResolveConfiguredOrigins(configuration);
-        var allowedOrigins = (configuredOrigins.Count > 0 ? configuredOrigins.ToArray() : defaultOrigins)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
         services.AddCors(options =>
         {
             options.AddPolicy(corsPolicy, policy =>
             {
-                policy.WithOrigins(allowedOrigins)
+                // CORS aberto — restringir por origem ao migrar para produção com HTTPS.
+                policy.SetIsOriginAllowed(_ => true)
                     .AllowAnyHeader()
                     .AllowAnyMethod()
                     .AllowCredentials();
@@ -178,19 +161,6 @@ public static class ServiceCollectionExtensions
         });
 
         return services;
-    }
-
-    private static List<string> ResolveConfiguredOrigins(IConfiguration configuration)
-    {
-        var fromArray = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
-        var fromCsv = (configuration["Cors:AllowedOrigins"] ?? string.Empty)
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        return fromArray
-            .Concat(fromCsv)
-            .Select(x => x.Trim())
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .ToList();
     }
 
     public static IServiceCollection AddAppRateLimiting(this IServiceCollection services)
