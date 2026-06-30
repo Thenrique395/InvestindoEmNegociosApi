@@ -142,6 +142,7 @@ public static class ServiceCollectionExtensions
         services.Configure<MercadoPagoOptions>(configuration.GetSection(MercadoPagoOptions.SectionName));
         services.Configure<BillingOptions>(configuration.GetSection(BillingOptions.SectionName));
         services.Configure<AnthropicOptions>(configuration.GetSection(AnthropicOptions.SectionName));
+        services.Configure<AuthCookieOptions>(configuration.GetSection(AuthCookieOptions.SectionName));
         return services;
     }
 
@@ -321,7 +322,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRobotSettingsRepository, RobotSettingsRepository>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<ICurrentSpaceAccessor, CurrentSpaceAccessor>();
-        services.AddSingleton<IAuthCookieService, AuthCookieService>();
+        services.AddScoped<IAuthCookieService, AuthCookieService>();
         services.AddScoped<IAuthRegistrationService, AuthRegistrationService>();
         services.AddScoped<IAuthAvailabilityService, AuthAvailabilityService>();
         services.AddScoped<IAuthAccessService, AuthAccessService>();

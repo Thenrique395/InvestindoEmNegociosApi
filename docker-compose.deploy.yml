@@ -33,6 +33,7 @@ services:
       Stripe__PaymentMethodTypes: ${STRIPE_PAYMENT_METHOD_TYPES:-card}
       Database__ApplySchemaOnStartup: "false"
       AllowedHosts: ${ALLOWED_HOSTS:-*}
+      Auth__RequireSecureCookie: ${AUTH_REQUIRE_SECURE_COOKIE:-false}
       Cors__AllowedOrigins: ${CORS_ALLOWED_ORIGINS:-http://35.174.50.187:4201,http://35.174.50.187:4200,http://localhost:4200,http://127.0.0.1:4200,http://localhost:4000,http://127.0.0.1:4000}
     depends_on:
       - otel

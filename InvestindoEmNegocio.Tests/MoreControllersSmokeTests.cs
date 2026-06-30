@@ -9,6 +9,7 @@ using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Infrastructure.Auth;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace InvestindoEmNegocio.Tests;
@@ -252,7 +253,7 @@ public class MoreControllersSmokeTests
 
         var billingCheckoutsController = new BillingCheckoutsController(billingCheckoutCommand.Object, billingCheckoutQuery.Object);
         var billingPortalController = new BillingPortalController(billingPortal.Object);
-        var subscriptionsController = new SubscriptionsController(subscriptionCatalog.Object, subscriptionManagement.Object, new AuthCookieService());
+        var subscriptionsController = new SubscriptionsController(subscriptionCatalog.Object, subscriptionManagement.Object, new AuthCookieService(Options.Create(new AuthCookieOptions())));
         var webhookController = new StripeWebhooksController(billingWebhook.Object)
         {
             ControllerContext = new ControllerContext
@@ -301,7 +302,7 @@ public class MoreControllersSmokeTests
         var authAvailability = new Mock<IAuthAvailabilityService>();
         authAvailability.Setup(x => x.CheckAsync(It.IsAny<CheckAvailabilityRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new CheckAvailabilityResponse(false, false));
-        var authCookieService = new AuthCookieService();
+        var authCookieService = new AuthCookieService(Options.Create(new AuthCookieOptions()));
         var authController = new AuthController(authAccess.Object, authAvailability.Object, authCookieService);
         var authRegistrationController = new AuthRegistrationController(authRegistration.Object, authCookieService);
         var authPasswordsController = new AuthPasswordsController(authPassword.Object);
