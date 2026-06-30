@@ -63,7 +63,7 @@ public class ApplicationPipelineExtensionsTests
         var configuration = new ConfigurationBuilder().Build();
         builder.Services
             .AddApiSurface(isDevelopment: true)
-            .AddAppCors(configuration, "AllowFrontend")
+            .AddAppCors("AllowFrontend")
             .AddAppRateLimiting();
         builder.Services.AddAuthentication();
         builder.Services.AddAuthorization();
