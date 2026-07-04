@@ -120,6 +120,7 @@ public class InvestmentPositionService(
         position.Update(position.Type, position.Asset, quantity, avgPrice, position.OpenedAt, position.Account, position.Category, position.Note, position.Currency);
         position.ApplyMovement(movement);
 
+        await positionRepository.AddMovementAsync(movement, cancellationToken);
         await positionRepository.SaveChangesAsync(cancellationToken);
         InvalidatePositionsCache(userId);
         _logger.LogInformation("Investment movement added {UserId} {PositionId} {MovementId} {Type}", userId, position.Id, movement.Id, movement.Type);

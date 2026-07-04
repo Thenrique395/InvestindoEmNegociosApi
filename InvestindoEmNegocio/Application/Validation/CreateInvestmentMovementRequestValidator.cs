@@ -14,7 +14,7 @@ public sealed class CreateInvestmentMovementRequestValidator : AbstractValidator
             .GreaterThan(0m).WithMessage("Preço deve ser maior que zero.");
 
         RuleFor(x => x.Note)
-            .MaximumLength(500).WithMessage("Observação deve ter no máximo 500 caracteres.")
+            .MaximumLength(400).WithMessage("Observação deve ter no máximo 400 caracteres.")
             .When(x => !string.IsNullOrWhiteSpace(x.Note));
     }
 }

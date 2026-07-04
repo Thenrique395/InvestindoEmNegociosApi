@@ -32,6 +32,11 @@ public class InvestmentPositionRepository(InvestDbContext context, ICurrentSpace
         await context.InvestmentPositions.AddAsync(position, cancellationToken);
     }
 
+    public async Task AddMovementAsync(InvestmentMovement movement, CancellationToken cancellationToken = default)
+    {
+        await context.InvestmentMovements.AddAsync(movement, cancellationToken);
+    }
+
     public void Remove(InvestmentPosition position)
     {
         context.InvestmentPositions.Remove(position);
