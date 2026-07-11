@@ -4,11 +4,12 @@ using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Repositories;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Application.Services;
 
-public class GoalsService(IGoalRepository goalRepository, IGoalContributionRepository goalContributionRepository, ICurrentSpaceAccessor currentSpaceAccessor, ILogger<GoalsService> logger) : IGoalsService
+public class GoalsService(IGoalRepository goalRepository, IGoalContributionRepository goalContributionRepository, ICurrentSpaceAccessor currentSpaceAccessor, IInvestDbContext db, ILogger<GoalsService> logger) : IGoalsService
 {
     private readonly ILogger<GoalsService> _logger = logger;
     private const string IncomeGoalTitle = "Meta de Receita";
@@ -78,6 +79,7 @@ public class GoalsService(IGoalRepository goalRepository, IGoalContributionRepos
     {
         Validate(request);
         var goal = new Goal(userId, currentSpaceAccessor.RequireSpaceId(), request.Title.Trim(), request.TargetAmount, request.Year, request.Description, GoalStatus.Planned, request.CurrentAmount, request.ExpectedMonthly, request.TargetDate, request.Kind);
+        await ApplyPlanningAsync(userId, goal, request, cancellationToken);
         await goalRepository.AddAsync(goal, cancellationToken);
         await goalRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Goal created {UserId} {GoalId}", userId, goal.Id);
@@ -91,6 +93,7 @@ public class GoalsService(IGoalRepository goalRepository, IGoalContributionRepos
         if (goal is null) return null;
 
         goal.Update(request.Title.Trim(), request.TargetAmount, request.Year, request.Description, request.Status, request.CurrentAmount, request.ExpectedMonthly, request.TargetDate, request.Kind);
+        await ApplyPlanningAsync(userId, goal, request, cancellationToken);
         await goalRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Goal updated {UserId} {GoalId}", userId, goal.Id);
         return CreateGoalResponse(goal);
@@ -112,6 +115,65 @@ public class GoalsService(IGoalRepository goalRepository, IGoalContributionRepos
         return true;
     }
 
+    // ---- Ciclo de vida ------------------------------------------------------
+
+    public Task<GoalResponse?> PauseAsync(Guid userId, Guid id, CancellationToken ct = default) =>
+        TransitionAsync(userId, id, g => g.Pause(), ct);
+
+    public Task<GoalResponse?> ResumeAsync(Guid userId, Guid id, CancellationToken ct = default) =>
+        TransitionAsync(userId, id, g => g.Resume(), ct);
+
+    public Task<GoalResponse?> ArchiveAsync(Guid userId, Guid id, CancellationToken ct = default) =>
+        TransitionAsync(userId, id, g => g.Archive(DateTime.UtcNow), ct);
+
+    public Task<GoalResponse?> CompleteAsync(Guid userId, Guid id, CancellationToken ct = default) =>
+        TransitionAsync(userId, id, g => g.CompleteManually(), ct);
+
+    private async Task<GoalResponse?> TransitionAsync(Guid userId, Guid id, Action<Goal> transition, CancellationToken ct)
+    {
+        var goal = await goalRepository.GetByIdAsync(id, userId, ct);
+        if (goal is null) return null;
+        transition(goal);
+        await goalRepository.SaveChangesAsync(ct);
+        return CreateGoalResponse(goal);
+    }
+
+    // ---- Planejamento / escopo ---------------------------------------------
+
+    private async Task ApplyPlanningAsync(Guid userId, Goal goal, CreateGoalRequest request, CancellationToken ct)
+    {
+        var mode = request.Mode ?? Goal.DefaultModeFor(request.Kind);
+        goal.ConfigurePlanning(mode, request.StartDate, request.EndDate, request.Recurrence, request.WarningThreshold, request.CriticalThreshold);
+
+        if (request.Scopes is null) return;
+        var scopes = await BuildAndValidateScopesAsync(userId, goal.Id, request.Scopes, ct);
+        goal.ReplaceScopes(scopes);
+    }
+
+    private async Task<List<GoalScope>> BuildAndValidateScopesAsync(Guid userId, Guid goalId, IReadOnlyList<GoalScopeDto> scopes, CancellationToken ct)
+    {
+        var result = new List<GoalScope>();
+        foreach (var dto in scopes)
+        {
+            switch (dto.ScopeType)
+            {
+                case GoalScopeType.Category:
+                    var categoryOk = await db.Categories.AsNoTracking()
+                        .AnyAsync(c => c.Id == dto.RefId && (c.UserId == userId || c.UserId == null), ct);
+                    if (!categoryOk) throw new ArgumentException("Categoria não encontrada ou não pertence ao usuário.");
+                    break;
+                case GoalScopeType.Account:
+                    var accountOk = await db.Accounts.AsNoTracking()
+                        .AnyAsync(a => a.Id == dto.RefId && a.UserId == userId, ct);
+                    if (!accountOk) throw new ArgumentException("Conta não encontrada ou não pertence ao usuário.");
+                    break;
+                // Portfolio: preparado para o futuro; sem validação de posse nesta fase.
+            }
+            result.Add(new GoalScope(goalId, dto.ScopeType, dto.RefId));
+        }
+        return result;
+    }
+
     private static void Validate(CreateGoalRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Title)) throw new ArgumentException("Título é obrigatório.");
@@ -120,5 +182,7 @@ public class GoalsService(IGoalRepository goalRepository, IGoalContributionRepos
     }
 
     private static GoalResponse CreateGoalResponse(Goal g) =>
-        new(g.Id, g.Title, g.TargetAmount, g.CurrentAmount, g.Year, g.Description, g.Status, g.CreatedAt, g.UpdatedAt, g.ExpectedMonthly, g.TargetDate, g.Kind);
+        new(g.Id, g.Title, g.TargetAmount, g.CurrentAmount, g.Year, g.Description, g.Status, g.CreatedAt, g.UpdatedAt, g.ExpectedMonthly, g.TargetDate, g.Kind,
+            g.Mode, g.StartDate, g.EndDate, g.Recurrence, g.WarningThreshold, g.CriticalThreshold, g.ArchivedAt,
+            g.Scopes.Select(s => new GoalScopeDto(s.ScopeType, s.RefId)).ToList());
 }

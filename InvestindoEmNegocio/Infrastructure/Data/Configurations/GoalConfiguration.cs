@@ -44,15 +44,40 @@ public class GoalConfiguration : IEntityTypeConfiguration<Goal>
             .IsRequired()
             .HasDefaultValue(InvestindoEmNegocio.Domain.Enums.GoalKind.General);
 
+        // Fase A — planejamento
+        builder.Property(g => g.Mode)
+            .HasConversion<string>()
+            .IsRequired()
+            .HasDefaultValue(InvestindoEmNegocio.Domain.Enums.GoalMode.Target);
+
+        builder.Property(g => g.Recurrence)
+            .HasConversion<string>()
+            .IsRequired()
+            .HasDefaultValue(InvestindoEmNegocio.Domain.Enums.RecurrenceType.None);
+
+        builder.Property(g => g.StartDate);
+        builder.Property(g => g.EndDate);
+        builder.Property(g => g.WarningThreshold).HasColumnType("numeric(5,2)");
+        builder.Property(g => g.CriticalThreshold).HasColumnType("numeric(5,2)");
+        builder.Property(g => g.ArchivedAt);
+
         builder.Property(g => g.CreatedAt).IsRequired();
         builder.Property(g => g.UpdatedAt).IsRequired();
         builder.Property(g => g.DeletedAt);
 
         builder.Property(g => g.SpaceId).IsRequired();
 
+        builder.HasMany(g => g.Scopes)
+            .WithOne()
+            .HasForeignKey(s => s.GoalId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Metadata.FindNavigation(nameof(Goal.Scopes))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
         builder.HasIndex(g => new { g.UserId, g.Year });
         builder.HasIndex(g => new { g.UserId, g.Status });
         builder.HasIndex(g => new { g.UserId, g.SpaceId });
+        builder.HasIndex(g => new { g.UserId, g.Kind });
 
         builder.HasQueryFilter(g => g.DeletedAt == null);
     }

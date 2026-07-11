@@ -15,7 +15,7 @@ public class GoalsServiceTests
     [Fact]
     public async Task UpsertIncomeGoalAsync_Should_Throw_When_ExpectedMonthly_Is_Invalid()
     {
-        var sut = new GoalsService(Mock.Of<IGoalRepository>(), Mock.Of<IGoalContributionRepository>(), Mock.Of<ICurrentSpaceAccessor>(), NullLogger<GoalsService>.Instance);
+        var sut = new GoalsService(Mock.Of<IGoalRepository>(), Mock.Of<IGoalContributionRepository>(), Mock.Of<ICurrentSpaceAccessor>(), Mock.Of<IInvestDbContext>(), NullLogger<GoalsService>.Instance);
 
         Func<Task> act = async () => await sut.UpsertIncomeGoalAsync(Guid.NewGuid(), new UpsertIncomeGoalRequest(2026, 0));
 
@@ -37,7 +37,7 @@ public class GoalsServiceTests
         spaceAccessor.Setup(x => x.SpaceId).Returns(spaceId);
         spaceAccessor.Setup(x => x.RequireSpaceId()).Returns(spaceId);
 
-        var sut = new GoalsService(repository.Object, Mock.Of<IGoalContributionRepository>(), spaceAccessor.Object, NullLogger<GoalsService>.Instance);
+        var sut = new GoalsService(repository.Object, Mock.Of<IGoalContributionRepository>(), spaceAccessor.Object, Mock.Of<IInvestDbContext>(), NullLogger<GoalsService>.Instance);
 
         var result = await sut.UpsertIncomeGoalAsync(userId, new UpsertIncomeGoalRequest(2026, 1000));
 
@@ -54,7 +54,7 @@ public class GoalsServiceTests
         repository
             .Setup(x => x.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Goal?)null);
-        var sut = new GoalsService(repository.Object, Mock.Of<IGoalContributionRepository>(), Mock.Of<ICurrentSpaceAccessor>(), NullLogger<GoalsService>.Instance);
+        var sut = new GoalsService(repository.Object, Mock.Of<IGoalContributionRepository>(), Mock.Of<ICurrentSpaceAccessor>(), Mock.Of<IInvestDbContext>(), NullLogger<GoalsService>.Instance);
 
         var removed = await sut.DeleteAsync(Guid.NewGuid(), Guid.NewGuid());
 
@@ -78,7 +78,7 @@ public class GoalsServiceTests
             .Setup(x => x.ListByGoalAsync(goal.Id, userId, It.IsAny<CancellationToken>(), It.IsAny<bool>()))
             .ReturnsAsync([contribution]);
 
-        var sut = new GoalsService(repository.Object, contributionRepository.Object, Mock.Of<ICurrentSpaceAccessor>(), NullLogger<GoalsService>.Instance);
+        var sut = new GoalsService(repository.Object, contributionRepository.Object, Mock.Of<ICurrentSpaceAccessor>(), Mock.Of<IInvestDbContext>(), NullLogger<GoalsService>.Instance);
 
         var removed = await sut.DeleteAsync(userId, goal.Id);
 

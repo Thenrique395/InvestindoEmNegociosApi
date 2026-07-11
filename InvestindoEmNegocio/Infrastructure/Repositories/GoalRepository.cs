@@ -12,7 +12,7 @@ public class GoalRepository(InvestDbContext context, ICurrentSpaceAccessor curre
     public async Task<List<Goal>> ListByUserAsync(Guid userId, int? year, GoalStatus? status, CancellationToken cancellationToken = default)
     {
         var spaceId = currentSpaceAccessor.SpaceId;
-        var query = context.Goals.AsNoTracking().Where(g => g.UserId == userId && (!spaceId.HasValue || g.SpaceId == spaceId.Value));
+        var query = context.Goals.AsNoTracking().Include(g => g.Scopes).Where(g => g.UserId == userId && (!spaceId.HasValue || g.SpaceId == spaceId.Value));
         if (year.HasValue) query = query.Where(g => g.Year == year.Value);
         if (status.HasValue) query = query.Where(g => g.Status == status.Value);
 
@@ -22,7 +22,7 @@ public class GoalRepository(InvestDbContext context, ICurrentSpaceAccessor curre
     public async Task<Goal?> GetByIdAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
     {
         var spaceId = currentSpaceAccessor.SpaceId;
-        return await context.Goals.FirstOrDefaultAsync(g => g.Id == id && g.UserId == userId && (!spaceId.HasValue || g.SpaceId == spaceId.Value), cancellationToken);
+        return await context.Goals.Include(g => g.Scopes).FirstOrDefaultAsync(g => g.Id == id && g.UserId == userId && (!spaceId.HasValue || g.SpaceId == spaceId.Value), cancellationToken);
     }
 
     public async Task<bool> ExistsAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)

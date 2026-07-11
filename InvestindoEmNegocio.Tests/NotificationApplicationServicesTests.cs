@@ -1,4 +1,5 @@
 using FluentAssertions;
+using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
@@ -827,7 +828,8 @@ public class NotificationApplicationServicesTests
             settingsRepository?.Object ?? Mock.Of<INotificationSettingsRepository>(),
             cardRepository?.Object ?? Mock.Of<ICardRepository>(),
             goalRepository?.Object ?? Mock.Of<IGoalRepository>(),
-            goalContributionRepository?.Object ?? Mock.Of<IGoalContributionRepository>());
+            goalContributionRepository?.Object ?? Mock.Of<IGoalContributionRepository>(),
+            Mock.Of<IGoalRealizedReader>());
     }
 
     private static void SetInstallmentStatus(MoneyInstallment installment, InstallmentStatus status)

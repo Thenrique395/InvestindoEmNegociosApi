@@ -14,8 +14,45 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/goals")]
 [Route("api/v1/goals")]
 [Authorize(Policy = AppAuthorizationPolicies.FeatureGoalsManage)]
-public class GoalsController(IGoalsService goalsService, IAuditService auditService) : AuthenticatedControllerBase
+public class GoalsController(IGoalsService goalsService, IGoalProgressService goalProgressService, IGoalOccurrenceService goalOccurrenceService, IAuditService auditService) : AuthenticatedControllerBase
 {
+    [HttpGet("{id:guid}/progress")]
+    // Returns the calculated progress (from real transactions) of a goal owned by the user.
+    public async Task<IActionResult> GetProgress(Guid id, CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        var progress = await goalProgressService.GetProgressAsync(userId, id, cancellationToken);
+        if (progress is null) return NotFound();
+        return Ok(progress);
+    }
+
+    [HttpGet("{id:guid}/occurrences")]
+    // Returns the occurrences (recurring periods) of a goal, with realized per period.
+    public async Task<IActionResult> GetOccurrences(Guid id, CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        var occurrences = await goalOccurrenceService.EnsureAndListAsync(userId, id, cancellationToken);
+        if (occurrences is null) return NotFound();
+        return Ok(occurrences);
+    }
+
+    [HttpGet("{id:guid}/history")]
+    // History = occurrences of the goal (period-by-period evolution).
+    public Task<IActionResult> GetHistory(Guid id, CancellationToken cancellationToken) => GetOccurrences(id, cancellationToken);
+
+    [HttpPut("{id:guid}/occurrences/current")]
+    // Edits only the current occurrence target (not the whole series).
+    public async Task<IActionResult> OverrideCurrentOccurrence(Guid id, [FromBody] OverrideOccurrenceRequest request, CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        return await ExecuteWithProblemMappingAsync(async () =>
+        {
+            var updated = await goalOccurrenceService.OverrideCurrentTargetAsync(userId, id, request.TargetAmount, cancellationToken);
+            if (!updated) return NotFound();
+            return NoContent();
+        }, "Ocorrência inválida");
+    }
+
     [HttpGet]
     // Lists user goals with optional year and status filters.
     public async Task<IActionResult> List([FromQuery] int? year, [FromQuery] GoalStatus? status, [FromQuery] ListQuery query, CancellationToken cancellationToken = default)
@@ -76,6 +113,29 @@ public class GoalsController(IGoalsService goalsService, IAuditService auditServ
             if (goal is null) return NotFound();
             return Ok(goal);
         }, "Meta inválida");
+    }
+
+    [HttpPost("{id:guid}/pause")]
+    public Task<IActionResult> Pause(Guid id, CancellationToken ct) => Transition(id, goalsService.PauseAsync, ct);
+
+    [HttpPost("{id:guid}/resume")]
+    public Task<IActionResult> Resume(Guid id, CancellationToken ct) => Transition(id, goalsService.ResumeAsync, ct);
+
+    [HttpPost("{id:guid}/archive")]
+    public Task<IActionResult> Archive(Guid id, CancellationToken ct) => Transition(id, goalsService.ArchiveAsync, ct);
+
+    [HttpPost("{id:guid}/complete")]
+    public Task<IActionResult> Complete(Guid id, CancellationToken ct) => Transition(id, goalsService.CompleteAsync, ct);
+
+    private async Task<IActionResult> Transition(Guid id, Func<Guid, Guid, CancellationToken, Task<GoalResponse?>> action, CancellationToken ct)
+    {
+        var userId = GetUserId();
+        return await ExecuteWithProblemMappingAsync(async () =>
+        {
+            var goal = await action(userId, id, ct);
+            if (goal is null) return NotFound();
+            return Ok(goal);
+        }, "Transição de meta inválida");
     }
 
     [HttpDelete("{id:guid}")]

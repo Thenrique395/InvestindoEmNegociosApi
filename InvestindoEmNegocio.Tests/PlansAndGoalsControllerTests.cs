@@ -82,7 +82,7 @@ public class PlansAndGoalsControllerTests
         goalsService.Setup(x => x.DeleteAsync(It.IsAny<Guid>(), goalId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
         var audit = new Mock<IAuditService>();
-        var controller = new GoalsController(goalsService.Object, audit.Object);
+        var controller = new GoalsController(goalsService.Object, Mock.Of<IGoalProgressService>(), Mock.Of<IGoalOccurrenceService>(), audit.Object);
         var incomeController = new IncomeGoalsController(goalsService.Object);
         SetAuth(controller, userId);
         SetAuth(incomeController, userId);
@@ -112,7 +112,7 @@ public class PlansAndGoalsControllerTests
         goalsService.Setup(x => x.CreateAsync(It.IsAny<Guid>(), It.IsAny<CreateGoalRequest>(), It.IsAny<CancellationToken>())).ThrowsAsync(new ArgumentException("invalido"));
         goalsService.Setup(x => x.UpsertIncomeGoalAsync(It.IsAny<Guid>(), It.IsAny<UpsertIncomeGoalRequest>(), It.IsAny<CancellationToken>())).ThrowsAsync(new ArgumentException("invalido"));
 
-        var controller = new GoalsController(goalsService.Object, Mock.Of<IAuditService>());
+        var controller = new GoalsController(goalsService.Object, Mock.Of<IGoalProgressService>(), Mock.Of<IGoalOccurrenceService>(), Mock.Of<IAuditService>());
         var incomeController = new IncomeGoalsController(goalsService.Object);
         var userId = Guid.NewGuid();
         SetAuth(controller, userId);

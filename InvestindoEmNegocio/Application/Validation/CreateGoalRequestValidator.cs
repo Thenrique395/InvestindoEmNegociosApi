@@ -26,5 +26,23 @@ public sealed class CreateGoalRequestValidator : AbstractValidator<CreateGoalReq
         RuleFor(x => x.Description)
             .MaximumLength(500).WithMessage("Descrição deve ter no máximo 500 caracteres.")
             .When(x => !string.IsNullOrWhiteSpace(x.Description));
+
+        RuleFor(x => x.WarningThreshold!.Value)
+            .InclusiveBetween(0m, 100m).WithMessage("Limiar de atenção deve estar entre 0 e 100.")
+            .When(x => x.WarningThreshold.HasValue);
+
+        RuleFor(x => x.CriticalThreshold!.Value)
+            .InclusiveBetween(0m, 100m).WithMessage("Limiar crítico deve estar entre 0 e 100.")
+            .When(x => x.CriticalThreshold.HasValue);
+
+        RuleFor(x => x)
+            .Must(x => x.WarningThreshold!.Value <= x.CriticalThreshold!.Value)
+            .WithMessage("Limiar de atenção não pode ser maior que o crítico.")
+            .When(x => x.WarningThreshold.HasValue && x.CriticalThreshold.HasValue);
+
+        RuleFor(x => x)
+            .Must(x => x.EndDate!.Value >= x.StartDate!.Value)
+            .WithMessage("Data final não pode ser anterior à inicial.")
+            .When(x => x.StartDate.HasValue && x.EndDate.HasValue);
     }
 }

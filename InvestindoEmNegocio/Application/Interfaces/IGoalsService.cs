@@ -12,4 +12,9 @@ public interface IGoalsService
     Task<GoalResponse> CreateAsync(Guid userId, CreateGoalRequest request, CancellationToken cancellationToken = default);
     Task<GoalResponse?> UpdateAsync(Guid userId, Guid id, CreateGoalRequest request, CancellationToken cancellationToken = default);
     Task<bool> DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken = default);
+
+    Task<GoalResponse?> PauseAsync(Guid userId, Guid id, CancellationToken ct = default);
+    Task<GoalResponse?> ResumeAsync(Guid userId, Guid id, CancellationToken ct = default);
+    Task<GoalResponse?> ArchiveAsync(Guid userId, Guid id, CancellationToken ct = default);
+    Task<GoalResponse?> CompleteAsync(Guid userId, Guid id, CancellationToken ct = default);
 }

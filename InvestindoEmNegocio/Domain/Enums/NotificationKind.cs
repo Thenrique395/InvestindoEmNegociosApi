@@ -22,5 +22,9 @@ public enum NotificationKind
     BillingGracePeriodReminder = 17,
     BillingDowngraded = 18,
     BillingReactivated = 19,
-    AiHealthAlert = 20
+    AiHealthAlert = 20,
+    GoalWarning = 21,
+    GoalExceeded = 22,
+    GoalAchieved = 23,
+    GoalOverdue = 24
 }

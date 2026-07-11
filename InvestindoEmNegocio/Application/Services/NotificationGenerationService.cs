@@ -4,6 +4,7 @@ using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
 using InvestindoEmNegocio.Domain.Finance;
+using InvestindoEmNegocio.Domain.Goals;
 using InvestindoEmNegocio.Domain.Repositories;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -19,6 +20,7 @@ public sealed class NotificationGenerationService(
     ICardRepository cardRepository,
     IGoalRepository goalRepository,
     IGoalContributionRepository goalContributionRepository,
+    IGoalRealizedReader goalRealizedReader,
     ILogger<NotificationGenerationService>? logger = null) : INotificationGenerationService
 {
     private readonly ILogger<NotificationGenerationService> _logger = logger ?? NullLogger<NotificationGenerationService>.Instance;
@@ -207,6 +209,8 @@ public sealed class NotificationGenerationService(
                         candidates.Add(new UserNotification(userId, NotificationKind.GoalInactive, title, message, referenceKey, null, null, null, null));
                     }
                 }
+
+                await AddGoalProgressAlertsAsync(userId, goal, settings, today, candidates, cancellationToken);
             }
         }
 
@@ -765,5 +769,49 @@ public sealed class NotificationGenerationService(
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Alertas baseados no PROGRESSO real da meta (Fase D): atenção/excedida
+    /// (despesa), abaixo do ritmo/atrasada/atingida (receita/investimento).
+    /// Um alerta por estado por período (dedup por ReferenceKey).
+    /// </summary>
+    private async Task AddGoalProgressAlertsAsync(Guid userId, Goal goal, NotificationSettings settings, DateOnly today, List<UserNotification> candidates, CancellationToken ct)
+    {
+        if (!settings.GoalBelowExpectedEnabled && !settings.GoalCompletedEnabled) return;
+        if (goal.Status is GoalStatus.Completed or GoalStatus.Canceled or GoalStatus.Archived or GoalStatus.Paused) return;
+        if (goal.Kind is not (GoalKind.Expense or GoalKind.Income or GoalKind.Investment)) return;
+        if (goal.TargetAmount <= 0) return;
+
+        // Apenas metas que adotaram o planejamento novo (período/recorrência/escopo).
+        // Metas legadas (sem esses campos) continuam usando os alertas antigos.
+        var usesPlanning = goal.StartDate is not null || goal.Recurrence != RecurrenceType.None || goal.Scopes.Count > 0;
+        if (!usesPlanning) return;
+
+        var anchorStart = goal.StartDate ?? new DateOnly(goal.Year, 1, 1);
+        var fallbackEnd = goal.EndDate ?? new DateOnly(goal.Year, 12, 31);
+        DateOnly start, end;
+        if (goal.Recurrence is RecurrenceType.None or RecurrenceType.Custom)
+        {
+            start = anchorStart;
+            end = fallbackEnd;
+        }
+        else
+        {
+            var window = GoalPeriodCalculator.CurrentWindow(goal.Recurrence, anchorStart, fallbackEnd, today);
+            start = window.Start;
+            end = window.End;
+        }
+
+        var (realized, pending) = await goalRealizedReader.ReadAsync(goal, start, end, ct);
+        var progress = GoalProgressCalculator.Calculate(goal.Kind, goal.TargetAmount, realized, pending, start, end, today, goal.WarningThreshold, goal.CriticalThreshold);
+
+        var descriptor = GoalAlertEvaluator.Evaluate(goal.Id, goal.Title, goal.Kind, progress, start.ToString("yyyyMMdd"));
+        if (descriptor is null) return;
+
+        var gatedOk = descriptor.Kind == NotificationKind.GoalAchieved ? settings.GoalCompletedEnabled : settings.GoalBelowExpectedEnabled;
+        if (!gatedOk) return;
+
+        candidates.Add(new UserNotification(userId, descriptor.Kind, descriptor.Title, descriptor.Message, descriptor.ReferenceKey, null, null, null, null));
     }
 }

@@ -1330,3 +1330,52 @@ BEGIN
 
     CREATE UNIQUE INDEX IF NOT EXISTS "IX_accounts_UserId_SpaceId_Name" ON accounts ("UserId", "SpaceId", "Name") WHERE "DeletedAt" IS NULL;
 END $$;
+
+-- =====================================================================
+-- Metas — Central de Planejamento (Fase A): planejamento + escopo
+-- Colunas idempotentes na tabela goals e nova tabela goal_scopes.
+-- =====================================================================
+ALTER TABLE goals ADD COLUMN IF NOT EXISTS "Mode" text NOT NULL DEFAULT 'Target';
+ALTER TABLE goals ADD COLUMN IF NOT EXISTS "Recurrence" text NOT NULL DEFAULT 'None';
+ALTER TABLE goals ADD COLUMN IF NOT EXISTS "StartDate" date;
+ALTER TABLE goals ADD COLUMN IF NOT EXISTS "EndDate" date;
+ALTER TABLE goals ADD COLUMN IF NOT EXISTS "WarningThreshold" numeric(5,2);
+ALTER TABLE goals ADD COLUMN IF NOT EXISTS "CriticalThreshold" numeric(5,2);
+ALTER TABLE goals ADD COLUMN IF NOT EXISTS "ArchivedAt" timestamp with time zone;
+
+-- Backfill do Mode a partir do Kind já existente (idempotente: só onde ainda no default).
+UPDATE goals SET "Mode" = 'Limit'
+    WHERE "Kind" = 'Expense' AND "Mode" = 'Target';
+UPDATE goals SET "Mode" = 'RecurringContribution'
+    WHERE "Kind" = 'Investment' AND "Mode" = 'Target';
+
+CREATE INDEX IF NOT EXISTS "IX_goals_UserId_Kind" ON goals ("UserId", "Kind");
+
+CREATE TABLE IF NOT EXISTS goal_scopes (
+    "Id" uuid NOT NULL,
+    "GoalId" uuid NOT NULL,
+    "ScopeType" text NOT NULL,
+    "RefId" uuid NOT NULL,
+    CONSTRAINT "PK_goal_scopes" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_goal_scopes_goals_GoalId" FOREIGN KEY ("GoalId") REFERENCES goals ("Id") ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS "IX_goal_scopes_GoalId" ON goal_scopes ("GoalId");
+CREATE INDEX IF NOT EXISTS "IX_goal_scopes_GoalId_ScopeType" ON goal_scopes ("GoalId", "ScopeType");
+
+-- Metas — Fase B: ocorrências (recorrência / histórico por período)
+CREATE TABLE IF NOT EXISTS goal_occurrences (
+    "Id" uuid NOT NULL,
+    "GoalId" uuid NOT NULL,
+    "Sequence" integer NOT NULL,
+    "PeriodStart" date NOT NULL,
+    "PeriodEnd" date NOT NULL,
+    "TargetAmount" numeric(14,2) NOT NULL,
+    "Status" text NOT NULL,
+    "ClosedAt" timestamp with time zone,
+    "CreatedAt" timestamp with time zone NOT NULL,
+    CONSTRAINT "PK_goal_occurrences" PRIMARY KEY ("Id"),
+    CONSTRAINT "FK_goal_occurrences_goals_GoalId" FOREIGN KEY ("GoalId") REFERENCES goals ("Id") ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS "IX_goal_occurrences_GoalId" ON goal_occurrences ("GoalId");
+CREATE INDEX IF NOT EXISTS "IX_goal_occurrences_GoalId_PeriodStart" ON goal_occurrences ("GoalId", "PeriodStart");
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_goal_occurrences_GoalId_Sequence" ON goal_occurrences ("GoalId", "Sequence");

@@ -353,6 +353,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICategorizationService, CategorizationService>();
         services.AddScoped<IRecurrenceDetectorService, RecurrenceDetectorService>();
         services.AddScoped<IGoalsService, GoalsService>();
+        services.AddScoped<IGoalRealizedReader, GoalRealizedReader>();
+        services.AddScoped<IGoalProgressService, GoalProgressService>();
+        services.AddScoped<IGoalOccurrenceService, GoalOccurrenceService>();
         services.AddScoped<IGoalContributionsService, GoalContributionsService>();
         services.AddScoped<IInstallmentsService, InstallmentsService>();
         services.AddScoped<ILookupPaymentMethodService, LookupsService>();

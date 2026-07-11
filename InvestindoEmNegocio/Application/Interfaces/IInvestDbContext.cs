@@ -16,6 +16,8 @@ public interface IInvestDbContext
     DbSet<Account> Accounts { get; }
     DbSet<AccountTransaction> AccountTransactions { get; }
     DbSet<Goal> Goals { get; }
+    DbSet<GoalScope> GoalScopes { get; }
+    DbSet<GoalOccurrence> GoalOccurrences { get; }
     DbSet<GoalContribution> GoalContributions { get; }
     DbSet<MoneyPlan> MoneyPlans { get; }
     DbSet<MoneyInstallment> MoneyInstallments { get; }
