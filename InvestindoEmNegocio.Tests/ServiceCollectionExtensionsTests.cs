@@ -137,12 +137,13 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddAppCors_Should_Allow_Any_Origin_With_Credentials()
+    public void AddAppCors_Development_Should_Allow_Any_Origin_With_Credentials()
     {
         var services = new ServiceCollection();
         const string policy = "AllowFrontend";
+        var configuration = new ConfigurationBuilder().Build();
 
-        services.AddAppCors(policy);
+        services.AddAppCors(policy, isDevelopment: true, configuration);
         var provider = services.BuildServiceProvider();
 
         var cors = provider.GetRequiredService<IOptions<CorsOptions>>().Value;
@@ -153,6 +154,48 @@ public class ServiceCollectionExtensionsTests
         configuredPolicy.IsOriginAllowed("https://app.example.com").Should().BeTrue();
         configuredPolicy.IsOriginAllowed("http://35.174.50.187:4201").Should().BeTrue();
         configuredPolicy.SupportsCredentials.Should().BeTrue();
+    }
+
+    [Fact]
+    public void AddAppCors_Production_Should_Allow_Only_Configured_Origins()
+    {
+        var services = new ServiceCollection();
+        const string policy = "AllowFrontend";
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Cors:AllowedOrigins:0"] = "https://app.investindoemnegocios.com.br"
+            })
+            .Build();
+
+        services.AddAppCors(policy, isDevelopment: false, configuration);
+        var provider = services.BuildServiceProvider();
+
+        var cors = provider.GetRequiredService<IOptions<CorsOptions>>().Value;
+        var configuredPolicy = cors.GetPolicy(policy);
+
+        configuredPolicy.Should().NotBeNull();
+        configuredPolicy!.IsOriginAllowed("https://app.investindoemnegocios.com.br").Should().BeTrue();
+        configuredPolicy.IsOriginAllowed("https://malicious.example.com").Should().BeFalse();
+        configuredPolicy.IsOriginAllowed("http://localhost:4200").Should().BeFalse();
+        configuredPolicy.SupportsCredentials.Should().BeTrue();
+    }
+
+    [Fact]
+    public void AddAppCors_Production_Should_Fail_Closed_When_No_Origins()
+    {
+        var services = new ServiceCollection();
+        const string policy = "AllowFrontend";
+        var configuration = new ConfigurationBuilder().Build();
+
+        services.AddAppCors(policy, isDevelopment: false, configuration);
+        var provider = services.BuildServiceProvider();
+
+        var cors = provider.GetRequiredService<IOptions<CorsOptions>>().Value;
+        var configuredPolicy = cors.GetPolicy(policy);
+
+        configuredPolicy.Should().NotBeNull();
+        configuredPolicy!.IsOriginAllowed("https://app.investindoemnegocios.com.br").Should().BeFalse();
     }
 
     [Fact]

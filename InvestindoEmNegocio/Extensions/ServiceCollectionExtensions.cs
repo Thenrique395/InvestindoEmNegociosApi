@@ -146,17 +146,30 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddAppCors(this IServiceCollection services, string corsPolicy)
+    public static IServiceCollection AddAppCors(this IServiceCollection services, string corsPolicy, bool isDevelopment, IConfiguration configuration)
     {
+        var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+
         services.AddCors(options =>
         {
             options.AddPolicy(corsPolicy, policy =>
             {
-                // CORS aberto — restringir por origem ao migrar para produção com HTTPS.
-                policy.SetIsOriginAllowed(_ => true)
-                    .AllowAnyHeader()
-                    .AllowAnyMethod()
-                    .AllowCredentials();
+                if (isDevelopment)
+                {
+                    // Dev usa proxy (mesma origem); liberado para não atrapalhar o fluxo local.
+                    policy.SetIsOriginAllowed(_ => true)
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                        .AllowCredentials();
+                }
+                else
+                {
+                    // Produção: apenas origens de Cors:AllowedOrigins (falha fechado se vazio).
+                    policy.WithOrigins(allowedOrigins)
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                        .AllowCredentials();
+                }
             });
         });
 
