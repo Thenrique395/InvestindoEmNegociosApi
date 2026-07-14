@@ -249,6 +249,43 @@ public class AccountsControllerSqliteIntegrationTests
         });
     }
 
+    [Fact]
+    public async Task AccountEndpoints_Should_Not_Expose_Other_Users_Account_Idor()
+    {
+        await using var host = await TestAccountsApiHost.StartAsync(UserRole.Intermediate);
+        var client = host.App.GetTestClient();
+
+        // Conta pertencente a OUTRO usuário (não o autenticado TestUserId).
+        var otherUserId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var otherAccountId = Guid.Empty;
+        await host.SeedAsync(async db =>
+        {
+            var account = new Account(otherUserId, Guid.NewGuid(), "Conta do outro usuário", AccountType.Checking, 5000m);
+            db.Accounts.Add(account);
+            await db.SaveChangesAsync();
+            otherAccountId = account.Id;
+        });
+
+        // Autenticado como TestUserId, tentar LER o saldo da conta alheia → 404.
+        var balanceRequest = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/accounts/{otherAccountId}/balance");
+        balanceRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "token");
+        var balanceResponse = await client.SendAsync(balanceRequest);
+        balanceResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+        // ...e tentar EXCLUIR a conta alheia → 404.
+        var deleteRequest = new HttpRequestMessage(HttpMethod.Delete, $"/api/v1/accounts/{otherAccountId}");
+        deleteRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "token");
+        var deleteResponse = await client.SendAsync(deleteRequest);
+        deleteResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+        // A conta do outro usuário permanece intacta (não foi lida nem removida).
+        await host.SeedAsync(async db =>
+        {
+            var stillExists = await db.Accounts.IgnoreQueryFilters().AnyAsync(x => x.Id == otherAccountId);
+            stillExists.Should().BeTrue();
+        });
+    }
+
     private sealed class TestAccountsApiHost(WebApplication app, SqliteConnection connection) : IAsyncDisposable
     {
         internal static readonly Guid TestUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
