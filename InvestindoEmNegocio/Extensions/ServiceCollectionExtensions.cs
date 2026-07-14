@@ -146,7 +146,7 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddAppCors(this IServiceCollection services, string corsPolicy, bool isDevelopment, IConfiguration configuration)
+    public static IServiceCollection AddAppCors(this IServiceCollection services, string corsPolicy, IConfiguration configuration)
     {
         var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 
@@ -154,26 +154,29 @@ public static class ServiceCollectionExtensions
         {
             options.AddPolicy(corsPolicy, policy =>
             {
-                if (isDevelopment)
-                {
-                    // Dev usa proxy (mesma origem); liberado para não atrapalhar o fluxo local.
-                    policy.SetIsOriginAllowed(_ => true)
-                        .AllowAnyHeader()
-                        .AllowAnyMethod()
-                        .AllowCredentials();
-                }
-                else
-                {
-                    // Produção: apenas origens de Cors:AllowedOrigins (falha fechado se vazio).
-                    policy.WithOrigins(allowedOrigins)
-                        .AllowAnyHeader()
-                        .AllowAnyMethod()
-                        .AllowCredentials();
-                }
+                // Permite sempre origens de loopback (dev local, qualquer porta) e as origens
+                // explicitamente configuradas (PRD). Origens cross-site não listadas são negadas.
+                policy.SetIsOriginAllowed(origin => IsAllowedOrigin(origin, allowedOrigins))
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials();
             });
         });
 
         return services;
+    }
+
+    private static bool IsAllowedOrigin(string origin, string[] allowedOrigins)
+    {
+        if (allowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase)) return true;
+        return Uri.TryCreate(origin, UriKind.Absolute, out var uri) && IsLoopbackHost(uri.Host);
+    }
+
+    private static bool IsLoopbackHost(string host)
+    {
+        if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase)) return true;
+        var trimmed = host.Trim('[', ']');
+        return System.Net.IPAddress.TryParse(trimmed, out var ip) && System.Net.IPAddress.IsLoopback(ip);
     }
 
     public static IServiceCollection AddAppRateLimiting(this IServiceCollection services)
