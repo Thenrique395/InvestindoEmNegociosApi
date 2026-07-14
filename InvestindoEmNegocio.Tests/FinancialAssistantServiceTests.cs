@@ -79,6 +79,22 @@ public class FinancialAssistantServiceTests
         anthropicClient.Verify(x => x.CompleteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Theory]
+    [InlineData("Qual ação comprar para render mais?")]
+    [InlineData("Onde investir meu dinheiro agora?")]
+    [InlineData("Vale a pena comprar essa cripto?")]
+    public async Task ChatAsync_Should_Block_Recommendation_Requests_Without_Calling_Anthropic(string question)
+    {
+        var userId = Guid.NewGuid();
+        var (sut, anthropicClient) = CreateSut(userId);
+
+        var result = await sut.ChatAsync(userId, new FinancialAssistantChatRequest(question));
+
+        result.Allowed.Should().BeFalse();
+        result.ReasonCode.Should().Be("blocked_recommendation");
+        anthropicClient.Verify(x => x.CompleteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     [Fact]
     public async Task ChatAsync_Should_Return_Anthropic_Answer_When_Call_Succeeds()
     {

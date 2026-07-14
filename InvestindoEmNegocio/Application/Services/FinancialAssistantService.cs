@@ -18,13 +18,40 @@ public class FinancialAssistantService(
         "faça investimento automaticamente"
     ];
 
+    // Pedidos de recomendação de investimento — fora do escopo do produto (só análise/organização).
+    private static readonly string[] RecommendationTopics =
+    [
+        "que ação comprar",
+        "qual ação comprar",
+        "que ativo comprar",
+        "qual ativo comprar",
+        "onde investir",
+        "onde aplicar",
+        "melhor investimento",
+        "melhor ação",
+        "melhor ativo",
+        "melhor fundo",
+        "devo comprar",
+        "devo vender",
+        "vale a pena investir",
+        "vale a pena comprar",
+        "vai render",
+        "qual criptomoeda",
+        "que criptomoeda",
+        "qual cripto",
+        "que cripto"
+    ];
+
     private const string SystemPrompt =
         "Você é o assistente financeiro do app Investindo em Negócios. Responda só com base " +
         "no contexto JSON fornecido pelo usuário (dados financeiros já consolidados dele) — " +
         "não invente números que não estejam lá. Responda em português, de forma objetiva e " +
         "curta (poucas frases). Nunca executa ações nem instrui o usuário a automatizar " +
-        "movimentações financeiras. Não substitui aconselhamento financeiro, jurídico, " +
-        "tributário ou regulado.";
+        "movimentações financeiras. Nunca recomende compra ou venda de ativos, produtos ou " +
+        "investimentos específicos, e nunca prometa nem estime rendimentos futuros. Você apenas " +
+        "analisa os dados e ajuda a organizar e planejar; se pedirem recomendação de investimento, " +
+        "explique que não faz recomendações e redirecione para a análise dos dados do usuário. " +
+        "Não substitui aconselhamento financeiro, jurídico, tributário ou regulado.";
 
     public async Task<FinancialAssistantPromptContextResponse> BuildContextAsync(Guid userId, DateOnly? referenceDate = null, CancellationToken cancellationToken = default)
     {
@@ -69,6 +96,12 @@ public class FinancialAssistantService(
         if (blockedTopic is not null)
         {
             return new FinancialAssistantChatResponse(false, normalizedQuestion, "Posso orientar e priorizar ações, mas não executo movimentações financeiras em seu nome.", BuildDisclaimer(), "blocked_automation", context);
+        }
+
+        var recommendationTopic = RecommendationTopics.FirstOrDefault(lowered.Contains);
+        if (recommendationTopic is not null)
+        {
+            return new FinancialAssistantChatResponse(false, normalizedQuestion, "Não recomendo compra ou venda de ativos, produtos ou investimentos específicos, nem faço promessas de rendimento. Posso analisar seus dados e ajudar a organizar e planejar suas finanças.", BuildDisclaimer(), "blocked_recommendation", context);
         }
 
         try
