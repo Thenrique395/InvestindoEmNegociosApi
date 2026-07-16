@@ -45,7 +45,8 @@ public class InvestmentPlanningService(
     {
         var current = await allocationTargetRepository.GetByUserAsync(userId, cancellationToken);
         if (current is null)
-            return InvestmentsShared.MapAllocation(40m, 35m, 20m, 5m);
+            // Ponto de partida editável pelo usuário — não é recomendação de investimento.
+            return InvestmentsShared.MapAllocation(30m, 30m, 30m, 10m);
 
         return InvestmentsShared.MapAllocation(current.Rf, current.Acoes, current.Fundos, current.Cripto);
     }

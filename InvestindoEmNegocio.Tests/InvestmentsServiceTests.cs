@@ -102,10 +102,10 @@ public class InvestmentsServiceTests
 
         var result = await sut.GetAllocationTargetAsync(Guid.NewGuid(), CancellationToken.None);
 
-        result.Rf.Should().Be(40);
-        result.Acoes.Should().Be(35);
-        result.Fundos.Should().Be(20);
-        result.Cripto.Should().Be(5);
+        result.Rf.Should().Be(30);
+        result.Acoes.Should().Be(30);
+        result.Fundos.Should().Be(30);
+        result.Cripto.Should().Be(10);
         result.Total.Should().Be(100);
     }
 
