@@ -23,5 +23,15 @@ public class LoanInstallmentConfiguration : IEntityTypeConfiguration<LoanInstall
 
         builder.HasIndex(x => new { x.UserId, x.DueDate });
         builder.HasIndex(x => new { x.ContractId, x.InstallmentNo }).IsUnique();
+
+        // Modela a relação com o contrato (espelha a FK ON DELETE CASCADE do schema.sql).
+        // Sem isso, o EF não conhece a dependência e a ordem de deleção não é garantida:
+        // ao excluir um contrato, a cascata do banco e o delete explícito das parcelas
+        // competem, gerando DbUpdateConcurrencyException (parcelas têm Version). Com a
+        // relação modelada, basta excluir o contrato — a cascata cuida das parcelas.
+        builder.HasOne<LoanContract>()
+            .WithMany()
+            .HasForeignKey(x => x.ContractId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

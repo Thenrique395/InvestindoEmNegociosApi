@@ -89,7 +89,9 @@ public class LoansService(
         var contract = await loanContractRepository.GetByIdAsync(contractId, userId, cancellationToken)
             ?? throw new AppProblemException("Contrato não encontrado", "O contrato informado não existe ou não pertence ao usuário.", StatusCodes.Status404NotFound);
 
-        await loanInstallmentRepository.RemoveByContractAsync(contractId, userId, cancellationToken);
+        // As parcelas são removidas pela FK ON DELETE CASCADE (relação modelada em
+        // LoanInstallmentConfiguration). Não apagar explicitamente aqui: isso corria com
+        // a cascata do banco e gerava DbUpdateConcurrencyException (Version) → 500.
         loanContractRepository.Remove(contract);
         await loanContractRepository.SaveChangesAsync(cancellationToken);
     }
