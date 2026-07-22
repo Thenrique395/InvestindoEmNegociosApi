@@ -34,7 +34,8 @@ public sealed class CategorizationService(
         if (string.IsNullOrWhiteSpace(normalizedDescription))
             return null;
 
-        var categories = await categoryRepository.ListForUserAsync(userId, type, cancellationToken);
+        // Suggestions target new transactions, so deactivated categories are intentionally excluded.
+        var categories = await categoryRepository.ListForUserAsync(userId, type, cancellationToken: cancellationToken);
         if (categories.Count == 0)
             return null;
 

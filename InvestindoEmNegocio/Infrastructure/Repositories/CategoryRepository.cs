@@ -8,10 +8,12 @@ namespace InvestindoEmNegocio.Infrastructure.Repositories;
 
 public class CategoryRepository(InvestDbContext context) : ICategoryRepository
 {
-    public async Task<List<Category>> ListForUserAsync(Guid userId, MoneyType? appliesTo, CancellationToken cancellationToken = default)
+    public async Task<List<Category>> ListForUserAsync(Guid userId, MoneyType? appliesTo, bool includeInactive = false, CancellationToken cancellationToken = default)
     {
+        // Defaults (system) are always shown only when active; user categories are hidden
+        // when inactive unless includeInactive is requested (management screen / history name resolution).
         var query = context.Categories.AsNoTracking()
-            .Where(c => (c.UserId == null && c.IsActive) || c.UserId == userId);
+            .Where(c => (c.UserId == null && c.IsActive) || (c.UserId == userId && (includeInactive || c.IsActive)));
 
         if (appliesTo.HasValue)
             query = query.Where(c => c.AppliesTo == null || c.AppliesTo == appliesTo.Value);

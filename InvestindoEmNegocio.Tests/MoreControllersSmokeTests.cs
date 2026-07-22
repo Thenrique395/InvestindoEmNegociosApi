@@ -123,18 +123,18 @@ public class MoreControllersSmokeTests
     public async Task CategoriesController_Should_Cover_Main_Actions_And_Error_Mapping()
     {
         var service = new Mock<ICategoriesService>();
-        var categoryResponse = new CategoryResponse(Guid.NewGuid(), "Cat", MoneyType.Expense, false);
-        service.Setup(x => x.ListAsync(It.IsAny<Guid>(), It.IsAny<MoneyType?>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<CategoryResponse>());
+        var categoryResponse = new CategoryResponse(Guid.NewGuid(), "Cat", MoneyType.Expense, false, true);
+        service.Setup(x => x.ListAsync(It.IsAny<Guid>(), It.IsAny<MoneyType?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<CategoryResponse>());
         service.Setup(x => x.CreateAsync(It.IsAny<Guid>(), It.IsAny<UpsertCategoryRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(categoryResponse);
         service.Setup(x => x.UpdateAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<UpsertCategoryRequest>(), It.IsAny<CancellationToken>())).ReturnsAsync(categoryResponse);
-        service.Setup(x => x.DeleteAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        service.Setup(x => x.DeleteAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(CategoryDeletionOutcome.Deleted);
         var c = new CategoriesController(service.Object, Mock.Of<IAuditService>());
         SetAuth(c);
 
-        (await c.List(null, new ListQuery(1, 10, null, null), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
+        (await c.List(null, false, new ListQuery(1, 10, null, null), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
         (await c.Create(new UpsertCategoryRequest("Cat", MoneyType.Expense), CancellationToken.None)).Should().BeOfType<CreatedResult>();
         (await c.Update(Guid.NewGuid(), new UpsertCategoryRequest("Cat", MoneyType.Expense), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
-        (await c.Delete(Guid.NewGuid(), CancellationToken.None)).Should().BeOfType<NoContentResult>();
+        (await c.Delete(Guid.NewGuid(), CancellationToken.None)).Should().BeOfType<OkObjectResult>();
 
         service.Setup(x => x.CreateAsync(It.IsAny<Guid>(), It.IsAny<UpsertCategoryRequest>(), It.IsAny<CancellationToken>())).ThrowsAsync(new ArgumentException("bad"));
         Func<Task> bad = async () => await c.Create(new UpsertCategoryRequest("Cat", null), CancellationToken.None);

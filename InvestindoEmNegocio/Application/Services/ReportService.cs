@@ -23,7 +23,7 @@ public class ReportService(
         var plans = await moneyPlanRepository.ListByUserAsync(userId, null, cancellationToken);
         var planMap = plans.ToDictionary(p => p.Id);
 
-        var categories = await categoryRepository.ListForUserAsync(userId, null, cancellationToken);
+        var categories = await categoryRepository.ListForUserAsync(userId, null, includeInactive: true, cancellationToken);
         var categoryMap = categories.ToDictionary(c => c.Id, c => c.Name);
 
         var totalIncome = incomes.Sum(x => x.Amount);

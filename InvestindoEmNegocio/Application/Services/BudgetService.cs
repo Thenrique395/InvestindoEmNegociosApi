@@ -75,7 +75,7 @@ public class BudgetService(
         var plans = await moneyPlanRepository.ListByUserAsync(userId, MoneyType.Expense, cancellationToken);
         var planMap = plans.ToDictionary(p => p.Id);
 
-        var categories = await categoryRepository.ListForUserAsync(userId, MoneyType.Expense, cancellationToken);
+        var categories = await categoryRepository.ListForUserAsync(userId, MoneyType.Expense, includeInactive: true, cancellationToken);
         var categoryMap = categories.ToDictionary(c => c.Id, c => c.Name);
 
         var result = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);

@@ -5,7 +5,7 @@ namespace InvestindoEmNegocio.Domain.Repositories;
 
 public interface ICategoryRepository
 {
-    Task<List<Category>> ListForUserAsync(Guid userId, MoneyType? appliesTo, CancellationToken cancellationToken = default);
+    Task<List<Category>> ListForUserAsync(Guid userId, MoneyType? appliesTo, bool includeInactive = false, CancellationToken cancellationToken = default);
     Task<Category?> GetByIdForUserAsync(Guid id, Guid userId, CancellationToken cancellationToken = default);
     Task<List<Category>> ListDefaultsAsync(bool includeInactive, CancellationToken cancellationToken = default);
     Task<Category?> GetDefaultByIdAsync(Guid id, CancellationToken cancellationToken = default);

@@ -276,7 +276,7 @@ public class AccountAnalyticsServiceTests
         canceledSubscription.RestoreStatus(PlanStatus.Canceled);
 
         var categoryRepository = new Mock<ICategoryRepository>();
-        categoryRepository.Setup(x => x.ListForUserAsync(userId, MoneyType.Expense, It.IsAny<CancellationToken>()))
+        categoryRepository.Setup(x => x.ListForUserAsync(userId, MoneyType.Expense, It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([assinaturas, moradia]);
 
         var planRepository = new Mock<IMoneyPlanRepository>();
@@ -306,7 +306,7 @@ public class AccountAnalyticsServiceTests
         var userId = Guid.NewGuid();
 
         var categoryRepository = new Mock<ICategoryRepository>();
-        categoryRepository.Setup(x => x.ListForUserAsync(userId, MoneyType.Expense, It.IsAny<CancellationToken>()))
+        categoryRepository.Setup(x => x.ListForUserAsync(userId, MoneyType.Expense, It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         var sut = BuildSut(categoryRepository: categoryRepository);

@@ -11,10 +11,16 @@ namespace InvestindoEmNegocio.Tests;
 
 public class CategoriesServiceTests
 {
+    private readonly Mock<ICategoryRepository> repository = new();
+    private readonly Mock<IMoneyPlanRepository> moneyPlans = new();
+
+    private CategoriesService CreateSut() =>
+        new(repository.Object, moneyPlans.Object, NullLogger<CategoriesService>.Instance);
+
     [Fact]
     public async Task CreateAsync_Should_Throw_When_Name_Is_Invalid()
     {
-        var sut = new CategoriesService(Mock.Of<ICategoryRepository>(), NullLogger<CategoriesService>.Instance);
+        var sut = CreateSut();
 
         Func<Task> act = async () => await sut.CreateAsync(Guid.NewGuid(), new UpsertCategoryRequest(" ", MoneyType.Expense));
 
@@ -25,11 +31,10 @@ public class CategoriesServiceTests
     [Fact]
     public async Task CreateAsync_Should_Throw_When_Name_Already_Exists()
     {
-        var repository = new Mock<ICategoryRepository>();
         repository
             .Setup(x => x.NameExistsAsync(It.IsAny<Guid>(), "Alimentação", null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        var sut = new CategoriesService(repository.Object, NullLogger<CategoriesService>.Instance);
+        var sut = CreateSut();
 
         Func<Task> act = async () => await sut.CreateAsync(Guid.NewGuid(), new UpsertCategoryRequest("Alimentação", MoneyType.Expense));
 
@@ -41,16 +46,16 @@ public class CategoriesServiceTests
     public async Task CreateAsync_Should_Persist_When_Valid()
     {
         var userId = Guid.NewGuid();
-        var repository = new Mock<ICategoryRepository>();
         repository
             .Setup(x => x.NameExistsAsync(userId, "Alimentação", null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
-        var sut = new CategoriesService(repository.Object, NullLogger<CategoriesService>.Instance);
+        var sut = CreateSut();
 
         var result = await sut.CreateAsync(userId, new UpsertCategoryRequest("Alimentação", MoneyType.Expense));
 
         result.Name.Should().Be("Alimentação");
         result.IsDefault.Should().BeFalse();
+        result.IsActive.Should().BeTrue();
         repository.Verify(x => x.AddAsync(It.IsAny<Category>(), It.IsAny<CancellationToken>()), Times.Once);
         repository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -58,11 +63,10 @@ public class CategoriesServiceTests
     [Fact]
     public async Task UpdateAsync_Should_Return_Null_When_Not_Found()
     {
-        var repository = new Mock<ICategoryRepository>();
         repository
             .Setup(x => x.GetByIdForUserAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Category?)null);
-        var sut = new CategoriesService(repository.Object, NullLogger<CategoriesService>.Instance);
+        var sut = CreateSut();
 
         var result = await sut.UpdateAsync(Guid.NewGuid(), Guid.NewGuid(), new UpsertCategoryRequest("Casa", MoneyType.Expense));
 
@@ -70,17 +74,76 @@ public class CategoriesServiceTests
     }
 
     [Fact]
-    public async Task DeleteAsync_Should_Return_False_When_Not_Found()
+    public async Task DeleteAsync_Should_Return_NotFound_When_Missing()
     {
-        var repository = new Mock<ICategoryRepository>();
         repository
             .Setup(x => x.GetByIdForUserAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Category?)null);
-        var sut = new CategoriesService(repository.Object, NullLogger<CategoriesService>.Instance);
+        var sut = CreateSut();
 
-        var removed = await sut.DeleteAsync(Guid.NewGuid(), Guid.NewGuid());
+        var outcome = await sut.DeleteAsync(Guid.NewGuid(), Guid.NewGuid());
 
-        removed.Should().BeFalse();
+        outcome.Should().Be(CategoryDeletionOutcome.NotFound);
         repository.Verify(x => x.Remove(It.IsAny<Category>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_Should_Hard_Delete_When_Not_In_Use()
+    {
+        var userId = Guid.NewGuid();
+        var category = new Category(userId, "Lazer", MoneyType.Expense);
+        repository
+            .Setup(x => x.GetByIdForUserAsync(category.Id, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(category);
+        moneyPlans
+            .Setup(x => x.ExistsByCategoryAsync(category.Id, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        var sut = CreateSut();
+
+        var outcome = await sut.DeleteAsync(userId, category.Id);
+
+        outcome.Should().Be(CategoryDeletionOutcome.Deleted);
+        repository.Verify(x => x.Remove(category), Times.Once);
+        category.IsActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DeleteAsync_Should_Deactivate_When_In_Use()
+    {
+        var userId = Guid.NewGuid();
+        var category = new Category(userId, "Alimentação", MoneyType.Expense);
+        repository
+            .Setup(x => x.GetByIdForUserAsync(category.Id, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(category);
+        moneyPlans
+            .Setup(x => x.ExistsByCategoryAsync(category.Id, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        var sut = CreateSut();
+
+        var outcome = await sut.DeleteAsync(userId, category.Id);
+
+        outcome.Should().Be(CategoryDeletionOutcome.Deactivated);
+        category.IsActive.Should().BeFalse();
+        repository.Verify(x => x.Remove(It.IsAny<Category>()), Times.Never);
+        repository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SetStatusAsync_Should_Reactivate_User_Category()
+    {
+        var userId = Guid.NewGuid();
+        var category = new Category(userId, "Alimentação", MoneyType.Expense);
+        category.Deactivate();
+        repository
+            .Setup(x => x.GetByIdForUserAsync(category.Id, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(category);
+        var sut = CreateSut();
+
+        var result = await sut.SetStatusAsync(userId, category.Id, true);
+
+        result.Should().NotBeNull();
+        result!.IsActive.Should().BeTrue();
+        category.IsActive.Should().BeTrue();
+        repository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 }

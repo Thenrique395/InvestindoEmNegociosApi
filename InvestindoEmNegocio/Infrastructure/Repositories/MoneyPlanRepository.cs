@@ -17,6 +17,12 @@ public class MoneyPlanRepository(InvestDbContext context, ICurrentSpaceAccessor 
         return await query.OrderByDescending(p => p.CreatedAt).ToListAsync(cancellationToken);
     }
 
+    public Task<bool> ExistsByCategoryAsync(Guid categoryId, Guid userId, CancellationToken cancellationToken = default)
+    {
+        return context.MoneyPlans.AsNoTracking()
+            .AnyAsync(p => p.UserId == userId && p.CategoryId == categoryId, cancellationToken);
+    }
+
     public async Task<MoneyPlan?> GetByIdAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
     {
         var spaceId = currentSpaceAccessor.SpaceId;

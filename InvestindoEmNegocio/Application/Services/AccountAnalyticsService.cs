@@ -162,7 +162,7 @@ public class AccountAnalyticsService(
 
         var anchorDate = referenceDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
 
-        var categories = await categoryRepository.ListForUserAsync(userId, MoneyType.Expense, cancellationToken);
+        var categories = await categoryRepository.ListForUserAsync(userId, MoneyType.Expense, includeInactive: true, cancellationToken);
         var assinaturasCategoryId = categories.FirstOrDefault(c => c.Name.Equals("Assinaturas", StringComparison.OrdinalIgnoreCase))?.Id;
 
         IReadOnlyList<SubscriptionSummaryItemResponse> items = [];

@@ -18,10 +18,11 @@ public class CategoriesController(ICategoriesService categoriesService, IAuditSe
     [HttpGet]
     [Authorize(Policy = AppAuthorizationPolicies.FeatureCategoriesRead)]
     // Lists default categories plus user categories, with an optional money type filter.
-    public async Task<IActionResult> List([FromQuery] MoneyType? appliesTo, [FromQuery] ListQuery query, CancellationToken cancellationToken = default)
+    // includeInactive surfaces the user's deactivated categories (management screen / history).
+    public async Task<IActionResult> List([FromQuery] MoneyType? appliesTo, [FromQuery] bool includeInactive, [FromQuery] ListQuery query, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var data = await categoriesService.ListAsync(userId, appliesTo, cancellationToken);
+        var data = await categoriesService.ListAsync(userId, appliesTo, includeInactive, cancellationToken);
         var (items, total, page, pageSize, isPaged) = ListQueryHelper.Apply(
             data,
             query,
@@ -65,16 +66,30 @@ public class CategoriesController(ICategoriesService categoriesService, IAuditSe
         }, "Categoria inválida", invalidOperationTitle: "Conflito de categoria");
     }
 
+    [HttpPut("{id:guid}/status")]
+    [Authorize(Policy = AppAuthorizationPolicies.FeatureCategoriesManage)]
+    // Activates or deactivates a user-owned category (soft state), keeping history intact.
+    public async Task<IActionResult> SetStatus(Guid id, [FromBody] UpdateCategoryStatusRequest request, CancellationToken cancellationToken = default)
+    {
+        var userId = GetUserId();
+        var updated = await categoriesService.SetStatusAsync(userId, id, request.IsActive, cancellationToken);
+        if (updated is null) return NotFound();
+        return Ok(updated);
+    }
+
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = AppAuthorizationPolicies.FeatureCategoriesManage)]
-    // Deletes only user-owned categories and keeps default categories intact.
+    // Removes an unused user-owned category, or deactivates it when referenced by plans so the
+    // history is preserved. Default categories are never touched.
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken = default)
     {
         var userId = GetUserId();
-        var removed = await categoriesService.DeleteAsync(userId, id, cancellationToken);
-        if (!removed) return NotFound();
-        await auditService.LogAsync(userId, "DELETE", "Category", id.ToString(), GetIpAddress(), GetUserAgent(), null, cancellationToken);
-        return NoContent();
+        var outcome = await categoriesService.DeleteAsync(userId, id, cancellationToken);
+        if (outcome == CategoryDeletionOutcome.NotFound) return NotFound();
+
+        var action = outcome == CategoryDeletionOutcome.Deactivated ? "deactivated" : "deleted";
+        await auditService.LogAsync(userId, action == "deactivated" ? "DEACTIVATE" : "DELETE", "Category", id.ToString(), GetIpAddress(), GetUserAgent(), null, cancellationToken);
+        return Ok(new { action });
     }
 
 }

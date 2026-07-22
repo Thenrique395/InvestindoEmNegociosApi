@@ -1,4 +1,6 @@
 using FluentAssertions;
+using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Entities;
 using InvestindoEmNegocio.Domain.Enums;
@@ -7,23 +9,32 @@ using InvestindoEmNegocio.Infrastructure.Repositories;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 
 namespace InvestindoEmNegocio.Tests;
 
 /// <summary>
-/// A6 — Excluir uma categoria EM USO não apaga os lançamentos. A FK
-/// money_plans.CategoryId é ON DELETE SET NULL, então o MoneyPlan é preservado e
-/// apenas fica "sem categoria". Este teste trava a regra contra uma troca
-/// acidental da FK para CASCADE (que causaria perda de dados).
+/// A6 — Excluir uma categoria EM USO não a remove nem apaga os lançamentos: ela é
+/// DESATIVADA (soft delete), preservando o vínculo do MoneyPlan com a categoria e o
+/// histórico. Categorias sem uso são removidas fisicamente. Este teste trava a regra
+/// híbrida contra regressões (perda de histórico ao excluir).
 /// </summary>
 public class CategoryDeleteSqliteIntegrationTests
 {
+    private static DbContextOptions<InvestDbContext> OptionsFor(SqliteConnection connection) =>
+        new DbContextOptionsBuilder<InvestDbContext>().UseSqlite(connection).Options;
+
+    private static CategoriesService BuildService(InvestDbContext db) =>
+        new(new CategoryRepository(db),
+            new MoneyPlanRepository(db, Mock.Of<ICurrentSpaceAccessor>()),
+            NullLogger<CategoriesService>.Instance);
+
     [Fact]
-    public async Task DeleteCategory_InUse_Should_Null_MoneyPlan_Category_And_Preserve_Plan()
+    public async Task DeleteCategory_InUse_Should_Deactivate_And_Preserve_Plan_Link()
     {
         await using var connection = new SqliteConnection("DataSource=:memory:");
         await connection.OpenAsync();
-        var options = new DbContextOptionsBuilder<InvestDbContext>().UseSqlite(connection).Options;
+        var options = OptionsFor(connection);
 
         var userId = Guid.NewGuid();
         var spaceId = Guid.NewGuid();
@@ -46,23 +57,53 @@ public class CategoryDeleteSqliteIntegrationTests
             planId = plan.Id;
         }
 
-        // Exclui a categoria via serviço, em um contexto novo (o plano não está
-        // rastreado, então o SET NULL é aplicado pelo banco, não por fixup do EF).
         await using (var db = new InvestDbContext(options))
         {
-            var service = new CategoriesService(new CategoryRepository(db), NullLogger<CategoriesService>.Instance);
-            var removed = await service.DeleteAsync(userId, categoryId);
-            removed.Should().BeTrue();
+            var outcome = await BuildService(db).DeleteAsync(userId, categoryId);
+            outcome.Should().Be(CategoryDeletionOutcome.Deactivated);
         }
 
-        // Verifica: lançamento preservado e sem categoria; categoria removida.
+        // Verifica: lançamento preservado COM a categoria; categoria mantida, porém inativa.
         await using (var db = new InvestDbContext(options))
         {
             var plan = await db.MoneyPlans.FindAsync(planId);
             plan.Should().NotBeNull("o lançamento não pode ser apagado ao excluir a categoria");
-            plan!.CategoryId.Should().BeNull("a FK money_plans.CategoryId é ON DELETE SET NULL");
+            plan!.CategoryId.Should().Be(categoryId, "categoria em uso é desativada, não removida — o vínculo do histórico é preservado");
 
-            (await db.Categories.FindAsync(categoryId)).Should().BeNull("a categoria do usuário foi removida");
+            var category = await db.Categories.FindAsync(categoryId);
+            category.Should().NotBeNull("a categoria em uso é mantida");
+            category!.IsActive.Should().BeFalse("a categoria em uso é desativada");
+        }
+    }
+
+    [Fact]
+    public async Task DeleteCategory_NotInUse_Should_Hard_Delete()
+    {
+        await using var connection = new SqliteConnection("DataSource=:memory:");
+        await connection.OpenAsync();
+        var options = OptionsFor(connection);
+
+        var userId = Guid.NewGuid();
+        Guid categoryId;
+
+        await using (var db = new InvestDbContext(options))
+        {
+            await db.Database.EnsureCreatedAsync();
+            var category = new Category(userId, "Nunca usada", MoneyType.Expense);
+            db.Categories.Add(category);
+            await db.SaveChangesAsync();
+            categoryId = category.Id;
+        }
+
+        await using (var db = new InvestDbContext(options))
+        {
+            var outcome = await BuildService(db).DeleteAsync(userId, categoryId);
+            outcome.Should().Be(CategoryDeletionOutcome.Deleted);
+        }
+
+        await using (var db = new InvestDbContext(options))
+        {
+            (await db.Categories.FindAsync(categoryId)).Should().BeNull("categoria sem uso é removida fisicamente");
         }
     }
 }

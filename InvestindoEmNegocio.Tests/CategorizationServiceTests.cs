@@ -23,7 +23,7 @@ public class CategorizationServiceTests
 
         var categoryRepository = new Mock<ICategoryRepository>();
         categoryRepository
-            .Setup(x => x.ListForUserAsync(userId, MoneyType.Expense, It.IsAny<CancellationToken>()))
+            .Setup(x => x.ListForUserAsync(userId, MoneyType.Expense, It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([category]);
 
         var plan = new MoneyPlan(userId, Guid.NewGuid(), MoneyType.Expense, "Ifood Mercado", 100m, ScheduleType.OneTime, DateOnly.FromDateTime(DateTime.UtcNow), categoryId: categoryId);
@@ -53,7 +53,7 @@ public class CategorizationServiceTests
 
         var categoryRepository = new Mock<ICategoryRepository>();
         categoryRepository
-            .Setup(x => x.ListForUserAsync(userId, MoneyType.Expense, It.IsAny<CancellationToken>()))
+            .Setup(x => x.ListForUserAsync(userId, MoneyType.Expense, It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([category]);
 
         var planRepository = new Mock<IMoneyPlanRepository>();
@@ -89,7 +89,7 @@ public class CategorizationServiceTests
             .Setup(x => x.ListDefaultsAsync(true, It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
         categoryRepository
-            .Setup(x => x.ListForUserAsync(userId, MoneyType.Expense, It.IsAny<CancellationToken>()))
+            .Setup(x => x.ListForUserAsync(userId, MoneyType.Expense, It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([category]);
 
         var planRepository = new Mock<IMoneyPlanRepository>();

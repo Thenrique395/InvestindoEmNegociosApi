@@ -468,18 +468,21 @@ public class ApiErrorContractIntegrationTests
     {
         public Func<Guid, UpsertCategoryRequest, CancellationToken, Task<CategoryResponse>>? OnCreateAsync { get; init; }
 
-        public Task<IReadOnlyList<CategoryResponse>> ListAsync(Guid userId, MoneyType? appliesTo, CancellationToken cancellationToken = default) =>
+        public Task<IReadOnlyList<CategoryResponse>> ListAsync(Guid userId, MoneyType? appliesTo, bool includeInactive = false, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<CategoryResponse>>([]);
 
         public Task<CategoryResponse> CreateAsync(Guid userId, UpsertCategoryRequest request, CancellationToken cancellationToken = default) =>
             OnCreateAsync?.Invoke(userId, request, cancellationToken)
-            ?? Task.FromResult(new CategoryResponse(Guid.NewGuid(), request.Name, request.AppliesTo, false));
+            ?? Task.FromResult(new CategoryResponse(Guid.NewGuid(), request.Name, request.AppliesTo, false, true));
 
         public Task<CategoryResponse?> UpdateAsync(Guid userId, Guid id, UpsertCategoryRequest request, CancellationToken cancellationToken = default) =>
             Task.FromResult<CategoryResponse?>(null);
 
-        public Task<bool> DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken = default) =>
-            Task.FromResult(false);
+        public Task<CategoryResponse?> SetStatusAsync(Guid userId, Guid id, bool isActive, CancellationToken cancellationToken = default) =>
+            Task.FromResult<CategoryResponse?>(null);
+
+        public Task<CategoryDeletionOutcome> DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken = default) =>
+            Task.FromResult(CategoryDeletionOutcome.Deleted);
     }
 
     private sealed class FakeOfxImportService : IOfxImportService
