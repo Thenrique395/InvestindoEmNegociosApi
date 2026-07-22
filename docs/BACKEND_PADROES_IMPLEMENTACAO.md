@@ -88,6 +88,20 @@ Regras:
 - não usar exceção genérica como atalho para semântica de erro que a aplicação já conhece
 - não mudar rota, payload ou status de endpoint consumido sem avaliar impacto em frontend, testes e documentação
 
+### Paginação de listas
+
+Existem duas convenções no código por razões históricas. Padronize as **novas** listas na convenção de envelope; não reescreva as existentes sem necessidade real (é mudança breaking de contrato).
+
+- **Padrão para listas novas com paginação de servidor — envelope no corpo:**
+  `PagedResult<T>(Items, TotalCount, Page, PageSize)` (ver `AccountDtos.cs` e `AccountTransactionsController`). O frontend consome `totalCount`/`page`/`pageSize`/`totalPages`/`hasNextPage` (ver `accounts.store.ts` como referência). Toda tela nova que precise paginar de fato **deve** usar este envelope.
+- **Legado — array no corpo + paginação em headers:** a maioria das listas retorna `T[]` e escreve `X-Total-Count`/`X-Page`/`X-Page-Size` via `ListQueryHelper.WritePaginationHeaders`. Essas telas do frontend **não paginam** (buscam tudo) e não leem os headers. Mantidas como estão.
+
+Regras:
+
+- não adicionar endpoint de lista novo dependendo apenas de paginação por header
+- só migrar um endpoint legado para `PagedResult` quando houver consumidor real de paginação no frontend (avaliar impacto em frontend, testes e documentação)
+- não misturar as duas convenções no mesmo endpoint
+
 ## Regras obrigatórias de autorização
 
 Toda mudança funcional sensível deve avaliar:
