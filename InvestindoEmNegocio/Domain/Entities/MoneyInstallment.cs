@@ -50,6 +50,18 @@ public class MoneyInstallment : ISoftDeletable
         Amount = amount;
     }
 
+    // Edita valor e vencimento de uma única parcela in-place, preservando pagamentos.
+    // O status é rederivado pelo serviço a partir dos pagamentos existentes.
+    public void Edit(decimal amount, DateOnly dueDate)
+    {
+        if (amount <= 0)
+            throw new ArgumentException("Valor da parcela deve ser maior que zero.");
+
+        Amount = amount;
+        DueDate = dueDate;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void Anticipate(DateOnly dueDate, DateOnly today)
     {
         if (DueDate.Year == today.Year && DueDate.Month == today.Month)

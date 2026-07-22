@@ -366,6 +366,62 @@ public class InstallmentsServiceTests
             Times.Never);
     }
 
+    [Fact]
+    public async Task UpdateAsync_Should_Return_False_When_Not_Found()
+    {
+        var installmentRepository = new Mock<IMoneyInstallmentRepository>();
+        installmentRepository
+            .Setup(x => x.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((MoneyInstallment?)null);
+        var sut = BuildSut(installmentRepository: installmentRepository);
+
+        var result = await sut.UpdateAsync(Guid.NewGuid(), Guid.NewGuid(), new UpdateInstallmentRequest(100m, new DateOnly(2026, 8, 1)));
+
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task UpdateAsync_Should_Edit_Amount_And_DueDate_Preserving_Payments()
+    {
+        var userId = Guid.NewGuid();
+        var installment = new MoneyInstallment(Guid.NewGuid(), userId, Guid.NewGuid(), 1, new DateOnly(2026, 7, 10), 100m);
+        var installmentRepository = new Mock<IMoneyInstallmentRepository>();
+        installmentRepository
+            .Setup(x => x.GetByIdAsync(installment.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(installment);
+        var paymentRepository = new Mock<IMoneyPaymentRepository>();
+        paymentRepository
+            .Setup(x => x.ListByInstallmentIdAsync(installment.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new MoneyPayment(installment.Id, userId, installment.SpaceId, DateTime.UtcNow, 60m, null, null, null)]);
+        var sut = BuildSut(installmentRepository: installmentRepository, paymentRepository: paymentRepository);
+
+        var newDue = new DateOnly(2026, 8, 15);
+        var result = await sut.UpdateAsync(userId, installment.Id, new UpdateInstallmentRequest(150m, newDue));
+
+        result.Should().BeTrue();
+        installment.Amount.Should().Be(150m);
+        installment.DueDate.Should().Be(newDue);
+        installment.Status.Should().Be(InstallmentStatus.PartiallyPaid);
+        installmentRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_Should_Throw_When_Installment_Anticipated()
+    {
+        var userId = Guid.NewGuid();
+        var installment = new MoneyInstallment(Guid.NewGuid(), userId, Guid.NewGuid(), 1, new DateOnly(2026, 7, 10), 100m);
+        installment.Anticipate(new DateOnly(2026, 6, 10), new DateOnly(2026, 5, 1));
+        var installmentRepository = new Mock<IMoneyInstallmentRepository>();
+        installmentRepository
+            .Setup(x => x.GetByIdAsync(installment.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(installment);
+        var sut = BuildSut(installmentRepository: installmentRepository);
+
+        Func<Task> act = async () => await sut.UpdateAsync(userId, installment.Id, new UpdateInstallmentRequest(120m, new DateOnly(2026, 9, 1)));
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*antecipada*");
+    }
+
     private static InstallmentsService BuildSut(
         Mock<IMoneyInstallmentRepository>? installmentRepository = null,
         Mock<IMoneyPaymentRepository>? paymentRepository = null,

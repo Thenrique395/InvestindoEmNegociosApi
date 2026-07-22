@@ -287,6 +287,26 @@ public class InstallmentsService(
         return true;
     }
 
+    public async Task<bool> UpdateAsync(Guid userId, Guid installmentId, UpdateInstallmentRequest request, CancellationToken cancellationToken = default)
+    {
+        var installment = await installmentRepository.GetByIdAsync(installmentId, cancellationToken);
+        if (installment is null || installment.UserId != userId) return false;
+
+        if (installment.Status is InstallmentStatus.Canceled or InstallmentStatus.Anticipated)
+            throw new InvalidOperationException("Não é possível editar uma parcela cancelada ou antecipada.");
+
+        installment.Edit(request.Amount, request.DueDate);
+
+        // Preserva os pagamentos e rederiva o status a partir do total líquido pago
+        // (estornos são registrados como pagamentos negativos).
+        var payments = await paymentRepository.ListByInstallmentIdAsync(installmentId, cancellationToken);
+        installment.RefreshPaymentStatus(payments.Sum(p => p.PaidAmount));
+
+        await installmentRepository.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Installment updated {UserId} {InstallmentId} {Amount} {DueDate}", userId, installmentId, request.Amount, request.DueDate);
+        return true;
+    }
+
     public async Task<bool> DeleteAsync(Guid userId, Guid installmentId, CancellationToken cancellationToken = default)
     {
         var installment = await installmentRepository.GetByIdAsync(installmentId, cancellationToken);

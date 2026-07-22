@@ -38,6 +38,21 @@ public class InstallmentsController(IInstallmentsService installmentsService, IA
         return Ok(items);
     }
 
+    [HttpPut("{id:guid}")]
+    [Authorize(Policy = AppAuthorizationPolicies.FeatureInstallmentsManage)]
+    // Updates amount and due date of a single installment in-place, preserving payments.
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateInstallmentRequest request, CancellationToken cancellationToken)
+    {
+        return await ExecuteWithProblemMappingAsync(async () =>
+        {
+            var userId = GetUserId();
+            var updated = await installmentsService.UpdateAsync(userId, id, request, cancellationToken);
+            if (!updated) return NotFound();
+            await auditService.LogAsync(userId, "UPDATE", "Installment", id.ToString(), GetIpAddress(), GetUserAgent(), null, cancellationToken);
+            return NoContent();
+        }, "Parcela inválida", unauthorizedAccessTitle: "Acesso negado");
+    }
+
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = AppAuthorizationPolicies.FeatureInstallmentsManage)]
     // Deletes a single installment and its payments without removing the parent plan.
