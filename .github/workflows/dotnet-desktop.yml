@@ -185,6 +185,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 30m
           envs: STACK_NAME,BACKEND_IMAGE,POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,POSTGRES_PORT,API_PORT,DB_CONN,ASPNETCORE_ENVIRONMENT,JWT_SECRET_KEY,BRAPI_TOKEN,PASSWORD_RESET_FRONTEND_URL,PASSWORD_RESET_TOKEN_EXPIRY_MINUTES,SMTP_HOST,SMTP_PORT,SMTP_ENABLE_SSL,SMTP_USER,SMTP_PASS,SMTP_FROM_EMAIL,SMTP_FROM_NAME,STRIPE_SECRET_KEY,STRIPE_WEBHOOK_SECRET,STRIPE_PUBLISHABLE_KEY,STRIPE_FRONTEND_BASE_URL,STRIPE_PAYMENT_METHOD_TYPES,CORS_ALLOWED_ORIGINS,GHCR_USER,GHCR_TOKEN,DEPLOY_PATH
           script: |
             set -euo pipefail
@@ -225,6 +226,12 @@ jobs:
               docker stop $occupied_containers || true
               docker rm -f $occupied_containers || true
             fi
+            # Stack está parado aqui: libera disco removendo imagens/cache não usados
+            # ANTES do pull (evita "no space left on device" e pull travado). Não usa
+            # --volumes, então o volume do Postgres (dados/usuários) é preservado.
+            docker image prune -af || true
+            docker builder prune -af || true
+            df -h / || true
             docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml config >/dev/null
             docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml pull
             docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml up -d --remove-orphans
