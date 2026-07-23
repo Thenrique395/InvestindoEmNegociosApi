@@ -50,6 +50,9 @@ public static class ObservabilityExtensions
                 .SetResourceBuilder(resource)
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
+                // Npgsql emite ActivitySource "Npgsql" nativamente — capturar spans de query
+                // dá visibilidade de query lenta / N+1 no backend de tracing (Tempo/Grafana Cloud).
+                .AddSource("Npgsql")
                 .AddOtlpExporter(options =>
                 {
                     if (endpoint is not null)
