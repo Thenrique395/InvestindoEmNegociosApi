@@ -184,13 +184,25 @@ public static class ServiceCollectionExtensions
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-            options.AddFixedWindowLimiter("auth", limiterOptions =>
-            {
-                limiterOptions.PermitLimit = 5;
-                limiterOptions.Window = TimeSpan.FromMinutes(1);
-                limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                limiterOptions.QueueLimit = 0;
-            });
+            // Particionado por IP (antes era global): auth é anônimo, então um limiter global de
+            // 5/min bloqueava o sistema INTEIRO — o 6º login/cadastro de QUALQUER usuário no minuto
+            // levava 429, barrando gente legítima. Por IP mantém a proteção anti-flood por origem
+            // sem impedir usuários reais de entrar. Brute-force por conta é tratado pelo lockout de
+            // conta (não aqui). Cobre AuthController, AuthRegistrationController e AuthPasswordsController.
+            // ATENÇÃO: ao colocar um proxy reverso/HTTPS na frente, configurar UseForwardedHeaders para
+            // que RemoteIpAddress reflita o IP real do cliente — senão o particionamento vira por-proxy.
+            options.AddPolicy("auth", context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                        ?? context.Connection.RemoteIpAddress?.ToString()
+                        ?? "anonymous",
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 20,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 0
+                    }));
 
             options.AddFixedWindowLimiter("admin-robots", limiterOptions =>
             {
