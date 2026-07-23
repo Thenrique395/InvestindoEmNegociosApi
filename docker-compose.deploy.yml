@@ -14,7 +14,8 @@ services:
       OTEL_TRACES_EXPORTER: otlp
       OTEL_METRICS_EXPORTER: otlp
       OTEL_LOGS_EXPORTER: otlp
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel:4318
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
       MarketData__Provider: free
       MarketData__BrapiToken: ${BRAPI_TOKEN}
       PasswordReset__FrontendResetUrl: ${PASSWORD_RESET_FRONTEND_URL:-http://localhost:4200/reset-password}
@@ -36,18 +37,31 @@ services:
       Auth__RequireSecureCookie: ${AUTH_REQUIRE_SECURE_COOKIE:-false}
       Cors__AllowedOrigins: ${CORS_ALLOWED_ORIGINS:-http://35.174.50.187:4201,http://35.174.50.187:4200,http://localhost:4200,http://127.0.0.1:4200,http://localhost:4000,http://127.0.0.1:4000}
     depends_on:
-      - otel
+      - alloy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:5059/health/ready"]
       interval: 10s
       timeout: 3s
       retries: 10
 
-  # Observabilidade auto-hospedada (Loki+Tempo+Prometheus+Grafana num único container).
-  # Deliberadamente sem "ports:" — nem o coletor OTLP nem o Grafana ficam expostos à internet;
-  # acesso ao Grafana é via túnel SSH (ver docs/RUNBOOK.md). Sem volume persistente nesta
-  # primeira rodada: o objetivo agora é visibilidade ao vivo, não histórico de longo prazo, e
-  # todo deploy do backend já recria os serviços deste compose (down + up -d).
-  otel:
-    image: grafana/otel-lgtm:latest
+  # Coletor leve (Grafana Alloy): recebe OTLP do backend e ENCAMINHA para o Grafana Cloud
+  # (observabilidade off-VPS), além de coletar métricas de host (CPU/RAM/disco). Substitui o
+  # antigo grafana/otel-lgtm — muito mais leve, tira carga do VPS. Sem portas publicadas (só a
+  # rede interna do Compose). Credenciais vêm de env (GitHub secrets), nunca do repositório.
+  alloy:
+    image: grafana/alloy:latest
+    restart: unless-stopped
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    environment:
+      GRAFANA_CLOUD_OTLP_ENDPOINT: ${GRAFANA_CLOUD_OTLP_ENDPOINT}
+      GRAFANA_CLOUD_INSTANCE_ID: ${GRAFANA_CLOUD_INSTANCE_ID}
+      GRAFANA_CLOUD_API_TOKEN: ${GRAFANA_CLOUD_API_TOKEN}
 

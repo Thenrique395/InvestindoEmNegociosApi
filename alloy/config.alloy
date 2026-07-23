@@ -1,0 +1,59 @@
+// Grafana Alloy — coletor leve no VPS.
+// Recebe OTLP do backend (rede interna do Compose), encaminha traces/métricas/logs
+// para o Grafana Cloud e coleta métricas de host (CPU/RAM/disco). Substitui o
+// grafana/otel-lgtm (bem mais leve). Credenciais via env (GitHub secrets).
+
+logging {
+  level = "warn"
+}
+
+// ---- Recebe OTLP do backend ----
+otelcol.receiver.otlp "in" {
+  grpc { endpoint = "0.0.0.0:4317" }
+  http { endpoint = "0.0.0.0:4318" }
+  output {
+    metrics = [otelcol.processor.batch.default.input]
+    logs    = [otelcol.processor.batch.default.input]
+    traces  = [otelcol.processor.batch.default.input]
+  }
+}
+
+otelcol.processor.batch "default" {
+  output {
+    metrics = [otelcol.exporter.otlphttp.grafanacloud.input]
+    logs    = [otelcol.exporter.otlphttp.grafanacloud.input]
+    traces  = [otelcol.exporter.otlphttp.grafanacloud.input]
+  }
+}
+
+// ---- Métricas de host (node_exporter) -> OTLP -> Grafana Cloud ----
+prometheus.exporter.unix "host" {
+  rootfs_path = "/rootfs"
+  procfs_path = "/host/proc"
+  sysfs_path  = "/host/sys"
+}
+
+prometheus.scrape "host" {
+  targets         = prometheus.exporter.unix.host.targets
+  scrape_interval = "30s"
+  forward_to      = [otelcol.receiver.prometheus.host.receiver]
+}
+
+otelcol.receiver.prometheus "host" {
+  output {
+    metrics = [otelcol.processor.batch.default.input]
+  }
+}
+
+// ---- Auth + envio ao Grafana Cloud ----
+otelcol.auth.basic "grafanacloud" {
+  username = sys.env("GRAFANA_CLOUD_INSTANCE_ID")
+  password = sys.env("GRAFANA_CLOUD_API_TOKEN")
+}
+
+otelcol.exporter.otlphttp "grafanacloud" {
+  client {
+    endpoint = sys.env("GRAFANA_CLOUD_OTLP_ENDPOINT")
+    auth     = otelcol.auth.basic.grafanacloud.handler
+  }
+}
