@@ -1,6 +1,9 @@
 services:
   postgres:
     image: postgres:16-alpine
+    # Sobe de volta sozinho após crash/OOM ou reboot do host, para não deixar a
+    # esteira travada (o apply-schema depende do banco estar de pé).
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
