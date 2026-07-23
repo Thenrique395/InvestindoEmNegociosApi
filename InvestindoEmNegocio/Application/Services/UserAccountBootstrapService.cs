@@ -14,7 +14,11 @@ public sealed class UserAccountBootstrapService(
         if (user.Role != UserRole.Basic)
             return;
 
-        var accounts = await accountRepository.ListByUserAsync(user.Id, cancellationToken) ?? [];
+        // Consulta pelo espaço EXPLÍCITO (recebido por parâmetro), não pelo espaço
+        // ambiente: durante o login, se a requisição trouxe um cookie de sessão de
+        // OUTRO usuário, o espaço ambiente estaria errado — levando a achar "0 contas"
+        // e tentar inserir uma "Conta principal" duplicada (viola índice único → 500).
+        var accounts = await accountRepository.ListByUserAndSpaceAsync(user.Id, spaceId, cancellationToken) ?? [];
         if (accounts.Count == 0)
         {
             var account = new Account(user.Id, spaceId, "Conta principal", AccountType.Checking, 0m);

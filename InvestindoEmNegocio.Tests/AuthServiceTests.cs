@@ -38,7 +38,7 @@ public class AuthServiceTests
 
         var accountRepository = new Mock<IAccountRepository>();
         accountRepository
-            .Setup(x => x.ListByUserAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.ListByUserAndSpaceAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         var sut = BuildSut(userRepository: userRepository, accountRepository: accountRepository);
