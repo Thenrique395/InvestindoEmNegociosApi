@@ -118,6 +118,21 @@ Regras:
 - frontend pode refletir UX, mas não substitui a proteção real
 - não liberar funcionalidade premium apenas por ocultação ou exibição em cliente
 
+### Isolamento por proprietário (multi-tenant)
+
+Todo endpoint que lê ou muta recurso de usuário deve garantir que o dado pertence ao usuário autenticado (`GetUserId()`), nunca a um id arbitrário do request. Padrões aceitos:
+
+- carregar já escopado no banco: `repo.GetByIdAsync(id, userId, ...)` (ou equivalente, incluindo `SpaceId` no multi-tenant)
+- ou carregar por id e verificar no serviço: `if (entity.UserId != userId) return null/false`
+- recurso-filho (contribuição, fatura, pagamento) só depois de verificar o dono do recurso-pai
+- carregar `User` sempre pelo `userId` do token (ou de token validado), nunca por id vindo do request
+
+Regras:
+
+- não retornar nem mutar recurso de usuário sem escopo por proprietário
+- acesso cross-user apenas em endpoints de admin com policy de admin
+- webhooks/integrações sem sessão operam por id do gateway e validam a origem por assinatura
+
 ## Regras obrigatórias de persistência e schema
 
 Toda mudança persistente exige revisão explícita de:
