@@ -53,7 +53,7 @@ jobs:
     if: ${{ inputs.confirm == 'DEPLOY' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install PostgreSQL client
         run: |
