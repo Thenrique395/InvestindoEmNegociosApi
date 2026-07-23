@@ -1,5 +1,10 @@
 # Billing Communication Backlog
 
+> **Referência da copy aprovada dos e-mails de billing.** As 6 comunicações estão implementadas.
+> O status geral e as pendências (retry automático + validação em sandbox) estão consolidados no
+> roadmap único do monorepo: [`../../docs/ROADMAP.md`](../../docs/ROADMAP.md). Este arquivo permanece
+> como referência dos textos finais aprovados.
+
 Backlog técnico para implementar as comunicações de billing (e-mail e in-app) por evento de
 assinatura.
 
