@@ -241,14 +241,17 @@ function journeyCategory() {
 function journeyCard() {
   const rnd4 = () => String(Math.floor(1000 + Math.random() * 9000));
   const brand = () => 1 + Math.floor(Math.random() * 5);
+  // Apelido único: há checagem de apelido duplicado por usuário (409). Valor fixo
+  // colidiria entre iterações da mesma conta.
+  const nick = () => `k6-${uuidv4()}`;
   group('card_crud', () => {
     const card = jsonOf(post('/api/v1/cards', {
-      brandId: brand(), holderName: 'K6 Tester', last4: rnd4(), nickname: 'k6',
+      brandId: brand(), holderName: 'K6 Tester', last4: rnd4(), nickname: nick(),
       bank: 'k6bank', creditLimit: 5000, statementCloseDay: 10, dueDay: 20,
     }, 'card_create'));
     if (card && card.id) {
       put(`/api/v1/cards/${card.id}`, {
-        brandId: brand(), holderName: 'K6 Tester 2', last4: rnd4(), nickname: 'k6b',
+        brandId: brand(), holderName: 'K6 Tester 2', last4: rnd4(), nickname: nick(),
         bank: 'k6bank', creditLimit: 8000, statementCloseDay: 12, dueDay: 22,
       }, 'card_update');
       del(`/api/v1/cards/${card.id}`, 'card_delete', [200, 204]);
