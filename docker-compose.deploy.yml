@@ -33,11 +33,16 @@ services:
       Stripe__FrontendBaseUrl: ${STRIPE_FRONTEND_BASE_URL:-http://localhost:4200}
       Stripe__PaymentMethodTypes: ${STRIPE_PAYMENT_METHOD_TYPES:-card}
       Database__ApplySchemaOnStartup: "false"
+      # Persiste as chaves de DataProtection no volume abaixo (sobrevivem a deploy).
+      DataProtection__KeysPath: /keys
       AllowedHosts: ${ALLOWED_HOSTS:-*}
       Auth__RequireSecureCookie: ${AUTH_REQUIRE_SECURE_COOKIE:-false}
       Cors__AllowedOrigins: ${CORS_ALLOWED_ORIGINS:-http://35.174.50.187:4201,http://35.174.50.187:4200,http://localhost:4200,http://127.0.0.1:4200,http://localhost:4000,http://127.0.0.1:4000}
     depends_on:
       - alloy
+    volumes:
+      # Chaves de DataProtection persistidas fora do container (sobrevivem a deploy).
+      - dataprotection-keys:/keys
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:5059/health/ready"]
       interval: 10s
@@ -64,4 +69,7 @@ services:
       GRAFANA_CLOUD_OTLP_ENDPOINT: ${GRAFANA_CLOUD_OTLP_ENDPOINT}
       GRAFANA_CLOUD_INSTANCE_ID: ${GRAFANA_CLOUD_INSTANCE_ID}
       GRAFANA_CLOUD_API_TOKEN: ${GRAFANA_CLOUD_API_TOKEN}
+
+volumes:
+  dataprotection-keys:
 

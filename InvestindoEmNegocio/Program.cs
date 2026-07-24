@@ -1,6 +1,7 @@
 using InvestindoEmNegocio.Extensions;
 using InvestindoEmNegocio.Infrastructure.Auth;
 using InvestindoEmNegocio.Infrastructure.Data;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
 const string CorsPolicy = "AllowFrontend";
@@ -21,6 +22,15 @@ builder.Services
     .AddValidation()
     .AddJwtAuthentication(builder.Configuration);
 builder.Services.AddAuthorization(AppAuthorizationPolicies.Configure);
+
+// DataProtection: persiste as chaves fora do container para que dados protegidos
+// (antiforgery/XSRF, etc.) sobrevivam a restart/deploy. Sem isso as chaves ficam
+// em /root/.aspnet/DataProtection-Keys (efêmero) e são perdidas a cada deploy.
+// O caminho vem de config (DataProtection:KeysPath); vazio em dev local => efêmero.
+var dataProtectionKeysPath = builder.Configuration["DataProtection:KeysPath"];
+var dataProtection = builder.Services.AddDataProtection().SetApplicationName("InvestindoEmNegocio");
+if (!string.IsNullOrWhiteSpace(dataProtectionKeysPath))
+    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
 
 var app = builder.Build();
 
