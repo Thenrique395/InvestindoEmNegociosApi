@@ -148,7 +148,7 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddAppCors(this IServiceCollection services, string corsPolicy, IConfiguration configuration)
     {
-        var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+        var allowedOrigins = ParseCorsOrigins(configuration);
 
         services.AddCors(options =>
         {
@@ -170,6 +170,22 @@ public static class ServiceCollectionExtensions
     {
         if (allowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase)) return true;
         return Uri.TryCreate(origin, UriKind.Absolute, out var uri) && IsLoopbackHost(uri.Host);
+    }
+
+    /// <summary>
+    /// Lê as origens de CORS aceitando as duas formas: lista indexada
+    /// (Cors:AllowedOrigins:0..) e — o mais comum em env var — uma string única
+    /// separada por vírgula (Cors__AllowedOrigins=a,b,c). O binder .Get&lt;string[]&gt;()
+    /// NÃO divide a string por vírgula sozinho, o que deixava a lista vazia (só o
+    /// loopback passava) e bloqueava o frontend do VPS.
+    /// </summary>
+    public static string[] ParseCorsOrigins(IConfiguration configuration)
+    {
+        var raw = configuration["Cors:AllowedOrigins"];
+        if (!string.IsNullOrWhiteSpace(raw))
+            return raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        return configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
     }
 
     private static bool IsLoopbackHost(string host)

@@ -37,7 +37,9 @@ services:
       DataProtection__KeysPath: /keys
       AllowedHosts: ${ALLOWED_HOSTS:-*}
       Auth__RequireSecureCookie: ${AUTH_REQUIRE_SECURE_COOKIE:-false}
-      Cors__AllowedOrigins: ${CORS_ALLOWED_ORIGINS:-http://35.174.50.187:4201,http://35.174.50.187:4200,http://localhost:4200,http://127.0.0.1:4200,http://localhost:4000,http://127.0.0.1:4000}
+      # Os origins do frontend no VPS ficam SEMPRE na lista (o loopback já é liberado
+      # automaticamente pelo backend). A variável CORS_ALLOWED_ORIGINS pode adicionar mais.
+      Cors__AllowedOrigins: http://35.174.50.187:4201,http://35.174.50.187:4200,${CORS_ALLOWED_ORIGINS:-}
     depends_on:
       - alloy
     volumes:
