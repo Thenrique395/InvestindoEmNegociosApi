@@ -117,10 +117,14 @@ public class InstallmentsService(
             await accountTransactionRepository.AddAsync(transaction, cancellationToken);
         }
 
-        await paymentRepository.SaveChangesAsync(cancellationToken);
+        // Atualiza o status ANTES de salvar, computando o total como (pagamentos já
+        // existentes) + este pagamento. Resultado idêntico ao antigo (que somava após
+        // o save, incluindo o novo), mas agora em UMA transação atômica: pagamento,
+        // transação e status da parcela persistem juntos (era 2 SaveChanges).
+        var existingPaid = await paymentRepository.SumPaidAmountAsync(installment.Id, cancellationToken);
+        installment.RefreshPaymentStatus(existingPaid + request.PaidAmount);
 
-        await UpdateInstallmentStatusAsync(installment, cancellationToken);
-        await installmentRepository.SaveChangesAsync(cancellationToken);
+        await paymentRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Installment paid {UserId} {InstallmentId}", userId, installmentId);
         return true;
     }

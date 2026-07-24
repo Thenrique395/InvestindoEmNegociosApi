@@ -78,9 +78,10 @@ public class InstallmentsServiceTests
             .ReturnsAsync(installment);
 
         var paymentRepository = new Mock<IMoneyPaymentRepository>();
+        // Soma dos pagamentos JÁ existentes (o novo é adicionado no serviço): 0 + 50 = 50.
         paymentRepository
             .Setup(x => x.SumPaidAmountAsync(installment.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(50);
+            .ReturnsAsync(0);
 
         var sut = BuildSut(installmentRepository: installmentRepository, paymentRepository: paymentRepository);
 
@@ -185,9 +186,10 @@ public class InstallmentsServiceTests
             .ReturnsAsync(installment);
 
         var paymentRepository = new Mock<IMoneyPaymentRepository>();
+        // Existentes 0 + este 100 = 100 => Paid.
         paymentRepository
             .Setup(x => x.SumPaidAmountAsync(installment.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(100);
+            .ReturnsAsync(0);
 
         var sut = BuildSut(installmentRepository: installmentRepository, paymentRepository: paymentRepository);
 
@@ -203,7 +205,9 @@ public class InstallmentsServiceTests
         var userId = Guid.NewGuid();
         var installmentId = Guid.NewGuid();
         var installment = new MoneyInstallment(Guid.NewGuid(), userId, Guid.NewGuid(), 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100);
-        var paidTotals = new Queue<decimal>([60m, 120m]);
+        // Somas EXISTENTES antes de cada pagamento: 0 (antes do 1º) e 60 (antes do 2º).
+        // O serviço soma o valor deste pagamento: 0+60=60 (PartiallyPaid) e 60+60=120 (Paid).
+        var paidTotals = new Queue<decimal>([0m, 60m]);
 
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository
