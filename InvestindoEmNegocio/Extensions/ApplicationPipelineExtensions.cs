@@ -1,9 +1,11 @@
 using System.Security.Claims;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Infrastructure.Auth;
 using InvestindoEmNegocio.Infrastructure.Logging;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Scalar.AspNetCore;
 using Serilog;
+using Serilog.Events;
 
 namespace InvestindoEmNegocio.Extensions;
 
@@ -34,6 +36,18 @@ public static class ApplicationPipelineExtensions
         app.UseMiddleware<CorrelationIdMiddleware>();
         app.UseSerilogRequestLogging(options =>
         {
+            // AppProblemException com status < 500 é erro de NEGÓCIO esperado (ex.: 409
+            // "cartão já existe", 400 validação, 404) — o cliente recebe o status certo
+            // via UseGlobalProblemDetails. Não classificar como Error para não poluir os
+            // logs/alertas com falso "500". Falhas reais (5xx / outras exceções) seguem Error.
+            options.GetLevel = (httpContext, elapsed, ex) =>
+            {
+                if (ex is AppProblemException appProblem && appProblem.StatusCode < StatusCodes.Status500InternalServerError)
+                    return LogEventLevel.Warning;
+                if (ex is not null || httpContext.Response.StatusCode >= StatusCodes.Status500InternalServerError)
+                    return LogEventLevel.Error;
+                return LogEventLevel.Information;
+            };
             options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
             {
                 diagnosticContext.Set("CorrelationId", httpContext.TraceIdentifier);
