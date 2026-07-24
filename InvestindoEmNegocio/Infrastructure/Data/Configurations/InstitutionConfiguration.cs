@@ -22,8 +22,7 @@ public class InstitutionConfiguration : IEntityTypeConfiguration<Institution>
             .IsRequired();
 
         builder.Property(i => i.IsActive)
-            .IsRequired()
-            .HasDefaultValue(true);
+            .IsRequired();
 
         builder.HasIndex(i => new { i.Name, i.Type }).IsUnique();
     }

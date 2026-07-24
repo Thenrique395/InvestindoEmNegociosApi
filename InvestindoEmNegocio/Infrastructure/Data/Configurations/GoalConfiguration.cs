@@ -39,21 +39,23 @@ public class GoalConfiguration : IEntityTypeConfiguration<Goal>
             .HasConversion<string>()
             .IsRequired();
 
+        // Sem HasDefaultValue nesses enums: o CLR default (GoalKind.General/
+        // GoalMode.Limit/RecurrenceType.None = 0) é um valor de domínio válido, então
+        // o EF trataria "valor 0 setado pelo app" como "não setado" e aplicaria o default
+        // do banco. Isso CORROMPIA metas de despesa: Mode=Limit virava Target no insert.
+        // A entidade sempre define esses valores no construtor/ConfigurePlanning.
         builder.Property(g => g.Kind)
             .HasConversion<string>()
-            .IsRequired()
-            .HasDefaultValue(InvestindoEmNegocio.Domain.Enums.GoalKind.General);
+            .IsRequired();
 
         // Fase A — planejamento
         builder.Property(g => g.Mode)
             .HasConversion<string>()
-            .IsRequired()
-            .HasDefaultValue(InvestindoEmNegocio.Domain.Enums.GoalMode.Target);
+            .IsRequired();
 
         builder.Property(g => g.Recurrence)
             .HasConversion<string>()
-            .IsRequired()
-            .HasDefaultValue(InvestindoEmNegocio.Domain.Enums.RecurrenceType.None);
+            .IsRequired();
 
         builder.Property(g => g.StartDate);
         builder.Property(g => g.EndDate);

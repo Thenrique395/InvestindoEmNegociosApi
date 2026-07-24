@@ -53,14 +53,16 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .IsRequired()
             .HasMaxLength(500);
 
+        // Sem HasDefaultValue em Role/IsActive/IsAnonymized: o CLR default desses
+        // tipos (UserRole.Basic=0 / false) é valor de domínio válido — o default do
+        // banco atrapalharia a distinção "não setado" x "setado no default". A entidade
+        // sempre define esses valores (construtor/initializer).
         builder.Property(u => u.Role)
             .HasConversion<string>()
-            .HasMaxLength(30)
-            .HasDefaultValue(UserRole.Basic);
+            .HasMaxLength(30);
 
         builder.Property(u => u.IsActive)
-            .IsRequired()
-            .HasDefaultValue(true);
+            .IsRequired();
 
         builder.Property(u => u.CreatedAt)
             .IsRequired();
@@ -78,8 +80,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.TrialUsedAt);
 
         builder.Property(u => u.IsAnonymized)
-            .IsRequired()
-            .HasDefaultValue(false);
+            .IsRequired();
 
         builder.Property(u => u.DeletedAt);
 

@@ -20,8 +20,7 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
             .HasConversion<string?>();
 
         builder.Property(c => c.IsActive)
-            .IsRequired()
-            .HasDefaultValue(true);
+            .IsRequired();
 
         builder.Property(c => c.CreatedAt).IsRequired();
 
