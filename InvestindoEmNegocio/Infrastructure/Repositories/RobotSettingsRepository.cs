@@ -9,12 +9,13 @@ public sealed class RobotSettingsRepository(InvestDbContext context) : IRobotSet
 {
     public async Task<RobotSettings?> GetAsync(CancellationToken cancellationToken = default)
     {
-        return await context.RobotSettings.AsNoTracking().FirstOrDefaultAsync(cancellationToken);
+        // Singleton: OrderBy torna o First determinístico (evita FirstWithoutOrderBy…).
+        return await context.RobotSettings.AsNoTracking().OrderBy(x => x.Id).FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task<RobotSettings> GetOrCreateAsync(CancellationToken cancellationToken = default)
     {
-        var existing = await context.RobotSettings.FirstOrDefaultAsync(cancellationToken);
+        var existing = await context.RobotSettings.OrderBy(x => x.Id).FirstOrDefaultAsync(cancellationToken);
         if (existing is not null) return existing;
 
         var settings = new RobotSettings(enabled: true, dailyRunTimeUtc: "08:00");

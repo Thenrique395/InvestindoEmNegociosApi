@@ -9,12 +9,14 @@ public class NotificationSettingsRepository(InvestDbContext context) : INotifica
 {
     public async Task<NotificationSettings?> GetAsync(CancellationToken cancellationToken = default)
     {
-        return await context.NotificationSettings.AsNoTracking().FirstOrDefaultAsync(cancellationToken);
+        // Tabela singleton, mas OrderBy torna o First determinístico (evita o warning
+        // FirstWithoutOrderByAndFilterWarning e garante resultado estável).
+        return await context.NotificationSettings.AsNoTracking().OrderBy(x => x.Id).FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task<NotificationSettings> GetOrCreateAsync(CancellationToken cancellationToken = default)
     {
-        var existing = await context.NotificationSettings.FirstOrDefaultAsync(cancellationToken);
+        var existing = await context.NotificationSettings.OrderBy(x => x.Id).FirstOrDefaultAsync(cancellationToken);
         if (existing is not null) return existing;
         var settings = new NotificationSettings(
             incomeUpcomingEnabled: true,
