@@ -6,7 +6,11 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ASPNETCORE_URLS: http://0.0.0.0:5059
-      ConnectionStrings__Default: ${DB_CONN}
+      # Pool do Npgsql limitado a 85 (abaixo do max_connections=100 do Postgres),
+      # deixando folga p/ o exporter de métricas + admin. Impede o app de esgotar
+      # as conexões do Postgres sob carga alta ("too many clients"): em vez de erro,
+      # as requisições enfileiram por uma conexão do pool (degradação graciosa).
+      ConnectionStrings__Default: ${DB_CONN};Maximum Pool Size=85
       Jwt__Issuer: InvestindoEmNegocio
       Jwt__Audience: InvestindoEmNegocio
       Jwt__SecretKey: ${JWT_SECRET_KEY}
