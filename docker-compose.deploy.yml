@@ -71,6 +71,8 @@ services:
       GRAFANA_CLOUD_OTLP_ENDPOINT: ${GRAFANA_CLOUD_OTLP_ENDPOINT}
       GRAFANA_CLOUD_INSTANCE_ID: ${GRAFANA_CLOUD_INSTANCE_ID}
       GRAFANA_CLOUD_API_TOKEN: ${GRAFANA_CLOUD_API_TOKEN}
+      # DSN do Postgres p/ o exporter (key-value; senha vem do secret via env, não do repo).
+      POSTGRES_DSN: "host=35.174.50.187 port=5432 user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} dbname=${POSTGRES_DB} sslmode=disable"
 
 volumes:
   dataprotection-keys:
