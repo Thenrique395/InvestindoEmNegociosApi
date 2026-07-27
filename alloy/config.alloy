@@ -45,6 +45,19 @@ otelcol.receiver.prometheus "host" {
   }
 }
 
+// ---- Métricas do Postgres (conexões, cache hit, locks, tx/s, tamanho) ----
+// DSN em formato URL (postgresql://...), senha URL-encoded, vindo do secret
+// POSTGRES_DSN (não fica no repositório).
+prometheus.exporter.postgres "db" {
+  data_source_names = [sys.env("POSTGRES_DSN")]
+}
+
+prometheus.scrape "db" {
+  targets         = prometheus.exporter.postgres.db.targets
+  scrape_interval = "30s"
+  forward_to      = [otelcol.receiver.prometheus.host.receiver]
+}
+
 // ---- Auth + envio ao Grafana Cloud ----
 otelcol.auth.basic "grafanacloud" {
   username = sys.env("GRAFANA_CLOUD_INSTANCE_ID")

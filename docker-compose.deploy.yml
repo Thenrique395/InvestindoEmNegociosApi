@@ -71,6 +71,8 @@ services:
       GRAFANA_CLOUD_OTLP_ENDPOINT: ${GRAFANA_CLOUD_OTLP_ENDPOINT}
       GRAFANA_CLOUD_INSTANCE_ID: ${GRAFANA_CLOUD_INSTANCE_ID}
       GRAFANA_CLOUD_API_TOKEN: ${GRAFANA_CLOUD_API_TOKEN}
+      # DSN URL do Postgres (postgresql://...) p/ o exporter — vem do secret.
+      POSTGRES_DSN: ${POSTGRES_DSN}
 
 volumes:
   dataprotection-keys:
