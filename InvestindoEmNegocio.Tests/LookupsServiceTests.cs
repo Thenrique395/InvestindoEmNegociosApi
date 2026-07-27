@@ -47,6 +47,8 @@ public class LookupsServiceTests
         return new LookupsService(
             paymentMethodRepository?.Object ?? Mock.Of<IPaymentMethodRepository>(),
             cardBrandRepository?.Object ?? Mock.Of<ICardBrandRepository>(),
-            institutionRepository?.Object ?? Mock.Of<IInstitutionRepository>());
+            institutionRepository?.Object ?? Mock.Of<IInstitutionRepository>(),
+            new Microsoft.Extensions.Caching.Memory.MemoryCache(
+                new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()));
     }
 }
