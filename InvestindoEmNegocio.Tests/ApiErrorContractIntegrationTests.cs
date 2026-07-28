@@ -90,7 +90,7 @@ public class ApiErrorContractIntegrationTests
     {
         var fakeAuthApplicationService = new FakeAuthApplicationService
         {
-            OnRegisterAsync = (_, _) => Task.FromException<AuthResponse>(
+            OnRegisterAsync = (_, _) => Task.FromException<RegisteredUserResponse>(
                 new AppProblemException("Email já existe", "Já existe uma conta para este email.", StatusCodes.Status409Conflict))
         };
 
@@ -389,12 +389,12 @@ public class ApiErrorContractIntegrationTests
 
     private sealed class FakeAuthApplicationService : IAuthAccessApplicationService, IAuthRegistrationApplicationService, IAuthPasswordApplicationService
     {
-        public Func<RegisterUserRequest, CancellationToken, Task<AuthResponse>>? OnRegisterAsync { get; init; }
+        public Func<RegisterUserRequest, CancellationToken, Task<RegisteredUserResponse>>? OnRegisterAsync { get; init; }
         public Func<LoginRequest, string?, string?, CancellationToken, Task<AuthResponse>>? OnLoginAsync { get; init; }
 
-        public Task<AuthResponse> RegisterAsync(RegisterUserRequest request, CancellationToken cancellationToken = default) =>
+        public Task<RegisteredUserResponse> RegisterAsync(RegisterUserRequest request, CancellationToken cancellationToken = default) =>
             OnRegisterAsync?.Invoke(request, cancellationToken)
-            ?? Task.FromResult(new AuthResponse(Guid.NewGuid(), "User", "user@mail.com", "User", "token", "refresh", DateTime.UtcNow.AddHours(1)));
+            ?? Task.FromResult(new RegisteredUserResponse(Guid.NewGuid(), "User", "user@mail.com", true));
 
         public Task<AuthResponse> LoginAsync(LoginRequest request, string? ipAddress, string? userAgent, CancellationToken cancellationToken = default) =>
             OnLoginAsync?.Invoke(request, ipAddress, userAgent, cancellationToken)

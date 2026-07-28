@@ -18,6 +18,9 @@ public class User
     public string PasswordHash { get; private set; }
     public UserRole Role { get; private set; } = UserRole.Basic;
     public bool IsActive { get; private set; } = true;
+    // Confirmação de e-mail (double opt-in): novo usuário nasce false; só loga após confirmar.
+    // Usuários pré-existentes recebem true no backfill da migration (grandfather).
+    public bool EmailConfirmed { get; private set; }
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; private set; }
@@ -176,6 +179,12 @@ public class User
     public void Activate()
     {
         IsActive = true;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void ConfirmEmail()
+    {
+        EmailConfirmed = true;
         UpdatedAt = DateTime.UtcNow;
     }
 }

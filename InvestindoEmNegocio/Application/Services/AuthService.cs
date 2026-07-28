@@ -9,7 +9,7 @@ public class AuthService(
     IAuthPasswordService authPasswordService)
     : IAuthService
 {
-    public Task<AuthResponse> RegisterAsync(RegisterUserRequest request, CancellationToken cancellationToken = default) =>
+    public Task<RegisteredUserResponse> RegisterAsync(RegisterUserRequest request, CancellationToken cancellationToken = default) =>
         authRegistrationService.RegisterAsync(request, cancellationToken);
 
     public Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default) =>

@@ -136,6 +136,7 @@ public static class ServiceCollectionExtensions
         services.Configure<B3ApiOptions>(configuration.GetSection("B3Api"));
         services.Configure<MarketDataOptions>(configuration.GetSection(MarketDataOptions.SectionName));
         services.Configure<PasswordResetOptions>(configuration.GetSection(PasswordResetOptions.SectionName));
+        services.Configure<EmailConfirmationOptions>(configuration.GetSection(EmailConfirmationOptions.SectionName));
         services.Configure<SmtpEmailOptions>(configuration.GetSection(SmtpEmailOptions.SectionName));
         services.Configure<RobotsOptions>(configuration.GetSection(RobotsOptions.SectionName));
         services.Configure<StripeOptions>(configuration.GetSection(StripeOptions.SectionName));
@@ -329,6 +330,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserOnboardingRepository, UserOnboardingRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
+        services.AddScoped<IEmailConfirmationTokenRepository, EmailConfirmationTokenRepository>();
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
         services.AddScoped<IInstitutionRepository, InstitutionRepository>();
         services.AddScoped<IUserNotificationRepository, UserNotificationRepository>();
@@ -345,6 +347,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuthRegistrationApplicationService, AuthRegistrationApplicationService>();
         services.AddScoped<IAuthAccessApplicationService, AuthAccessApplicationService>();
         services.AddScoped<IAuthPasswordApplicationService, AuthPasswordApplicationService>();
+        services.AddScoped<IEmailConfirmationApplicationService, EmailConfirmationApplicationService>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
         services.AddScoped<IImportIdentityEngine, ImportIdentityEngine>();
         services.AddScoped<IBankStatementImportEngine, BankStatementImportEngine>();
@@ -411,6 +414,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserPrivacyCenterService, UserPrivacyCenterService>();
         services.AddScoped<IUserSessionService, UserSessionService>();
         services.AddScoped<IPasswordResetService, PasswordResetService>();
+        services.AddScoped<IEmailConfirmationService, EmailConfirmationService>();
         services.AddScoped<IBillingNotificationService, BillingNotificationService>();
         services.AddScoped<IStripeBillingGateway, StripeBillingGateway>();
         // IPaymentProvider aponta para Stripe por padrão — assinaturas Mercado Pago serão

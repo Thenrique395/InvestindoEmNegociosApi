@@ -291,7 +291,7 @@ public class MoreControllersSmokeTests
         authAccess.Setup(x => x.RefreshAsync(It.IsAny<RefreshTokenRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new AuthResponse(Guid.NewGuid(), "U", "u@test.com", "Basic", "token", "refresh", DateTime.UtcNow.AddHours(1)));
         authRegistration.Setup(x => x.RegisterAsync(It.IsAny<RegisterUserRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new AuthResponse(Guid.NewGuid(), "U", "u@test.com", "Basic", "token", "refresh", DateTime.UtcNow.AddHours(1)));
+            .ReturnsAsync(new RegisteredUserResponse(Guid.NewGuid(), "U", "u@test.com", true));
         privacy.Setup(x => x.GetPrivacySummaryAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PrivacySummaryDto(1, 0, 2, true, true, [], [], "policy"));
         privacy.Setup(x => x.GetSecuritySummaryAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
@@ -304,7 +304,7 @@ public class MoreControllersSmokeTests
             .ReturnsAsync(new CheckAvailabilityResponse(false, false));
         var authCookieService = new AuthCookieService(Options.Create(new AuthCookieOptions()));
         var authController = new AuthController(authAccess.Object, authAvailability.Object, authCookieService);
-        var authRegistrationController = new AuthRegistrationController(authRegistration.Object, authCookieService);
+        var authRegistrationController = new AuthRegistrationController(authRegistration.Object);
         var authPasswordsController = new AuthPasswordsController(authPassword.Object);
         var summariesController = new PreferenceSummariesController(privacy.Object);
         var sessionsController = new PreferenceSessionsController(privacy.Object);

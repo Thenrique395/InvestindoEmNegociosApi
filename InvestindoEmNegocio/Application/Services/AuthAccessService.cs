@@ -1,4 +1,5 @@
 using InvestindoEmNegocio.Application.DTOs;
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Repositories;
 using Microsoft.Extensions.Logging;
@@ -48,6 +49,13 @@ public class AuthAccessService(
 
             _logger.LogWarning("Invalid login attempt {UserId}", user.Id);
             throw new UnauthorizedAccessException("Credenciais inválidas.");
+        }
+
+        // Gate do double opt-in: senha correta, mas e-mail ainda não confirmado → bloqueia o login.
+        if (!user.EmailConfirmed)
+        {
+            _logger.LogWarning("Login blocked, email not confirmed {UserId}", user.Id);
+            throw new EmailNotConfirmedException("Confirme seu e-mail para acessar sua conta.");
         }
 
         if (user.FailedLoginAttempts > 0 || user.LockoutUntil.HasValue)

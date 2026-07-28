@@ -47,7 +47,7 @@ public class AuthServiceTests
             new RegisterUserRequest("User", "user@local", "Password123!", "52998224725"),
             CancellationToken.None);
 
-        response.Role.Should().Be("Basic");
+        response.RequiresEmailConfirmation.Should().BeTrue();
         accountRepository.Verify(
             x => x.AddAsync(
                 It.Is<Account>(a => a.UserId == response.UserId && a.Name == "Conta principal" && a.IsActive),
@@ -95,6 +95,25 @@ public class AuthServiceTests
 
         await act.Should().ThrowAsync<UnauthorizedAccessException>()
             .WithMessage("*Credenciais inválidas*");
+    }
+
+    [Fact]
+    public async Task LoginAsync_Should_Throw_EmailNotConfirmed_When_Email_Not_Confirmed()
+    {
+        // Senha correta e conta ativa, mas e-mail ainda não confirmado (double opt-in) → bloqueia.
+        var passwordHash = BCrypt.Net.BCrypt.HashPassword("Password123!");
+        var user = new User("User", "user@local", passwordHash); // EmailConfirmed = false por padrão
+
+        var userRepository = new Mock<IUserRepository>();
+        userRepository
+            .Setup(x => x.GetByEmailAsync("user@local", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+
+        var sut = BuildSut(userRepository: userRepository);
+
+        Func<Task> act = async () => await sut.LoginAsync(new LoginRequest("user@local", "Password123!"), CancellationToken.None);
+
+        await act.Should().ThrowAsync<Application.Exceptions.EmailNotConfirmedException>();
     }
 
     [Fact]
@@ -366,7 +385,7 @@ public class AuthServiceTests
             userRepository?.Object ?? Mock.Of<IUserRepository>(),
             bootstrapService,
             spaceBootstrapService,
-            sessionService,
+            Mock.Of<IEmailConfirmationService>(),
             NullLogger<AuthRegistrationService>.Instance);
         var authAccessService = new AuthAccessService(
             userRepository?.Object ?? Mock.Of<IUserRepository>(),

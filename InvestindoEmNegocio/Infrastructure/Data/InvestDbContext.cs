@@ -38,6 +38,7 @@ public class InvestDbContext(DbContextOptions<InvestDbContext> options) : DbCont
     public DbSet<UserOnboarding> UserOnboardings => Set<UserOnboarding>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<EmailConfirmationToken> EmailConfirmationTokens => Set<EmailConfirmationToken>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Institution> Institutions => Set<Institution>();
     public DbSet<UserNotification> UserNotifications => Set<UserNotification>();

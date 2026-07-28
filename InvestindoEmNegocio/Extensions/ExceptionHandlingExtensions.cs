@@ -18,11 +18,13 @@ public static class ExceptionHandlingExtensions
                 var title = "Erro interno do servidor.";
                 var detail = includeExceptionDetails ? exception?.Message : null;
 
+                string? code = null;
                 if (exception is AppProblemException appProblem)
                 {
                     statusCode = appProblem.StatusCode;
                     title = appProblem.Title;
                     detail = appProblem.Detail;
+                    code = appProblem.Code;
                 }
 
                 var problemDetails = new ProblemDetails
@@ -36,6 +38,9 @@ public static class ExceptionHandlingExtensions
                         ["traceId"] = context.TraceIdentifier
                     }
                 };
+
+                if (code is not null)
+                    problemDetails.Extensions["code"] = code;
 
                 if (includeExceptionDetails && exception is not null)
                     problemDetails.Extensions["exception"] = exception.GetType().Name;

@@ -19,6 +19,11 @@ public sealed class AuthAccessApplicationService(
             await auditService.LogAsync(response.UserId, "LOGIN", "User", response.UserId.ToString(), ipAddress, userAgent, null, cancellationToken);
             return response;
         }
+        catch (EmailNotConfirmedException ex)
+        {
+            logger.LogWarning("Login blocked, email not confirmed para {Email}", LogMasking.Email(request.Email));
+            throw new AppProblemException("E-mail não confirmado", ex.Message, StatusCodes.Status403Forbidden, code: "email_not_confirmed");
+        }
         catch (InvalidOperationException ex)
         {
             logger.LogWarning(ex, "Account locked para {Email}", LogMasking.Email(request.Email));

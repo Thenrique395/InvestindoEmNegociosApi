@@ -64,6 +64,11 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.IsActive)
             .IsRequired();
 
+        // Sem HasDefaultValue (mesma razão do IsActive acima): a entidade define o valor.
+        // O backfill dos existentes (true) fica na migration.
+        builder.Property(u => u.EmailConfirmed)
+            .IsRequired();
+
         builder.Property(u => u.CreatedAt)
             .IsRequired();
 

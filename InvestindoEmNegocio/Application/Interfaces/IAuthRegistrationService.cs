@@ -4,5 +4,5 @@ namespace InvestindoEmNegocio.Application.Interfaces;
 
 public interface IAuthRegistrationService
 {
-    Task<AuthResponse> RegisterAsync(RegisterUserRequest request, CancellationToken cancellationToken = default);
+    Task<RegisteredUserResponse> RegisterAsync(RegisterUserRequest request, CancellationToken cancellationToken = default);
 }

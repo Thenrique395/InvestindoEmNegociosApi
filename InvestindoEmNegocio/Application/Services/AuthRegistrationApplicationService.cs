@@ -10,7 +10,7 @@ public sealed class AuthRegistrationApplicationService(
     IAuthRegistrationService authRegistrationService,
     ILogger<AuthRegistrationApplicationService> logger) : IAuthRegistrationApplicationService
 {
-    public async Task<AuthResponse> RegisterAsync(RegisterUserRequest request, CancellationToken cancellationToken = default)
+    public async Task<RegisteredUserResponse> RegisterAsync(RegisterUserRequest request, CancellationToken cancellationToken = default)
     {
         try
         {
