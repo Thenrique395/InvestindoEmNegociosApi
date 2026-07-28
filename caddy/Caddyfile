@@ -1,0 +1,14 @@
+# Reverse proxy de PRODUÇÃO (porta 80). Único ponto público: roteia /api e /health para o
+# backend (interno) e o resto para o frontend SSR (interno). Mantém backend/postgres fora da
+# internet e prepara HTTPS futuro (quando houver domínio, trocar :80 pelo domínio → TLS automático).
+:80 {
+	handle /api/* {
+		reverse_proxy backend:5059
+	}
+	handle /health* {
+		reverse_proxy backend:5059
+	}
+	handle {
+		reverse_proxy frontend:4000
+	}
+}

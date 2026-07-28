@@ -1,5 +1,5 @@
-# Stack de PRODUÇÃO (VPS dedicada). Diferente do DEV: Postgres roda AQUI dentro, na rede
-# interna do Compose, SEM porta pública (o backend conecta via nome de serviço "postgres").
+# Stack de PRODUÇÃO completa (VPS dedicada). Único ponto público: Caddy na porta 80.
+# Postgres e backend ficam SÓ na rede interna do Compose (não expostos na internet).
 # Deploy é MANUAL (workflow_dispatch "Deploy Production"). Migrations aplicam no boot.
 services:
   postgres:
@@ -11,7 +11,6 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pg_data_prd:/var/lib/postgresql/data
-    # Sem `ports:` — Postgres fica só na rede interna do Compose (não exposto na internet).
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
@@ -21,24 +20,22 @@ services:
   backend:
     image: ${BACKEND_IMAGE:-ghcr.io/thenrique395/investindoemnegociosapi:main}
     restart: unless-stopped
-    ports:
-      - "${API_PORT:-5055}:5059"
+    # Sem porta pública — só a rede interna (Caddy faz o proxy de /api).
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://0.0.0.0:5059
-      # Conecta no Postgres pela rede interna (Host=postgres). Pool limitado a 85 (lição do DEV).
       ConnectionStrings__Default: ${DB_CONN}
-      # App aplica as EF Migrations no boot (fonte única do schema).
       Database__ApplySchemaOnStartup: "true"
       Jwt__Issuer: InvestindoEmNegocio
       Jwt__Audience: InvestindoEmNegocio
       Jwt__SecretKey: ${JWT_SECRET_KEY}
       OTEL_SERVICE_NAME: InvestindoEmNegocio
-      # Observabilidade adicionada em follow-up (precisa do token de push do Grafana Cloud).
-      # Por ora exporters desligados — o backend sobe normalmente sem coletor.
-      OTEL_TRACES_EXPORTER: none
-      OTEL_METRICS_EXPORTER: none
-      OTEL_LOGS_EXPORTER: none
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: otlp
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=prod
       MarketData__Provider: free
       MarketData__BrapiToken: ${BRAPI_TOKEN}
       PasswordReset__FrontendResetUrl: ${PASSWORD_RESET_FRONTEND_URL:-http://44.222.213.37/reset-password}
@@ -52,13 +49,14 @@ services:
       Smtp__FromName: ${SMTP_FROM_NAME:-Investindo em Negocios}
       DataProtection__KeysPath: /keys
       AllowedHosts: ${ALLOWED_HOSTS:-*}
-      # PRD ainda em HTTP (sem domínio/TLS) — cookie seguro desligado por ora.
+      # Mesmo origin do frontend (via Caddy na 80) — cookie seguro off enquanto for HTTP.
       Auth__RequireSecureCookie: ${AUTH_REQUIRE_SECURE_COOKIE:-false}
-      # Origem do frontend de PRD (porta 80) sempre liberada; CORS_ALLOWED_ORIGINS adiciona mais.
-      Cors__AllowedOrigins: http://44.222.213.37,http://44.222.213.37:80,${CORS_ALLOWED_ORIGINS:-}
+      Cors__AllowedOrigins: http://44.222.213.37,${CORS_ALLOWED_ORIGINS:-}
     depends_on:
       postgres:
         condition: service_healthy
+      alloy:
+        condition: service_started
     volumes:
       - dataprotection_keys_prd:/keys
     healthcheck:
@@ -67,9 +65,53 @@ services:
       timeout: 3s
       retries: 15
 
-  # OBSERVABILIDADE (Alloy → Grafana Cloud) entra em follow-up, quando o token de push do
-  # Grafana Cloud for provisionado como secret. O backend acima já roda sem coletor.
+  frontend:
+    image: ${FRONTEND_IMAGE:-ghcr.io/thenrique395/investindoemnegociosweb:main}
+    restart: unless-stopped
+    # SSR (Node) na porta 4000, só rede interna (Caddy serve na 80).
+    environment:
+      PORT: "4000"
+      NODE_ENV: production
+      # URL pública da API (via Caddy, mesmo host:80). Usada tanto no SSR quanto no browser.
+      API_BASE_URL: ${API_BASE_URL:-http://44.222.213.37/api/v1}
+      ANGULAR_ALLOWED_HOSTS: ${ANGULAR_ALLOWED_HOSTS:-44.222.213.37,localhost}
+    depends_on:
+      - backend
+
+  alloy:
+    image: grafana/alloy:latest
+    restart: unless-stopped
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    environment:
+      GRAFANA_CLOUD_OTLP_ENDPOINT: ${GRAFANA_CLOUD_OTLP_ENDPOINT}
+      GRAFANA_CLOUD_INSTANCE_ID: ${GRAFANA_CLOUD_INSTANCE_ID}
+      GRAFANA_CLOUD_API_TOKEN: ${GRAFANA_CLOUD_API_TOKEN}
+      # Exporter do Postgres aponta pro serviço interno "postgres".
+      POSTGRES_DSN: ${POSTGRES_DSN}
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data_prd:/data
+      - caddy_config_prd:/config
+    depends_on:
+      - backend
+      - frontend
 
 volumes:
   pg_data_prd:
   dataprotection_keys_prd:
+  caddy_data_prd:
+  caddy_config_prd:

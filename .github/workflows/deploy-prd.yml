@@ -34,7 +34,7 @@ jobs:
           host: ${{ vars.VPS_HOST }}
           username: ${{ vars.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "docker-compose.prd.yml"
+          source: "docker-compose.prd.yml,alloy/config.alloy,caddy/Caddyfile"
           target: ${{ env.DEPLOY_PATH }}
 
       - name: Deploy stack to production
@@ -56,6 +56,10 @@ jobs:
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           SMTP_FROM_EMAIL: ${{ vars.SMTP_FROM_EMAIL }}
           SMTP_FROM_NAME: ${{ vars.SMTP_FROM_NAME }}
+          GRAFANA_CLOUD_OTLP_ENDPOINT: ${{ vars.GRAFANA_CLOUD_OTLP_ENDPOINT }}
+          GRAFANA_CLOUD_INSTANCE_ID: ${{ vars.GRAFANA_CLOUD_INSTANCE_ID }}
+          GRAFANA_CLOUD_API_TOKEN: ${{ secrets.GRAFANA_CLOUD_API_TOKEN }}
+          POSTGRES_DSN: ${{ secrets.POSTGRES_DSN }}
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -63,7 +67,7 @@ jobs:
           username: ${{ vars.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 20m
-          envs: STACK_NAME,BACKEND_IMAGE,DB_CONN,JWT_SECRET_KEY,POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,API_PORT,BRAPI_TOKEN,SMTP_HOST,SMTP_PORT,SMTP_ENABLE_SSL,SMTP_USER,SMTP_PASS,SMTP_FROM_EMAIL,SMTP_FROM_NAME,GHCR_USER,GHCR_TOKEN,DEPLOY_PATH
+          envs: STACK_NAME,BACKEND_IMAGE,DB_CONN,JWT_SECRET_KEY,POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,API_PORT,BRAPI_TOKEN,SMTP_HOST,SMTP_PORT,SMTP_ENABLE_SSL,SMTP_USER,SMTP_PASS,SMTP_FROM_EMAIL,SMTP_FROM_NAME,GRAFANA_CLOUD_OTLP_ENDPOINT,GRAFANA_CLOUD_INSTANCE_ID,GRAFANA_CLOUD_API_TOKEN,POSTGRES_DSN,GHCR_USER,GHCR_TOKEN,DEPLOY_PATH
           script: |
             set -euo pipefail
 
