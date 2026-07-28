@@ -28,4 +28,12 @@ public class PreferencesController(IPreferenceSettingsService preferenceSettings
         return Ok(prefs);
     }
 
+    // Endpoint leve pro toggle de tema (não reenvia currency/locale/notificações).
+    [HttpPut("theme")]
+    public async Task<IActionResult> UpdateTheme([FromBody] UpdateThemeRequest request, CancellationToken cancellationToken = default)
+    {
+        var userId = GetUserId();
+        var theme = await preferenceSettingsService.UpdateThemeAsync(userId, request.Theme, cancellationToken);
+        return Ok(new { theme });
+    }
 }

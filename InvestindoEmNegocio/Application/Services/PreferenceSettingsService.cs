@@ -15,7 +15,7 @@ public sealed class PreferenceSettingsService(
     {
         var profile = await profileRepository.GetByUserIdAsync(userId, cancellationToken);
         if (profile is null)
-            return new PreferencesDto("BRL", new List<string> { "pt-BR" }, BuildDefaultNotifications());
+            return new PreferencesDto("BRL", new List<string> { "pt-BR" }, BuildDefaultNotifications(), "light");
 
         var locales = (profile.Language ?? "pt-BR")
             .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
@@ -26,7 +26,7 @@ public sealed class PreferenceSettingsService(
             profile.NotifyInAppEnabled,
             profile.NotifyEmailEnabled,
             profile.NotifyDaysBeforeDue);
-        return new PreferencesDto(profile.Currency ?? "BRL", locales, notifications);
+        return new PreferencesDto(profile.Currency ?? "BRL", locales, notifications, profile.Theme ?? "light");
     }
 
     public async Task<PreferencesDto> UpdateAsync(Guid userId, UpdatePreferencesRequest request, CancellationToken cancellationToken = default)
@@ -52,6 +52,22 @@ public sealed class PreferenceSettingsService(
 
         await profileRepository.SaveChangesAsync(cancellationToken);
         var notifications = request.Notifications ?? BuildDefaultNotifications();
-        return new PreferencesDto(request.Currency, request.Locales, notifications);
+        return new PreferencesDto(request.Currency, request.Locales, notifications, profile.Theme ?? "light");
+    }
+
+    // Persiste só o tema (endpoint leve pro toggle global). Cria o perfil se ainda não existir.
+    // Retorna o tema normalizado ("light"/"dark").
+    public async Task<string> UpdateThemeAsync(Guid userId, string theme, CancellationToken cancellationToken = default)
+    {
+        var profile = await profileRepository.GetByUserIdAsync(userId, cancellationToken);
+        if (profile is null)
+        {
+            profile = new UserProfile(userId);
+            await profileRepository.AddAsync(profile, cancellationToken);
+        }
+
+        profile.SetTheme(theme);
+        await profileRepository.SaveChangesAsync(cancellationToken);
+        return profile.Theme;
     }
 }

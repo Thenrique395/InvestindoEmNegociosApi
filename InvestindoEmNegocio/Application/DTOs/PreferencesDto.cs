@@ -1,6 +1,8 @@
 namespace InvestindoEmNegocio.Application.DTOs;
 
-public record PreferencesDto(string Currency, List<string> Locales, NotificationPreferencesDto Notifications);
+public record PreferencesDto(string Currency, List<string> Locales, NotificationPreferencesDto Notifications, string Theme);
+
+public record UpdateThemeRequest(string Theme);
 
 public record NotificationPreferencesDto(
     bool UpcomingEnabled,

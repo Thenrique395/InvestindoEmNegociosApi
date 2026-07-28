@@ -9,6 +9,7 @@ public class UserProfile
     public string IntelligenceMode { get; private set; } = "B";
     public string Language { get; private set; } = "pt-BR";
     public string Currency { get; private set; } = "BRL";
+    public string Theme { get; private set; } = "light";
     public bool NotifyUpcomingEnabled { get; private set; } = true;
     public bool NotifyOverdueEnabled { get; private set; } = true;
     public bool NotifyEmailEnabled { get; private set; } = false;
@@ -61,6 +62,20 @@ public class UserProfile
         Language = string.IsNullOrWhiteSpace(language) ? "pt-BR" : language.Trim();
         Currency = string.IsNullOrWhiteSpace(currency) ? "BRL" : currency.Trim().ToUpperInvariant();
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    // Tema da interface escolhido pelo usuário. Persiste no servidor para seguir o usuário entre
+    // logins/dispositivos. Valores válidos: "light" (padrão) e "dark".
+    public void SetTheme(string? theme)
+    {
+        Theme = NormalizeTheme(theme);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    private static string NormalizeTheme(string? theme)
+    {
+        var normalized = theme?.Trim().ToLowerInvariant();
+        return normalized == "dark" ? "dark" : "light";
     }
 
     private static string NormalizeIntelligenceMode(string? mode)
