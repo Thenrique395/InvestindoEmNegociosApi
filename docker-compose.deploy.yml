@@ -36,7 +36,9 @@ services:
       Stripe__PublishableKey: ${STRIPE_PUBLISHABLE_KEY:-}
       Stripe__FrontendBaseUrl: ${STRIPE_FRONTEND_BASE_URL:-http://localhost:4200}
       Stripe__PaymentMethodTypes: ${STRIPE_PAYMENT_METHOD_TYPES:-card}
-      Database__ApplySchemaOnStartup: "false"
+      # App aplica as EF Migrations pendentes no boot (fonte única do schema; substituiu o
+      # antigo passo de schema.sql no CI). Idempotente — só aplica o que falta.
+      Database__ApplySchemaOnStartup: "true"
       # Persiste as chaves de DataProtection no volume abaixo (sobrevivem a deploy).
       DataProtection__KeysPath: /keys
       AllowedHosts: ${ALLOWED_HOSTS:-*}

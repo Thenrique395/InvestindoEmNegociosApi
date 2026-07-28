@@ -134,15 +134,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install PostgreSQL client
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
-
-      - name: Apply development database schema
-        env:
-          DB_CONN: ${{ secrets.DB_CONN }}
-        run: ./scripts/apply-schema-from-db-conn.sh
+      # O schema é aplicado pelo próprio app no boot (EF Migrations) — não há mais passo
+      # de schema.sql aqui nem cliente psql. Ver DbMigrationExtensions.ApplyDatabaseSchemaAsync.
 
       - name: Upload deployment compose
         uses: appleboy/scp-action@v0.1.7
@@ -150,9 +143,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          # Inclui o schema.sql ATUAL (evita drift: o bootstrap do base compose no VPS
-          # deixa de usar uma cópia velha do schema).
-          source: "docker-compose.deploy.yml,docker-compose.yml,alloy/config.alloy,InvestindoEmNegocio/Infrastructure/Data/schema.sql"
+          source: "docker-compose.deploy.yml,docker-compose.yml,alloy/config.alloy"
           target: ${{ env.DEPLOY_PATH }}
 
       - name: Deploy stack to development

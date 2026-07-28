@@ -40,19 +40,8 @@
         <PackageReference Include="UglyToad.PdfPig" Version="1.7.0-custom-5" />
     </ItemGroup>
 
+    <!-- Ignora fontes geradas obsoletas de builds antigos em obj2 -->
     <ItemGroup>
-      <Content Include="Infrastructure/Data/schema.sql">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      </Content>
-    </ItemGroup>
-
-    <!-- Exclude legacy migrations (arquivos travados no disco) para não compilar junto -->
-    <ItemGroup>
-      <Compile Remove="Migrations/20241229170000_InitialClean.cs" />
-      <Compile Remove="Migrations/20251230200806_InitialClean.cs" />
-      <Compile Remove="Migrations/20251230200806_InitialClean.Designer.cs" />
-      <!-- Ignore stale generated sources from previous builds in obj2 -->
       <Compile Remove="obj2/**" />
     </ItemGroup>
 

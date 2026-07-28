@@ -1,44 +1,35 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace InvestindoEmNegocio.Infrastructure.Data;
 
 public static class DbMigrationExtensions
 {
+    // Aplica migrations pendentes no boot — fonte ÚNICA de verdade do schema. Substituiu o
+    // antigo EnsureCreated() + ExecuteSqlRaw(schema.sql), dual-mecanismo que causava drift
+    // (origem dos bugs login-500 e Goal Mode). Idempotente: só aplica o que falta.
     public static async Task ApplyDatabaseSchemaAsync(this IApplicationBuilder app)
     {
         using var scope = app.ApplicationServices.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<InvestDbContext>();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<InvestDbContext>>();
-        var hostEnvironment = scope.ServiceProvider.GetRequiredService<IHostEnvironment>();
 
         try
         {
-            // Keep EF model mapping, but stop relying on migrations history.
-            var created = await dbContext.Database.EnsureCreatedAsync();
-            logger.LogInformation("EnsureCreated executado. Banco criado agora? {Created}", created);
-
-            var schemaPath = Path.Combine(hostEnvironment.ContentRootPath, "Infrastructure", "Data", "schema.sql");
-            if (!File.Exists(schemaPath))
+            var pending = (await dbContext.Database.GetPendingMigrationsAsync()).ToList();
+            if (pending.Count > 0)
             {
-                logger.LogWarning("schema.sql não encontrado em {Path}.", schemaPath);
-                return;
+                logger.LogInformation(
+                    "Aplicando {Count} migration(s) pendente(s): {Migrations}",
+                    pending.Count, string.Join(", ", pending));
             }
 
-            var schemaSql = await File.ReadAllTextAsync(schemaPath);
-            if (string.IsNullOrWhiteSpace(schemaSql))
-            {
-                logger.LogWarning("schema.sql está vazio em {Path}.", schemaPath);
-                return;
-            }
-
-            await dbContext.Database.ExecuteSqlRawAsync(schemaSql);
-            logger.LogInformation("schema.sql aplicado com sucesso.");
+            await dbContext.Database.MigrateAsync();
+            logger.LogInformation("Migrations aplicadas com sucesso.");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Falha ao aplicar schema.sql no banco.");
+            logger.LogError(ex, "Falha ao aplicar migrations no banco.");
             throw;
         }
     }

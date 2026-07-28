@@ -28,6 +28,13 @@ public class SpaceConfiguration : IEntityTypeConfiguration<Space>
 
         builder.HasIndex(s => new { s.UserId, s.IsDefault });
 
+        // Garante no BANCO no máximo UM space default ATIVO por usuário. É a proteção de
+        // integridade contra o bug do login-500 (insert duplicado de space default). Índice
+        // único parcial — condiz com o guard que já existia no schema.sql.
+        builder.HasIndex(s => s.UserId)
+            .IsUnique()
+            .HasFilter("\"IsDefault\" AND \"DeletedAt\" IS NULL");
+
         builder.HasQueryFilter(s => s.DeletedAt == null);
     }
 }
