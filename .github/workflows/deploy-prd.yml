@@ -1,0 +1,100 @@
+name: Deploy Production
+
+# Deploy de PRODUÇÃO — SOMENTE MANUAL. Nada dispara automático: o usuário vai em
+# Actions -> "Deploy Production" -> Run workflow. Promove a imagem `main` atual (já
+# construída pelo pipeline de push) para a VPS de PRD. Migrations aplicam no boot.
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Tag da imagem do backend a promover"
+        required: false
+        default: "main"
+
+concurrency:
+  group: prd-deploy
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: ghcr.io/thenrique395/investindoemnegociosapi
+  DEPLOY_PATH: /home/ubuntu/investindo-prd
+
+jobs:
+  deploy-prd:
+    name: Deploy Production
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Upload PRD compose
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ vars.VPS_HOST }}
+          username: ${{ vars.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "docker-compose.prd.yml"
+          target: ${{ env.DEPLOY_PATH }}
+
+      - name: Deploy stack to production
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          STACK_NAME: invest-prd
+          BACKEND_IMAGE: ${{ env.IMAGE_NAME }}:${{ github.event.inputs.image_tag }}
+          DB_CONN: ${{ secrets.DB_CONN }}
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          POSTGRES_DB: ${{ vars.POSTGRES_DB }}
+          POSTGRES_USER: ${{ vars.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          API_PORT: ${{ vars.API_PORT }}
+          BRAPI_TOKEN: ${{ secrets.BRAPI_TOKEN }}
+          SMTP_HOST: ${{ vars.SMTP_HOST }}
+          SMTP_PORT: ${{ vars.SMTP_PORT }}
+          SMTP_ENABLE_SSL: ${{ vars.SMTP_ENABLE_SSL }}
+          SMTP_USER: ${{ vars.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_FROM_EMAIL: ${{ vars.SMTP_FROM_EMAIL }}
+          SMTP_FROM_NAME: ${{ vars.SMTP_FROM_NAME }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          host: ${{ vars.VPS_HOST }}
+          username: ${{ vars.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 20m
+          envs: STACK_NAME,BACKEND_IMAGE,DB_CONN,JWT_SECRET_KEY,POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,API_PORT,BRAPI_TOKEN,SMTP_HOST,SMTP_PORT,SMTP_ENABLE_SSL,SMTP_USER,SMTP_PASS,SMTP_FROM_EMAIL,SMTP_FROM_NAME,GHCR_USER,GHCR_TOKEN,DEPLOY_PATH
+          script: |
+            set -euo pipefail
+
+            wait_for_service_health() {
+              local service_name="$1"
+              local container_id=""
+              local status=""
+              container_id="$(docker compose -p "$STACK_NAME" ps -q "$service_name")"
+              if [ -z "$container_id" ]; then
+                echo "Container do serviço '$service_name' não encontrado."
+                docker compose -p "$STACK_NAME" ps
+                return 1
+              fi
+              for _ in $(seq 1 40); do
+                status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container_id")"
+                if [ "$status" = "healthy" ] || [ "$status" = "running" ]; then
+                  return 0
+                fi
+                sleep 3
+              done
+              echo "Serviço '$service_name' não ficou saudável. Status atual: $status"
+              docker compose -p "$STACK_NAME" logs --tail=120 "$service_name"
+              return 1
+            }
+
+            mkdir -p "$DEPLOY_PATH"
+            cd "$DEPLOY_PATH"
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            docker image prune -af || true
+            docker compose -p "$STACK_NAME" -f docker-compose.prd.yml config >/dev/null
+            docker compose -p "$STACK_NAME" -f docker-compose.prd.yml pull
+            docker compose -p "$STACK_NAME" -f docker-compose.prd.yml up -d --remove-orphans
+            wait_for_service_health backend
+            echo "Deploy de produção concluído."
