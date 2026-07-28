@@ -47,7 +47,7 @@ services:
       Smtp__Username: ${SMTP_USER:-}
       Smtp__Password: ${SMTP_PASS:-}
       Smtp__FromEmail: ${SMTP_FROM_EMAIL:-}
-      Smtp__FromName: ${SMTP_FROM_NAME:-Investindo em Negocios}
+      Smtp__FromName: ${SMTP_FROM_NAME:-Investindo em Negócios}
       DataProtection__KeysPath: /keys
       AllowedHosts: ${ALLOWED_HOSTS:-*}
       # Mesmo origin do frontend (via Caddy na 80) — cookie seguro off enquanto for HTTP.

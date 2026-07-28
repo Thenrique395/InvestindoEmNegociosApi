@@ -30,8 +30,9 @@ public sealed class EmailConfirmationService(
         await tokenRepository.SaveChangesAsync(cancellationToken);
 
         var link = BuildConfirmLink(rawToken);
-        var subject = "Confirme seu e-mail";
-        var safeName = WebUtility.HtmlEncode(user.Name);
+        var subject = "Confirme seu e-mail — Investindo em Negócios";
+        var firstName = user.Name?.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? user.Name ?? "";
+        var safeFirstName = WebUtility.HtmlEncode(firstName);
         var safeLink = WebUtility.HtmlEncode(link);
         var hours = Math.Max(1, ttlMinutes / 60);
         var html = $"""
@@ -41,15 +42,14 @@ public sealed class EmailConfirmationService(
                           <table role="presentation" width="620" cellspacing="0" cellpadding="0" style="max-width:620px;background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;">
                             <tr>
                               <td style="padding:20px 24px;background:#f8fafc;border-bottom:1px solid #e5e7eb;">
-                                <div style="font-size:12px;letter-spacing:1.8px;text-transform:uppercase;color:#64748b;font-weight:700;">Investindo em Negocios</div>
+                                <div style="font-size:12px;letter-spacing:1.8px;text-transform:uppercase;color:#64748b;font-weight:700;">Investindo em Negócios</div>
                                 <div style="margin-top:8px;font-size:24px;line-height:1.3;color:#0f172a;font-weight:700;">Confirme seu e-mail</div>
                               </td>
                             </tr>
                             <tr>
                               <td style="padding:24px;">
-                                <p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#334155;">Ola <strong>{safeName}</strong>,</p>
-                                <p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#334155;">Falta so um passo para ativar sua conta.</p>
-                                <p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#334155;">Clique no botao abaixo para confirmar seu e-mail:</p>
+                                <p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#334155;">Olá, <strong>{safeFirstName}</strong>,</p>
+                                <p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:#334155;">Recebemos seu cadastro no Investindo em Negócios. Para ativar sua conta, confirme seu e-mail:</p>
                                 <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 18px;">
                                   <tr>
                                     <td align="center" bgcolor="#2563eb" style="border-radius:10px;">
@@ -58,9 +58,10 @@ public sealed class EmailConfirmationService(
                                   </tr>
                                 </table>
                                 <p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#475569;">Este link expira em <strong>{hours} horas</strong>.</p>
-                                <p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#475569;">Se o botao nao funcionar, copie e cole este link no navegador:</p>
+                                <p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#475569;">Se o botão não funcionar, copie e cole este link no navegador:</p>
                                 <p style="margin:0 0 18px;word-break:break-all;font-size:12px;line-height:1.5;color:#2563eb;">{safeLink}</p>
-                                <p style="margin:0;font-size:12px;line-height:1.6;color:#64748b;">Se voce nao criou esta conta, pode ignorar esta mensagem com seguranca.</p>
+                                <p style="margin:0 0 16px;font-size:12px;line-height:1.6;color:#64748b;">Se você não criou esta conta, pode ignorar este e-mail com segurança.</p>
+                                <p style="margin:0;font-size:13px;line-height:1.6;color:#334155;">— Equipe Investindo em Negócios</p>
                               </td>
                             </tr>
                           </table>
@@ -68,7 +69,7 @@ public sealed class EmailConfirmationService(
                       </tr>
                     </table>
                     """;
-        var text = $"Ola {user.Name},\n\nConfirme seu e-mail para ativar sua conta usando este link: {link}\n\nEste link expira em {hours} horas.\n\nSe voce nao criou esta conta, ignore esta mensagem.";
+        var text = $"Olá, {firstName},\n\nRecebemos seu cadastro no Investindo em Negócios. Para ativar sua conta, confirme seu e-mail neste link:\n{link}\n\nEste link expira em {hours} horas. Se você não criou esta conta, ignore este e-mail.\n\n— Equipe Investindo em Negócios";
 
         try
         {

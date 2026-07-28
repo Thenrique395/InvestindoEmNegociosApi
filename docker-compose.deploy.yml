@@ -31,7 +31,7 @@ services:
       Smtp__Username: ${SMTP_USER:-}
       Smtp__Password: ${SMTP_PASS:-}
       Smtp__FromEmail: ${SMTP_FROM_EMAIL:-}
-      Smtp__FromName: ${SMTP_FROM_NAME:-Investindo em Negocios}
+      Smtp__FromName: ${SMTP_FROM_NAME:-Investindo em Negócios}
       Stripe__SecretKey: ${STRIPE_SECRET_KEY:-}
       Stripe__WebhookSecret: ${STRIPE_WEBHOOK_SECRET:-}
       Stripe__PublishableKey: ${STRIPE_PUBLISHABLE_KEY:-}

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Mail;
+using System.Text;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Domain.Common;
 using Microsoft.Extensions.Options;
@@ -28,17 +29,20 @@ public sealed class SmtpEmailSender(
 
         using var message = new MailMessage
         {
-            From = new MailAddress(settings.FromEmail, settings.FromName),
+            From = new MailAddress(settings.FromEmail, settings.FromName, Encoding.UTF8),
             Subject = subject,
-            Body = htmlBody,
-            IsBodyHtml = true
+            SubjectEncoding = Encoding.UTF8
         };
         message.To.Add(to);
 
+        // multipart/alternative com UTF-8: o texto vem PRIMEIRO e o HTML por ÚLTIMO — os clientes
+        // de e-mail preferem a última parte, então mostram o HTML (com botão) e não o texto puro.
+        // Sem definir Body/IsBodyHtml para não inverter a ordem (bug que fazia o Gmail mostrar texto).
         if (!string.IsNullOrWhiteSpace(textBody))
         {
-            message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(textBody, null, "text/plain"));
+            message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(textBody, Encoding.UTF8, "text/plain"));
         }
+        message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(htmlBody, Encoding.UTF8, "text/html"));
 
         using var client = new SmtpClient(settings.Host, settings.Port)
         {
