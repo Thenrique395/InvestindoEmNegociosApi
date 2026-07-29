@@ -134,9 +134,9 @@ public sealed class EmailConfirmationService(
     {
         var baseUrl = options.Value.FrontendConfirmUrl?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(baseUrl))
-            baseUrl = "http://localhost:4200/confirmar-email";
+            baseUrl = "http://localhost:4200/login";
 
         var separator = baseUrl.Contains('?', StringComparison.Ordinal) ? "&" : "?";
-        return $"{baseUrl}{separator}token={Uri.EscapeDataString(token)}";
+        return $"{baseUrl}{separator}confirmToken={Uri.EscapeDataString(token)}";
     }
 }

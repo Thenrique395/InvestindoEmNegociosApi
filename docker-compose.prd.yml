@@ -40,7 +40,7 @@ services:
       MarketData__BrapiToken: ${BRAPI_TOKEN}
       PasswordReset__FrontendResetUrl: ${PASSWORD_RESET_FRONTEND_URL:-http://44.222.213.37/reset-password}
       PasswordReset__TokenExpiryMinutes: ${PASSWORD_RESET_TOKEN_EXPIRY_MINUTES:-30}
-      EmailConfirmation__FrontendConfirmUrl: ${EMAIL_CONFIRMATION_FRONTEND_URL:-http://44.222.213.37/confirmar-email}
+      EmailConfirmation__FrontendConfirmUrl: ${EMAIL_CONFIRMATION_FRONTEND_URL:-http://44.222.213.37/login}
       Smtp__Host: ${SMTP_HOST:-}
       Smtp__Port: ${SMTP_PORT:-587}
       Smtp__EnableSsl: ${SMTP_ENABLE_SSL:-true}
