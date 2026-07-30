@@ -31,8 +31,9 @@ public class LoanDeleteSqliteIntegrationTests
         {
             await db.Database.EnsureCreatedAsync();
 
-            var contract = new LoanContract(userId, "Empréstimo QA", 12000m, 18m, 12,
-                LoanAmortizationType.Price, new DateOnly(2026, 7, 5), 15, 1100m, 13200m, 1200m);
+            var contract = new LoanContract(userId, Guid.NewGuid(), "Empréstimo QA", 12000m, 18m, 0.015m,
+                InterestRatePeriod.AnnualNominal, 12, LoanAmortizationType.Price, new DateOnly(2026, 7, 5), 15,
+                1100m, 13200m, 1200m, 13200m);
             db.LoanContracts.Add(contract);
             await db.SaveChangesAsync();
             contractId = contract.Id;
@@ -48,7 +49,7 @@ public class LoanDeleteSqliteIntegrationTests
 
         await using (var db = new InvestDbContext(options))
         {
-            var service = new LoansService(new LoanContractRepository(db), new LoanInstallmentRepository(db));
+            var service = new LoansService(new LoanContractRepository(db), new LoanInstallmentRepository(db), new SpaceRepository(db));
             // Antes do fix, isto lançava DbUpdateConcurrencyException → 500.
             await service.DeleteAsync(userId, contractId);
         }
