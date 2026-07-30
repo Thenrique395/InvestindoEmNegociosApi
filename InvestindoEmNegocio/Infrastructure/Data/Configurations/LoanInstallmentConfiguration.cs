@@ -14,8 +14,15 @@ public class LoanInstallmentConfiguration : IEntityTypeConfiguration<LoanInstall
         builder.Property(x => x.BeginningBalance).HasColumnType("numeric(14,2)").IsRequired();
         builder.Property(x => x.PrincipalAmount).HasColumnType("numeric(14,2)").IsRequired();
         builder.Property(x => x.InterestAmount).HasColumnType("numeric(14,2)").IsRequired();
+        builder.Property(x => x.InsuranceAmount).HasColumnType("numeric(14,2)").IsRequired();
+        builder.Property(x => x.FeeAmount).HasColumnType("numeric(14,2)").IsRequired();
+        builder.Property(x => x.PenaltyAmount).HasColumnType("numeric(14,2)").IsRequired();
+        builder.Property(x => x.DiscountAmount).HasColumnType("numeric(14,2)").IsRequired();
         builder.Property(x => x.TotalAmount).HasColumnType("numeric(14,2)").IsRequired();
         builder.Property(x => x.EndingBalance).HasColumnType("numeric(14,2)").IsRequired();
+        builder.Property(x => x.PaidAmount).HasColumnType("numeric(14,2)").IsRequired();
+        builder.Property(x => x.RemainingAmount).HasColumnType("numeric(14,2)").IsRequired();
+        builder.Property(x => x.ScheduleVersion).IsRequired();
         builder.Property(x => x.Status).HasConversion<string>().IsRequired();
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired();

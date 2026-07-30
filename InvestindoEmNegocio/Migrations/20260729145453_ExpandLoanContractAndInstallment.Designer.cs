@@ -3,6 +3,7 @@ using System;
 using InvestindoEmNegocio.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace InvestindoEmNegocio.Migrations
 {
     [DbContext(typeof(InvestDbContext))]
-    partial class InvestDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260729145453_ExpandLoanContractAndInstallment")]
+    partial class ExpandLoanContractAndInstallment
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -909,114 +912,6 @@ namespace InvestindoEmNegocio.Migrations
                     b.ToTable("investment_positions", (string)null);
                 });
 
-            modelBuilder.Entity("InvestindoEmNegocio.Domain.Entities.LoanAmortization", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("AccountId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("AccountTransactionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("numeric(14,2)");
-
-                    b.Property<Guid>("ContractId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateOnly>("EffectiveDate")
-                        .HasColumnType("date");
-
-                    b.Property<decimal>("EstimatedInterestAfter")
-                        .HasColumnType("numeric(14,2)");
-
-                    b.Property<decimal>("EstimatedInterestBefore")
-                        .HasColumnType("numeric(14,2)");
-
-                    b.Property<decimal>("EstimatedSavings")
-                        .HasColumnType("numeric(14,2)");
-
-                    b.Property<string>("IdempotencyKey")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)");
-
-                    b.Property<int?>("MethodId")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("NewBalance")
-                        .HasColumnType("numeric(14,2)");
-
-                    b.Property<decimal>("NewPayment")
-                        .HasColumnType("numeric(14,2)");
-
-                    b.Property<int>("NewTerm")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Note")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<decimal>("PreviousBalance")
-                        .HasColumnType("numeric(14,2)");
-
-                    b.Property<decimal>("PreviousPayment")
-                        .HasColumnType("numeric(14,2)");
-
-                    b.Property<int>("PreviousTerm")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ReceiptUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("ReversalReason")
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
-                    b.Property<DateTime?>("ReversedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("ScheduleVersion")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("SpaceId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Strategy")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AccountId");
-
-                    b.HasIndex("ContractId");
-
-                    b.HasIndex("UserId", "CreatedAt");
-
-                    b.HasIndex("UserId", "IdempotencyKey")
-                        .IsUnique();
-
-                    b.ToTable("loan_amortizations", null, t =>
-                        {
-                            t.HasCheckConstraint("ck_loan_amortization_amount_positive", "\"Amount\" > 0");
-                        });
-                });
-
             modelBuilder.Entity("InvestindoEmNegocio.Domain.Entities.LoanContract", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1229,96 +1124,6 @@ namespace InvestindoEmNegocio.Migrations
                     b.HasIndex("UserId", "DueDate");
 
                     b.ToTable("loan_installments", (string)null);
-                });
-
-            modelBuilder.Entity("InvestindoEmNegocio.Domain.Entities.LoanPayment", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("AccountId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("AccountTransactionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("numeric(14,2)");
-
-                    b.Property<Guid>("ContractId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal>("DiscountAmount")
-                        .HasColumnType("numeric(14,2)");
-
-                    b.Property<string>("IdempotencyKey")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)");
-
-                    b.Property<Guid>("InstallmentId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("InterestAmount")
-                        .HasColumnType("numeric(14,2)");
-
-                    b.Property<int?>("MethodId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Note")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<DateTime>("PaidAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal>("PenaltyAmount")
-                        .HasColumnType("numeric(14,2)");
-
-                    b.Property<decimal>("PrincipalAmount")
-                        .HasColumnType("numeric(14,2)");
-
-                    b.Property<string>("ReceiptUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("ReversalReason")
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
-                    b.Property<DateTime?>("ReversedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("SpaceId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AccountId");
-
-                    b.HasIndex("ContractId");
-
-                    b.HasIndex("InstallmentId");
-
-                    b.HasIndex("UserId", "IdempotencyKey")
-                        .IsUnique();
-
-                    b.HasIndex("UserId", "PaidAt");
-
-                    b.ToTable("loan_payments", null, t =>
-                        {
-                            t.HasCheckConstraint("ck_loan_payment_amount_positive", "\"Amount\" > 0");
-                        });
                 });
 
             modelBuilder.Entity("InvestindoEmNegocio.Domain.Entities.MoneyInstallment", b =>
@@ -2401,45 +2206,11 @@ namespace InvestindoEmNegocio.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
-            modelBuilder.Entity("InvestindoEmNegocio.Domain.Entities.LoanAmortization", b =>
-                {
-                    b.HasOne("InvestindoEmNegocio.Domain.Entities.Account", null)
-                        .WithMany()
-                        .HasForeignKey("AccountId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("InvestindoEmNegocio.Domain.Entities.LoanContract", null)
-                        .WithMany()
-                        .HasForeignKey("ContractId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("InvestindoEmNegocio.Domain.Entities.LoanInstallment", b =>
                 {
                     b.HasOne("InvestindoEmNegocio.Domain.Entities.LoanContract", null)
                         .WithMany()
                         .HasForeignKey("ContractId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("InvestindoEmNegocio.Domain.Entities.LoanPayment", b =>
-                {
-                    b.HasOne("InvestindoEmNegocio.Domain.Entities.Account", null)
-                        .WithMany()
-                        .HasForeignKey("AccountId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("InvestindoEmNegocio.Domain.Entities.LoanContract", null)
-                        .WithMany()
-                        .HasForeignKey("ContractId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("InvestindoEmNegocio.Domain.Entities.LoanInstallment", null)
-                        .WithMany()
-                        .HasForeignKey("InstallmentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

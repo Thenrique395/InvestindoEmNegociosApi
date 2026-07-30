@@ -37,6 +37,9 @@ public class LoanInstallmentRepository(InvestDbContext context) : ILoanInstallme
         context.LoanInstallments.RemoveRange(items);
     }
 
+    public void RemoveRange(IEnumerable<LoanInstallment> installments)
+        => context.LoanInstallments.RemoveRange(installments);
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => await context.SaveChangesAsync(cancellationToken);
 }

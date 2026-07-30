@@ -9,5 +9,6 @@ public interface ILoanInstallmentRepository
     Task<LoanInstallment?> GetByIdAsync(Guid installmentId, Guid userId, CancellationToken cancellationToken = default);
     Task AddRangeAsync(IEnumerable<LoanInstallment> installments, CancellationToken cancellationToken = default);
     Task RemoveByContractAsync(Guid contractId, Guid userId, CancellationToken cancellationToken = default);
+    void RemoveRange(IEnumerable<LoanInstallment> installments);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

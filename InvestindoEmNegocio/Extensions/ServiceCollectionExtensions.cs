@@ -326,6 +326,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IInvestmentPositionRepository, InvestmentPositionRepository>();
         services.AddScoped<ILoanContractRepository, LoanContractRepository>();
         services.AddScoped<ILoanInstallmentRepository, LoanInstallmentRepository>();
+        services.AddScoped<ILoanPaymentRepository, LoanPaymentRepository>();
+        services.AddScoped<ILoanPaymentService, LoanPaymentService>();
+        services.AddScoped<ILoanAmortizationRepository, LoanAmortizationRepository>();
+        services.AddScoped<ILoanAmortizationService, LoanAmortizationService>();
+        services.AddScoped<ILoanTimelineService, LoanTimelineService>();
         services.AddScoped<IMonthlyFinancialSnapshotRepository, MonthlyFinancialSnapshotRepository>();
         services.AddScoped<IUserOnboardingRepository, UserOnboardingRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();

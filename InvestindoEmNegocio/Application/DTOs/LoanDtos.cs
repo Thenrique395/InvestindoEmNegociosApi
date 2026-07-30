@@ -47,3 +47,8 @@ public sealed record LoanSimulationResponse(
     decimal TotalInterest,
     LoanAmortizationType AmortizationType,
     IReadOnlyList<LoanInstallmentResponse> Installments);
+
+/// <summary>Comparação lado a lado dos sistemas PRICE e SAC para os mesmos parâmetros.</summary>
+public sealed record LoanSimulationComparison(
+    LoanSimulationResponse Price,
+    LoanSimulationResponse Sac);

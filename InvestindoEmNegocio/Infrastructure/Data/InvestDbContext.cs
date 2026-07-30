@@ -33,6 +33,8 @@ public class InvestDbContext(DbContextOptions<InvestDbContext> options) : DbCont
     public DbSet<InvestmentMovement> InvestmentMovements => Set<InvestmentMovement>();
     public DbSet<LoanContract> LoanContracts => Set<LoanContract>();
     public DbSet<LoanInstallment> LoanInstallments => Set<LoanInstallment>();
+    public DbSet<LoanPayment> LoanPayments => Set<LoanPayment>();
+    public DbSet<LoanAmortization> LoanAmortizations => Set<LoanAmortization>();
     public DbSet<MonthlyFinancialSnapshot> MonthlyFinancialSnapshots => Set<MonthlyFinancialSnapshot>();
     public DbSet<UserSubscription> UserSubscriptions => Set<UserSubscription>();
     public DbSet<UserOnboarding> UserOnboardings => Set<UserOnboarding>();
