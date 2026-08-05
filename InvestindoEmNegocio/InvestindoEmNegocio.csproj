@@ -11,30 +11,30 @@
   </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.0" />
-        <PackageReference Include="Scalar.AspNetCore" Version="2.1.17" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.10" />
-        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.10" />
-        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.10" />
-        <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.10">
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.18" />
+        <PackageReference Include="Scalar.AspNetCore" Version="2.16.17" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.29" />
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.29" />
+        <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.29">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
-        <PackageReference Include="Serilog.AspNetCore" Version="8.0.2" />
-        <PackageReference Include="Serilog.Settings.Configuration" Version="8.0.2" />
-        <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+        <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
+        <PackageReference Include="Serilog.Settings.Configuration" Version="8.0.4" />
+        <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
         <PackageReference Include="Serilog.Formatting.Compact" Version="2.0.0" />
-        <PackageReference Include="DotNetEnv" Version="3.0.0" />
-        <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.11.1" />
-        <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.11.1" />
-        <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.11.1" />
-        <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.11.1" />
-        <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.11.1" />
-        <PackageReference Include="Serilog.Sinks.OpenTelemetry" Version="1.0.0" />
-        <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="8.0.1" />
-        <PackageReference Include="Microsoft.Extensions.Http.Polly" Version="9.0.0" />
+        <PackageReference Include="DotNetEnv" Version="3.2.0" />
+        <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.17.0" />
+        <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.17.0" />
+        <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.17.0" />
+        <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.17.0" />
+        <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.17.0" />
+        <PackageReference Include="Serilog.Sinks.OpenTelemetry" Version="1.2.0" />
+        <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="8.0.2" />
+        <PackageReference Include="Microsoft.Extensions.Http.Polly" Version="9.0.18" />
         <PackageReference Include="Polly.Extensions.Http" Version="3.0.0" />
         <PackageReference Include="Stripe.net" Version="50.4.1" />
         <PackageReference Include="UglyToad.PdfPig" Version="1.7.0-custom-5" />
