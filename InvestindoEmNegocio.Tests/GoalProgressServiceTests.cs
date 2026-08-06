@@ -57,8 +57,12 @@ public class GoalProgressServiceTests : IDisposable
 
     private Goal AddExpenseGoal(decimal target, Guid scopeCategoryId)
     {
-        var goal = new Goal(_userId, _spaceId, "Alimentação", target, 2026, kind: GoalKind.Expense);
-        goal.ConfigurePlanning(GoalMode.Limit, new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 31), RecurrenceType.Monthly, 80m, 100m);
+        // Metas mensais usam a janela do MÊS CORRENTE (GoalProgressService.CurrentWindow).
+        // Ancorar no mês atual mantém o teste determinístico independentemente da data.
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var monthStart = new DateOnly(today.Year, today.Month, 1);
+        var goal = new Goal(_userId, _spaceId, "Alimentação", target, today.Year, kind: GoalKind.Expense);
+        goal.ConfigurePlanning(GoalMode.Limit, monthStart, monthStart.AddMonths(12), RecurrenceType.Monthly, 80m, 100m);
         goal.ReplaceScopes(new[] { new GoalScope(goal.Id, GoalScopeType.Category, scopeCategoryId) });
         _db.Goals.Add(goal);
         return goal;
@@ -67,6 +71,9 @@ public class GoalProgressServiceTests : IDisposable
     [Fact]
     public async Task Expense_Progress_Counts_Only_Effected_In_Scope_And_Period()
     {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var monthStart = new DateOnly(today.Year, today.Month, 1);
+        var nextMonth = monthStart.AddMonths(1);
         var catA = AddCategory(MoneyType.Expense);
         var catB = AddCategory(MoneyType.Expense);
         var goal = AddExpenseGoal(1000m, catA);
@@ -74,12 +81,12 @@ public class GoalProgressServiceTests : IDisposable
         var planB = AddPlan(MoneyType.Expense, catB);
         var incomePlanA = AddPlan(MoneyType.Income, AddCategory(MoneyType.Income));
 
-        AddInstallment(planA, new DateOnly(2026, 7, 10), 700m, InstallmentStatus.Paid);        // conta
-        AddInstallment(planA, new DateOnly(2026, 7, 15), 100m, InstallmentStatus.Open);        // pendente
-        AddInstallment(planA, new DateOnly(2026, 7, 20), 50m, InstallmentStatus.Canceled);     // cancelada -> ignora
-        AddInstallment(planA, new DateOnly(2026, 8, 5), 999m, InstallmentStatus.Paid);         // fora do período -> ignora
-        AddInstallment(planB, new DateOnly(2026, 7, 10), 500m, InstallmentStatus.Paid);        // outra categoria -> ignora
-        AddInstallment(incomePlanA, new DateOnly(2026, 7, 10), 300m, InstallmentStatus.Paid);  // outro tipo -> ignora
+        AddInstallment(planA, monthStart.AddDays(9), 700m, InstallmentStatus.Paid);        // conta (mês corrente)
+        AddInstallment(planA, monthStart.AddDays(14), 100m, InstallmentStatus.Open);       // pendente
+        AddInstallment(planA, monthStart.AddDays(19), 50m, InstallmentStatus.Canceled);    // cancelada -> ignora
+        AddInstallment(planA, nextMonth.AddDays(4), 999m, InstallmentStatus.Paid);         // fora do período -> ignora
+        AddInstallment(planB, monthStart.AddDays(9), 500m, InstallmentStatus.Paid);        // outra categoria -> ignora
+        AddInstallment(incomePlanA, monthStart.AddDays(9), 300m, InstallmentStatus.Paid);  // outro tipo -> ignora
         await _db.SaveChangesAsync();
 
         var progress = await new GoalProgressService(_db, new GoalRealizedReader(_db)).GetProgressAsync(_userId, goal.Id);
@@ -94,12 +101,14 @@ public class GoalProgressServiceTests : IDisposable
     [Fact]
     public async Task Income_Progress_Uses_Only_Received()
     {
-        var goal = new Goal(_userId, _spaceId, "Receita", 10000m, 2026, kind: GoalKind.Income);
-        goal.ConfigurePlanning(GoalMode.Target, new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 31), RecurrenceType.Monthly, null, null);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var monthStart = new DateOnly(today.Year, today.Month, 1);
+        var goal = new Goal(_userId, _spaceId, "Receita", 10000m, today.Year, kind: GoalKind.Income);
+        goal.ConfigurePlanning(GoalMode.Target, monthStart, monthStart.AddMonths(12), RecurrenceType.Monthly, null, null);
         _db.Goals.Add(goal); // sem escopo = todas as receitas
         var incomePlan = AddPlan(MoneyType.Income, AddCategory(MoneyType.Income));
-        AddInstallment(incomePlan, new DateOnly(2026, 7, 5), 7500m, InstallmentStatus.Paid);
-        AddInstallment(incomePlan, new DateOnly(2026, 7, 20), 2000m, InstallmentStatus.Open); // previsto
+        AddInstallment(incomePlan, monthStart.AddDays(4), 7500m, InstallmentStatus.Paid);
+        AddInstallment(incomePlan, monthStart.AddDays(19), 2000m, InstallmentStatus.Open); // previsto
         await _db.SaveChangesAsync();
 
         var progress = await new GoalProgressService(_db, new GoalRealizedReader(_db)).GetProgressAsync(_userId, goal.Id);
