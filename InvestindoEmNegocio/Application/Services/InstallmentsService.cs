@@ -314,8 +314,9 @@ public class InstallmentsService(
     public async Task<bool> DeleteAsync(Guid userId, Guid installmentId, CancellationToken cancellationToken = default)
     {
         var installment = await installmentRepository.GetByIdAsync(installmentId, cancellationToken);
-        if (installment is null) return false;
-        if (installment.UserId != userId) throw new UnauthorizedAccessException("Parcela pertence a outro usuário.");
+        // Dono errado é tratado como "não encontrado" (return false → 404), igual aos
+        // demais métodos deste serviço — evita vazar a existência da parcela de outro usuário.
+        if (installment is null || installment.UserId != userId) return false;
 
         var now = DateTime.UtcNow;
         var payments = await paymentRepository.ListByInstallmentIdAsync(installmentId, cancellationToken);

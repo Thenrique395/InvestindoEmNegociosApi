@@ -112,8 +112,10 @@ public class InstallmentsServiceTests
     }
 
     [Fact]
-    public async Task DeleteAsync_Should_Throw_Unauthorized_When_Other_User()
+    public async Task DeleteAsync_Should_Return_False_When_Other_User()
     {
+        // Dono errado é tratado como não encontrado (return false → 404), consistente com
+        // os demais métodos do serviço e sem vazar a existência da parcela alheia.
         var installment = new MoneyInstallment(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 1, DateOnly.FromDateTime(DateTime.UtcNow.Date), 100);
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
         installmentRepository
@@ -121,9 +123,9 @@ public class InstallmentsServiceTests
             .ReturnsAsync(installment);
         var sut = BuildSut(installmentRepository: installmentRepository);
 
-        Func<Task> act = async () => await sut.DeleteAsync(Guid.NewGuid(), Guid.NewGuid());
+        var removed = await sut.DeleteAsync(Guid.NewGuid(), Guid.NewGuid());
 
-        await act.Should().ThrowAsync<UnauthorizedAccessException>();
+        removed.Should().BeFalse();
     }
 
     [Fact]

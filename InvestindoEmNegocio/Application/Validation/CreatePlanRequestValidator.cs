@@ -13,7 +13,8 @@ public sealed class CreatePlanRequestValidator : AbstractValidator<CreatePlanReq
             .MaximumLength(120).WithMessage("Título do plano deve ter no máximo 120 caracteres.");
 
         RuleFor(x => x.Amount)
-            .GreaterThan(0m).WithMessage("Valor do plano deve ser maior que zero.");
+            .GreaterThan(0m).WithMessage("Valor do plano deve ser maior que zero.")
+            .LessThanOrEqualTo(MoneyLimits.MaxAmount).WithMessage("Valor do plano é alto demais.");
 
         RuleFor(x => x.DefaultPaymentMethodId)
             .GreaterThan(0).WithMessage("Forma de pagamento padrão inválida.")
@@ -30,6 +31,7 @@ public sealed class CreatePlanRequestValidator : AbstractValidator<CreatePlanReq
         RuleFor(x => x.InstallmentsCount)
             .NotNull().WithMessage("Plano parcelado requer quantidade de parcelas.")
             .GreaterThanOrEqualTo(2).WithMessage("Plano parcelado requer no mínimo 2 parcelas.")
+            .LessThanOrEqualTo(MoneyLimits.MaxInstallments).WithMessage($"Plano parcelado aceita no máximo {MoneyLimits.MaxInstallments} parcelas.")
             .When(x => x.Schedule == ScheduleType.Installments);
 
         RuleFor(x => x.Frequency)

@@ -51,7 +51,7 @@ public class PlansServiceTests
 
         result.Title.Should().Be("Plano recorrente");
         installmentRepository.Verify(x => x.AddRangeAsync(
-            It.Is<IEnumerable<MoneyInstallment>>(list => list.Count() == 6),
+            It.Is<IEnumerable<MoneyInstallment>>(list => list.Count() == PlansService.RecurringHorizonMonths),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 

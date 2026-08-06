@@ -18,6 +18,15 @@ public class PlansService(
     : IPlansService
 {
     private readonly ILogger<PlansService> _logger = logger;
+
+    /// <summary>
+    /// Quantos meses de parcelas um plano recorrente materializa a partir da data
+    /// inicial. Antes eram apenas 6 meses (a recorrência "sumia" no 7º mês). 60 meses
+    /// (5 anos) cobre qualquer uso realista sem depender de job/cron. Para recorrência
+    /// verdadeiramente infinita, evoluir para um job mensal de top-up ou projeção.
+    /// </summary>
+    public const int RecurringHorizonMonths = 60;
+
     public async Task<PlanResponse> CreateAsync(Guid userId, CreatePlanRequest request, CancellationToken cancellationToken = default)
     {
         var plan = new MoneyPlan(
@@ -180,7 +189,7 @@ public class PlansService(
             case ScheduleType.Recurring:
             {
                 var list = new List<MoneyInstallment>();
-                for (var i = 1; i <= 6; i++)
+                for (var i = 1; i <= RecurringHorizonMonths; i++)
                 {
                     var purchaseDate = plan.StartDate.AddMonths(i - 1);
                     list.Add(BuildInstallment(plan, i, purchaseDate, card));
