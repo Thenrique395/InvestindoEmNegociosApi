@@ -81,8 +81,9 @@ public class UserProfile
     private static string NormalizeIntelligenceMode(string? mode)
     {
         var normalized = string.IsNullOrWhiteSpace(mode) ? "B" : mode.Trim().ToUpperInvariant();
-        if (normalized is "B" or "C") return normalized;
-        throw new ArgumentException("Modo de inteligência inválido. Use B ou C.");
+        // A = agressivo, B = balanceado, C = conservador.
+        if (normalized is "A" or "B" or "C") return normalized;
+        throw new ArgumentException("Modo de inteligência inválido. Use A, B ou C.");
     }
 
     private static int NormalizeCarryOverDay(int value)

@@ -95,7 +95,7 @@ public class UpsertUserProfileRequestValidatorTests
 
         result.IsValid.Should().BeFalse();
         result.Errors.Select(e => e.ErrorMessage)
-            .Should().Contain(m => m.Contains("Modo de inteligência deve ser B ou C", StringComparison.Ordinal));
+            .Should().Contain(m => m.Contains("Modo de inteligência deve ser A, B ou C", StringComparison.Ordinal));
     }
 
     [Fact]

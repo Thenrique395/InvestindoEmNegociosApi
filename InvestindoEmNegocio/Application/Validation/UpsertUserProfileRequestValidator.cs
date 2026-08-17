@@ -26,8 +26,8 @@ public class UpsertUserProfileRequestValidator : AbstractValidator<UpsertUserPro
             .Must(mode =>
             {
                 var normalized = (mode ?? string.Empty).Trim().ToUpperInvariant();
-                return normalized is "B" or "C";
+                return normalized is "A" or "B" or "C";
             })
-            .WithMessage("Modo de inteligência deve ser B ou C.");
+            .WithMessage("Modo de inteligência deve ser A, B ou C.");
     }
 }
