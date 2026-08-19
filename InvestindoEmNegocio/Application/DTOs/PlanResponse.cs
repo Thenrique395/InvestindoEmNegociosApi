@@ -13,4 +13,7 @@ public record PlanResponse(
     DateOnly StartDate,
     string Status,
     Guid? CategoryId,
-    Guid? CardId);
+    Guid? CardId,
+    // Forma de pagamento escolhida no cadastro. Já era gravada; faltava voltar
+    // na leitura, então a listagem só sabia dizer "à vista" ou "cartão".
+    int? DefaultPaymentMethodId = null);

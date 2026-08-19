@@ -235,5 +235,5 @@ public class PlansService(
     }
 
     private static PlanResponse CreatePlanResponse(MoneyPlan p) =>
-        new(p.Id, p.Type, p.Title, p.Amount, p.Schedule, p.Frequency, p.InstallmentsCount, p.StartDate, p.Status.ToString(), p.CategoryId, p.CardId);
+        new(p.Id, p.Type, p.Title, p.Amount, p.Schedule, p.Frequency, p.InstallmentsCount, p.StartDate, p.Status.ToString(), p.CategoryId, p.CardId, p.DefaultPaymentMethodId);
 }
