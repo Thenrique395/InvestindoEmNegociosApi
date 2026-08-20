@@ -12,7 +12,7 @@ namespace InvestindoEmNegocio.Controllers;
 [Route("api/plans")]
 [Route("api/v1/plans")]
 [Authorize(Policy = AppAuthorizationPolicies.FeaturePlansManage)]
-public class PlansController(IPlansService plansService, IAuditService auditService) : AuthenticatedControllerBase
+public class PlansController(IPlansService plansService, IPlanHistoryService planHistoryService, IAuditService auditService) : AuthenticatedControllerBase
 {
     [HttpPost]
     // Creates an income or expense plan and generates installments based on the schedule type.
@@ -74,6 +74,16 @@ public class PlansController(IPlansService plansService, IAuditService auditServ
             if (plan is null) return NotFound();
             return Ok(plan);
         }, "Plano inválido");
+    }
+
+    [HttpGet("{id:guid}/history")]
+    // Histórico do lançamento: parcelas e eventos, para a gaveta de Despesas/Receitas.
+    public async Task<IActionResult> History(Guid id, CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        var history = await planHistoryService.GetAsync(userId, id, cancellationToken);
+        if (history is null) return NotFound();
+        return Ok(history);
     }
 
     [HttpDelete("{id:guid}")]

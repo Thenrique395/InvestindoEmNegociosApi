@@ -23,6 +23,7 @@ public class InvestDbContext(DbContextOptions<InvestDbContext> options) : DbCont
     public DbSet<MoneyPlan> MoneyPlans => Set<MoneyPlan>();
     public DbSet<MoneyInstallment> MoneyInstallments => Set<MoneyInstallment>();
     public DbSet<MoneyPayment> MoneyPayments => Set<MoneyPayment>();
+    public DbSet<PlanHistoryEntry> PlanHistoryEntries => Set<PlanHistoryEntry>();
     public DbSet<Goal> Goals => Set<Goal>();
     public DbSet<GoalScope> GoalScopes => Set<GoalScope>();
     public DbSet<GoalOccurrence> GoalOccurrences => Set<GoalOccurrence>();

@@ -414,6 +414,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ILookupCardBrandService, LookupsService>();
         services.AddScoped<ILookupInstitutionService, LookupsService>();
         services.AddScoped<IPlansService, PlansService>();
+        services.AddScoped<IPlanHistoryService, PlanHistoryService>();
+        services.AddScoped<IPlanHistoryRepository, PlanHistoryRepository>();
         services.AddScoped<IIncomeSummaryService, IncomeSummaryService>();
         services.AddScoped<IPreferenceSettingsService, PreferenceSettingsService>();
         services.AddScoped<IUserPrivacyCenterService, UserPrivacyCenterService>();

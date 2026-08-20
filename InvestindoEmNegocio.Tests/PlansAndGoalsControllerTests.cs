@@ -29,7 +29,7 @@ public class PlansAndGoalsControllerTests
         plansService.Setup(x => x.DeleteAsync(It.IsAny<Guid>(), planId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
         var audit = new Mock<IAuditService>();
-        var controller = new PlansController(plansService.Object, audit.Object);
+        var controller = new PlansController(plansService.Object, Mock.Of<IPlanHistoryService>(), audit.Object);
         SetAuth(controller, userId);
 
         var request = new CreatePlanRequest(MoneyType.Expense, "Plano", 100m, ScheduleType.OneTime, DateOnly.FromDateTime(DateTime.UtcNow));
@@ -53,7 +53,7 @@ public class PlansAndGoalsControllerTests
         plansService.Setup(x => x.DeleteAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
         plansService.Setup(x => x.CreateAsync(It.IsAny<Guid>(), It.IsAny<CreatePlanRequest>(), It.IsAny<CancellationToken>())).ThrowsAsync(new ArgumentException("invalido"));
 
-        var controller = new PlansController(plansService.Object, Mock.Of<IAuditService>());
+        var controller = new PlansController(plansService.Object, Mock.Of<IPlanHistoryService>(), Mock.Of<IAuditService>());
         SetAuth(controller, Guid.NewGuid());
 
         var request = new CreatePlanRequest(MoneyType.Expense, "Plano", 100m, ScheduleType.OneTime, DateOnly.FromDateTime(DateTime.UtcNow));

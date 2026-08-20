@@ -462,6 +462,8 @@ public class PlansServiceTests
         Mock<IMoneyPaymentRepository>? paymentRepository = null,
         Mock<IAccountTransactionRepository>? accountTransactionRepository = null,
         Mock<ICardRepository>? cardRepository = null,
+        Mock<ICategoryRepository>? categoryRepository = null,
+        Mock<IPlanHistoryService>? planHistoryService = null,
         Guid? spaceId = null)
     {
         var currentSpaceAccessor = new Mock<ICurrentSpaceAccessor>();
@@ -475,7 +477,9 @@ public class PlansServiceTests
             paymentRepository?.Object ?? Mock.Of<IMoneyPaymentRepository>(),
             accountTransactionRepository?.Object ?? Mock.Of<IAccountTransactionRepository>(),
             cardRepository?.Object ?? Mock.Of<ICardRepository>(),
+            categoryRepository?.Object ?? Mock.Of<ICategoryRepository>(),
             currentSpaceAccessor.Object,
+            planHistoryService?.Object ?? Mock.Of<IPlanHistoryService>(),
             NullLogger<PlansService>.Instance);
     }
 }

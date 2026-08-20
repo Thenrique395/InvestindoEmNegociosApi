@@ -18,6 +18,7 @@ public class InstallmentsService(
     IAccountRepository accountRepository,
     IAccountTransactionRepository accountTransactionRepository,
     IReceiptStorageService receiptStorageService,
+    IPlanHistoryService planHistoryService,
     ILogger<InstallmentsService> logger)
     : IInstallmentsService
 {
@@ -126,6 +127,17 @@ public class InstallmentsService(
 
         await paymentRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Installment paid {UserId} {InstallmentId}", userId, installmentId);
+
+        await planHistoryService.RecordAsync(
+            userId,
+            installment.PlanId,
+            PlanHistoryEventType.PaymentRegistered,
+            request.PaidAt.ToUniversalTime(),
+            actorUserId: userId,
+            installmentId: installmentId,
+            newValue: request.PaidAmount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture),
+            cancellationToken: cancellationToken);
+
         return true;
     }
 
@@ -202,6 +214,16 @@ public class InstallmentsService(
         await installmentRepository.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Installment payment reversed {UserId} {InstallmentId} {PaymentId}", userId, installmentId, paymentId);
+
+        await planHistoryService.RecordAsync(
+            userId,
+            installment.PlanId,
+            PlanHistoryEventType.PaymentReversed,
+            DateTime.UtcNow,
+            actorUserId: userId,
+            installmentId: installmentId,
+            cancellationToken: cancellationToken);
+
         return true;
     }
 
@@ -299,6 +321,10 @@ public class InstallmentsService(
         if (installment.Status is InstallmentStatus.Canceled or InstallmentStatus.Anticipated)
             throw new InvalidOperationException("Não é possível editar uma parcela cancelada ou antecipada.");
 
+        // Capturados antes do Edit, senão o "de" já virou o "para".
+        var valorAnterior = installment.Amount;
+        var vencimentoAnterior = installment.DueDate;
+
         installment.Edit(request.Amount, request.DueDate);
 
         // Preserva os pagamentos e rederiva o status a partir do total líquido pago
@@ -308,6 +334,32 @@ public class InstallmentsService(
 
         await installmentRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Installment updated {UserId} {InstallmentId} {Amount} {DueDate}", userId, installmentId, request.Amount, request.DueDate);
+
+        var agora = DateTime.UtcNow;
+        var cultura = System.Globalization.CultureInfo.InvariantCulture;
+
+        if (valorAnterior != installment.Amount)
+        {
+            await planHistoryService.RecordAsync(
+                userId, installment.PlanId, PlanHistoryEventType.AmountChanged, agora,
+                actorUserId: userId,
+                installmentId: installmentId,
+                oldValue: valorAnterior.ToString("0.00", cultura),
+                newValue: installment.Amount.ToString("0.00", cultura),
+                cancellationToken: cancellationToken);
+        }
+
+        if (vencimentoAnterior != installment.DueDate)
+        {
+            await planHistoryService.RecordAsync(
+                userId, installment.PlanId, PlanHistoryEventType.DueDateChanged, agora,
+                actorUserId: userId,
+                installmentId: installmentId,
+                oldValue: vencimentoAnterior.ToString("yyyy-MM-dd"),
+                newValue: installment.DueDate.ToString("yyyy-MM-dd"),
+                cancellationToken: cancellationToken);
+        }
+
         return true;
     }
 

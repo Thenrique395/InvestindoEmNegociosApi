@@ -13,7 +13,9 @@ public class PlansService(
     IMoneyPaymentRepository paymentRepository,
     IAccountTransactionRepository accountTransactionRepository,
     ICardRepository cardRepository,
+    ICategoryRepository categoryRepository,
     ICurrentSpaceAccessor currentSpaceAccessor,
+    IPlanHistoryService planHistoryService,
     ILogger<PlansService> logger)
     : IPlansService
 {
@@ -47,6 +49,14 @@ public class PlansService(
         await GenerateInstallmentsAsync(plan, cancellationToken);
         await planRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Plan created {UserId} {PlanId} {Schedule}", userId, plan.Id, plan.Schedule);
+
+        await planHistoryService.RecordAsync(
+            userId,
+            plan.Id,
+            PlanHistoryEventType.Created,
+            plan.CreatedAt,
+            actorUserId: userId,
+            cancellationToken: cancellationToken);
 
         return CreatePlanResponse(plan);
     }
@@ -90,6 +100,11 @@ public class PlansService(
         paymentRepository.RemoveRange(payments);
         installmentRepository.RemoveRange(installments);
 
+        // Capturado antes do Update: depois disso o "de" já virou o "para".
+        var valorAnterior = plan.Amount;
+        var categoriaAnterior = plan.CategoryId;
+        var tituloAnterior = plan.Title;
+
         plan.Update(
             request.Type,
             request.Title,
@@ -106,7 +121,74 @@ public class PlansService(
         await planRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Plan updated {UserId} {PlanId} {Schedule}", userId, plan.Id, plan.Schedule);
 
+        await RecordChangesAsync(userId, plan, valorAnterior, categoriaAnterior, tituloAnterior, cancellationToken);
+
         return CreatePlanResponse(plan);
+    }
+
+    /// <summary>
+    /// Um evento por campo que mudou de verdade. Salvar "editado" sem dizer o quê
+    /// deixaria o histórico com a informação que menos importa.
+    /// </summary>
+    private async Task RecordChangesAsync(
+        Guid userId,
+        MoneyPlan plan,
+        decimal valorAnterior,
+        Guid? categoriaAnterior,
+        string tituloAnterior,
+        CancellationToken cancellationToken)
+    {
+        var agora = DateTime.UtcNow;
+
+        if (valorAnterior != plan.Amount)
+        {
+            await planHistoryService.RecordAsync(
+                userId, plan.Id, PlanHistoryEventType.AmountChanged, agora,
+                actorUserId: userId,
+                oldValue: FormatAmount(valorAnterior),
+                newValue: FormatAmount(plan.Amount),
+                cancellationToken: cancellationToken);
+        }
+
+        if (categoriaAnterior != plan.CategoryId)
+        {
+            var nomeAnterior = await ResolveCategoryNameAsync(categoriaAnterior, userId, cancellationToken);
+            var nomeNovo = await ResolveCategoryNameAsync(plan.CategoryId, userId, cancellationToken);
+            await planHistoryService.RecordAsync(
+                userId, plan.Id, PlanHistoryEventType.CategoryChanged, agora,
+                actorUserId: userId,
+                oldValue: nomeAnterior,
+                newValue: nomeNovo,
+                cancellationToken: cancellationToken);
+        }
+
+        if (!string.Equals(tituloAnterior, plan.Title, StringComparison.Ordinal))
+        {
+            await planHistoryService.RecordAsync(
+                userId, plan.Id, PlanHistoryEventType.TitleChanged, agora,
+                actorUserId: userId,
+                oldValue: tituloAnterior,
+                newValue: plan.Title,
+                cancellationToken: cancellationToken);
+        }
+    }
+
+    private static string FormatAmount(decimal value) =>
+        value.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Nome da categoria para o histórico. Categoria padrão do sistema e categoria
+    /// do usuário vêm por caminhos diferentes; o histórico só quer o nome.
+    /// </summary>
+    private async Task<string?> ResolveCategoryNameAsync(Guid? categoryId, Guid userId, CancellationToken cancellationToken)
+    {
+        if (!categoryId.HasValue) return null;
+
+        var doUsuario = await categoryRepository.GetByIdForUserAsync(categoryId.Value, userId, cancellationToken);
+        if (doUsuario is not null) return doUsuario.Name;
+
+        var padrao = await categoryRepository.GetDefaultByIdAsync(categoryId.Value, cancellationToken);
+        return padrao?.Name;
     }
 
     public async Task<bool> DeleteAsync(Guid userId, Guid id, CancellationToken cancellationToken = default)

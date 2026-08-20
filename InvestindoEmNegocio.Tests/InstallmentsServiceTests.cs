@@ -461,6 +461,7 @@ public class InstallmentsServiceTests
             accountRepo.Object,
             accountTransactionRepository?.Object ?? Mock.Of<IAccountTransactionRepository>(),
             receiptStorageService?.Object ?? Mock.Of<IReceiptStorageService>(),
+            Mock.Of<IPlanHistoryService>(),
             NullLogger<InstallmentsService>.Instance);
     }
 

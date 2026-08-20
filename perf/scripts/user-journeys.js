@@ -26,6 +26,26 @@ import http from 'k6/http';
 import { check, group, sleep, fail } from 'k6';
 import { Counter } from 'k6/metrics';
 import { uuidv4 } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
+import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.2/index.js';
+
+// Pool de usuários dedicados (registrados por perf/scripts/register_pool ...), 1 por
+// arquivo JSON [{email, access, xsrf}]. Em modo pool cada VU usa um usuário próprio
+// (Basic) => escrita sem contenção, permitindo achar o teto REAL do servidor.
+const POOL_FILE = __ENV.POOL_FILE || '';
+const POOL = POOL_FILE ? JSON.parse(open(POOL_FILE)) : null;
+
+// Endpoints instrumentados — usados para gerar sub-métricas por endpoint (ranking
+// de latência). Cada um vira um threshold always-pass p/ o k6 computar/exibir.
+const ENDPOINTS = [
+  'auth_login', 'profile_get', 'preferences_get', 'lookups_payment_methods', 'lookups_card_brands',
+  'categories_list', 'accounts_list', 'cards_list', 'plans_list', 'installments_list', 'goals_list',
+  'notifications_list', 'income_summary', 'investments_positions', 'investments_allocation_target',
+  'account_create', 'account_transfer', 'account_balance', 'account_update', 'account_delete',
+  'category_create', 'category_update', 'category_status', 'category_delete',
+  'card_create', 'card_update', 'card_delete', 'plan_create', 'installments_by_plan', 'installment_pay',
+  'accounts_for_pay', 'plan_delete', 'goal_create', 'goal_contribute', 'goal_progress', 'goal_delete',
+  'investment_create', 'investment_movement', 'investment_get', 'investment_delete',
+];
 
 const BASE = __ENV.BASE_URL || 'http://35.174.50.187:5055';
 const PASSWORD = __ENV.PASSWORD;
@@ -47,6 +67,28 @@ const authErrors = new Counter('auth_errors');     // 401/403: auth quebrada
 const STAGES = {
   smoke: [{ duration: '20s', target: 1 }],
   quick: [{ duration: '3s', target: 4 }, { duration: '30s', target: 4 }],
+  // 80 usuários: rampa até 80, sustenta 3min, desce.
+  u80: [
+    { duration: '1m', target: 80 },
+    { duration: '3m', target: 80 },
+    { duration: '30s', target: 0 },
+  ],
+  // Carga combinada (rodar junto com navegadores reais/Faro): 50 VUs sustentados.
+  combo: [
+    { duration: '30s', target: 50 },
+    { duration: '3m30s', target: 50 },
+    { duration: '20s', target: 0 },
+  ],
+  // Até o limite: escada 400 -> 800 -> 1200 VUs (acha onde começa a quebrar).
+  limit: [
+    { duration: '45s', target: 400 },
+    { duration: '1m', target: 400 },
+    { duration: '45s', target: 800 },
+    { duration: '1m', target: 800 },
+    { duration: '45s', target: 1200 },
+    { duration: '1m', target: 1200 },
+    { duration: '30s', target: 0 },
+  ],
   // Perfis curtos de propósito: os tokens capturados no setup vivem ~15 min;
   // manter cada run bem abaixo disso evita falso "token expirado".
   load: [
@@ -63,7 +105,41 @@ const STAGES = {
     { duration: '1m', target: 35 },
     { duration: '30s', target: 0 },
   ],
+  // Busca do teto da VPS: escada 50 -> 80 -> 110 VUs. Curto o bastante p/ o token.
+  peak: [
+    { duration: '45s', target: 50 },
+    { duration: '1m', target: 50 },
+    { duration: '45s', target: 80 },
+    { duration: '1m', target: 80 },
+    { duration: '45s', target: 110 },
+    { duration: '1m', target: 110 },
+    { duration: '30s', target: 0 },
+  ],
+  // Ponto de ruptura: 400 -> 600 -> 800 VUs (procura onde requests estouram o timeout).
+  breakpoint: [
+    { duration: '30s', target: 400 },
+    { duration: '45s', target: 400 },
+    { duration: '30s', target: 600 },
+    { duration: '45s', target: 600 },
+    { duration: '30s', target: 800 },
+    { duration: '1m', target: 800 },
+    { duration: '20s', target: 0 },
+  ],
+  // Teto alto (usar com POOL_FILE p/ evitar contenção): 150 -> 250 -> 400.
+  ceiling: [
+    { duration: '45s', target: 150 },
+    { duration: '1m', target: 150 },
+    { duration: '45s', target: 250 },
+    { duration: '1m', target: 250 },
+    { duration: '45s', target: 400 },
+    { duration: '1m30s', target: 400 },
+    { duration: '30s', target: 0 },
+  ],
 };
+
+// Sub-métrica por endpoint (threshold always-pass só p/ o k6 computar/exibir a latência).
+const endpointThresholds = {};
+for (const e of ENDPOINTS) endpointThresholds[`http_req_duration{endpoint:${e}}`] = ['p(95)>=0'];
 
 export const options = {
   scenarios: {
@@ -83,9 +159,35 @@ export const options = {
     server_errors: ['count<1'],   // qualquer 5xx reprova
     auth_errors: ['count<20'],    // tolera corrida rara; muitos = auth quebrada
     checks: ['rate>0.98'],
+    ...endpointThresholds,
   },
   summaryTrendStats: ['avg', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
 };
+
+// Ranking dos endpoints mais lentos (p95) ao final.
+export function handleSummary(data) {
+  const rows = [];
+  for (const [key, metric] of Object.entries(data.metrics)) {
+    const m = key.match(/^http_req_duration\{endpoint:([^}]+)\}$/);
+    if (!m || !metric.values) continue;
+    rows.push({
+      endpoint: m[1],
+      p95: metric.values['p(95)'] ?? 0,
+      p99: metric.values['p(99)'] ?? 0,
+      avg: metric.values.avg ?? 0,
+      max: metric.values.max ?? 0,
+      count: metric.values.count ?? 0,
+    });
+  }
+  rows.sort((a, b) => b.p95 - a.p95);
+  const fmt = (n) => `${n.toFixed(1)}ms`.padStart(9);
+  let table = '\n===== ENDPOINTS MAIS LENTOS (ordenado por p95) =====\n';
+  table += 'endpoint'.padEnd(32) + 'p95'.padStart(9) + 'p99'.padStart(9) + 'avg'.padStart(9) + 'max'.padStart(10) + '   amostras\n';
+  for (const r of rows) {
+    table += r.endpoint.padEnd(32) + fmt(r.p95) + fmt(r.p99) + fmt(r.avg) + fmt(r.max).padStart(10) + '   ' + r.count + '\n';
+  }
+  return { stdout: textSummary(data, { indent: ' ', enableColors: false }) + '\n' + table };
+}
 
 // ============================ helpers ============================
 
@@ -168,6 +270,12 @@ function jsonOf(res) {
 // ============================ setup ============================
 
 export function setup() {
+  // Modo pool: usuários dedicados (Basic) já registrados; cada VU usa um próprio.
+  if (POOL) {
+    if (!POOL.length) fail('POOL_FILE vazio/inválido.');
+    console.log(`setup POOL: ${POOL.length} usuários dedicados (escrita sem contenção)`);
+    return { mode: 'pool' };
+  }
   if (!PASSWORD) fail('Defina a senha via env PASSWORD (não fica no repositório).');
   // Intervalo entre logins: evita rajada instantânea (que já provocou 500 transitório)
   // e fica MUITO abaixo do rate-limit de login por IP (20/min).
@@ -178,7 +286,7 @@ export function setup() {
   const basic = loginCaptureCookies(ACCOUNTS.basic);
   const sessions = { advanced, intermediate, basic };
   console.log(`setup ok — sessões: advanced/intermediate/basic capturadas (access token len=${sessions.advanced.access.length})`);
-  return { sessions };
+  return { mode: 'profiles', sessions };
 }
 
 // ============================ jornadas ============================
@@ -317,6 +425,23 @@ function journeyInvestment() {
 // ============================ default ============================
 
 export default function (data) {
+  // Modo pool: cada VU usa um usuário dedicado (Basic) => grava na PRÓPRIA conta,
+  // sem contenção. Jornada Basic: browse + card/plan/goal.
+  if (data.mode === 'pool') {
+    seedSession(POOL[__VU % POOL.length]);
+    if (Math.random() < 0.5) {
+      journeyBrowse('basic');
+      sleep(1 + Math.random());
+      return;
+    }
+    const w = Math.random();
+    if (w < 0.4) journeyCard();
+    else if (w < 0.7) journeyPlanInstallment();
+    else journeyGoal();
+    sleep(2 + Math.random() * 2);
+    return;
+  }
+
   // Cada VU tem uma conta "casa" fixa (distribui a carga de ESCRITA entre as 3
   // contas em vez de concentrar tudo numa só — o que gerava contenção de trava).
   const roles = ['advanced', 'intermediate', 'basic'];
