@@ -26,13 +26,13 @@ public static class ApplicationPipelineExtensions
 
     public static WebApplication UseAppPipeline(this WebApplication app, string corsPolicy)
     {
-        app.UseGlobalProblemDetails(app.Environment.IsDevelopment());
-        if (!app.Environment.IsDevelopment())
-            app.UseHsts();
-        app.UseHttpsRedirection();
-        app.UseSecurityHeaders();
-        app.UseResponseCompression();
-        app.UseStaticFiles();
+        // Ordem importa aqui, e o motivo não é óbvio: o log de requisição precisa
+        // ficar POR FORA do handler de erro. Por dentro, ele registrava o status
+        // antes de o handler reescrever a resposta, então todo erro de negócio
+        // (400 de token inválido, 409 de cartão repetido) aparecia como 500 no
+        // log — com stack trace de "unhandled exception" — enquanto o cliente
+        // recebia o status certo. Isso mandava quem investigava atrás de uma
+        // falha de servidor que nunca existiu.
         app.UseMiddleware<CorrelationIdMiddleware>();
         app.UseSerilogRequestLogging(options =>
         {
@@ -57,6 +57,15 @@ public static class ApplicationPipelineExtensions
                     diagnosticContext.Set("UserId", userId);
             };
         });
+
+        app.UseGlobalProblemDetails(app.Environment.IsDevelopment());
+        app.UseBusinessProblemDetails();
+        if (!app.Environment.IsDevelopment())
+            app.UseHsts();
+        app.UseHttpsRedirection();
+        app.UseSecurityHeaders();
+        app.UseResponseCompression();
+        app.UseStaticFiles();
 
         app.UseRouting();
         app.UseCors(corsPolicy);

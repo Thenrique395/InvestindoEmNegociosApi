@@ -78,8 +78,23 @@ public class PlanHistoryService(
 
         eventos.AddRange(await DeriveMissingEventsAsync(plan, installments, gravados, cancellationToken));
 
+        // As parcelas vêm na mesma resposta de propósito: a gaveta precisa da série
+        // inteira (a 12ª pode vencer no ano que vem, fora do mês carregado na tela),
+        // e duas chamadas para abrir uma gaveta é uma a mais.
+        var parcelas = installments
+            .OrderBy(i => i.InstallmentNo)
+            .Select(i => new PlanHistoryInstallmentResponse(
+                i.Id,
+                i.InstallmentNo,
+                i.DueDate,
+                i.Amount,
+                i.Status.ToString()))
+            .ToList();
+
         return new PlanHistoryResponse(
             planId,
+            plan.Schedule.ToString(),
+            parcelas,
             eventos.OrderBy(e => e.OccurredAt).ThenBy(e => e.Type).ToList());
     }
 

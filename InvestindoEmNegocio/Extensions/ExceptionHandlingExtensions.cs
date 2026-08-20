@@ -53,4 +53,65 @@ public static class ExceptionHandlingExtensions
 
         return app;
     }
+
+    /// <summary>
+    /// Responde os erros de negócio (<see cref="AppProblemException"/> com status
+    /// abaixo de 500) antes que eles cheguem ao handler global.
+    ///
+    /// O motivo é o log: o <c>ExceptionHandlerMiddleware</c> do ASP.NET grava
+    /// "An unhandled exception has occurred", em nível Error e com stack trace,
+    /// para toda exceção que trata — inclusive um 400 de token inválido ou um 409
+    /// de cartão repetido. Quem lê o log vai atrás de um incidente que não houve.
+    /// (No .NET 10 dá para resolver com `SuppressDiagnosticsCallback`; aqui, não.)
+    ///
+    /// Falha de verdade não passa por aqui: segue para o handler global, que
+    /// responde 500 e registra como Error.
+    /// </summary>
+    public static IApplicationBuilder UseBusinessProblemDetails(this IApplicationBuilder app)
+    {
+        return app.Use(async (context, next) =>
+        {
+            try
+            {
+                await next();
+            }
+            catch (AppProblemException exception)
+                when (exception.StatusCode < StatusCodes.Status500InternalServerError)
+            {
+                // Resposta já iniciada: não há como trocar o status, e insistir
+                // corromperia o corpo. Deixa subir para o handler global.
+                if (context.Response.HasStarted) throw;
+
+                var logger = context.RequestServices
+                    .GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("InvestindoEmNegocio.BusinessProblem");
+
+                logger.LogWarning(
+                    "{Method} {Path} respondeu {StatusCode}: {Title}",
+                    context.Request.Method,
+                    context.Request.Path,
+                    exception.StatusCode,
+                    exception.Title);
+
+                var problemDetails = new ProblemDetails
+                {
+                    Status = exception.StatusCode,
+                    Title = exception.Title,
+                    Detail = exception.Detail,
+                    Instance = context.Request.Path,
+                    Extensions =
+                    {
+                        ["traceId"] = context.TraceIdentifier
+                    }
+                };
+
+                if (exception.Code is not null)
+                    problemDetails.Extensions["code"] = exception.Code;
+
+                context.Response.StatusCode = exception.StatusCode;
+                context.Response.ContentType = "application/problem+json";
+                await context.Response.WriteAsJsonAsync(problemDetails);
+            }
+        });
+    }
 }

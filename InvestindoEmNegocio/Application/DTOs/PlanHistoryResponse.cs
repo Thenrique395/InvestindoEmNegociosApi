@@ -24,4 +24,21 @@ public record PlanHistoryEventResponse(
     int? InstallmentNo,
     bool Derived);
 
-public record PlanHistoryResponse(Guid PlanId, IReadOnlyList<PlanHistoryEventResponse> Events);
+/// <summary>Uma parcela da série, como a gaveta de histórico precisa mostrar.</summary>
+public record PlanHistoryInstallmentResponse(
+    Guid Id,
+    int InstallmentNo,
+    DateOnly DueDate,
+    decimal Amount,
+    string Status);
+
+/// <param name="Schedule">
+/// Como o lançamento se repete. A tela usa para decidir se mostra a lista de
+/// parcelas: em recorrente ela não faz sentido — são ocorrências mensais sem fim,
+/// não uma série com começo e término.
+/// </param>
+public record PlanHistoryResponse(
+    Guid PlanId,
+    string Schedule,
+    IReadOnlyList<PlanHistoryInstallmentResponse> Installments,
+    IReadOnlyList<PlanHistoryEventResponse> Events);
