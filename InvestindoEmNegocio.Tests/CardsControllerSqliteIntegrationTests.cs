@@ -155,6 +155,44 @@ public class CardsControllerSqliteIntegrationTests
         problem.Detail.Should().Be("Já existe um cartão com esse nome/apelido.");
     }
 
+    [Fact]
+    public async Task Create_Should_Explain_Same_Card_When_Brand_And_Last4_Repeat()
+    {
+        await using var host = await TestCardsApiHost.StartAsync();
+        var client = host.App.GetTestClient();
+
+        await host.SeedAsync(db =>
+        {
+            db.CardBrands.Add(new CardBrand(5, "Mastercard", "mastercard"));
+            return Task.CompletedTask;
+        });
+
+        var firstRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/cards")
+        {
+            Content = JsonContent.Create(new CardRequest(5, "Joanna Amanda", "2312", "Cartão do mercado", "ITAÚ", 10000m, 25, 1))
+        };
+        firstRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "token");
+        (await client.SendAsync(firstRequest)).StatusCode.Should().Be(HttpStatusCode.Created);
+
+        // Apelido diferente, mesma bandeira e mesmos 4 dígitos: é o mesmo cartão,
+        // e o índice único (UserId, BrandId, Last4) recusa. A mensagem antiga mandava
+        // trocar o apelido — o que nunca resolveria.
+        var sameCardRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/cards")
+        {
+            Content = JsonContent.Create(new CardRequest(5, "Joanna Amanda", "2312", "Outro apelido", "ITAÚ", 10000m, 25, 1))
+        };
+        sameCardRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "token");
+
+        var sameCardResponse = await client.SendAsync(sameCardRequest);
+
+        sameCardResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        var problem = await sameCardResponse.Content.ReadFromJsonAsync<ProblemDetailsEnvelope>();
+        problem.Should().NotBeNull();
+        problem!.Title.Should().Be("Cartão já cadastrado");
+        problem.Detail.Should().Contain("terminando em 2312");
+        problem.Detail.Should().NotContain("apelido");
+    }
+
     private sealed record TotalDebtEnvelope(decimal Total);
     private sealed record ProblemDetailsEnvelope(string Title, string Detail);
 

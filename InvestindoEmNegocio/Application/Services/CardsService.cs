@@ -36,7 +36,10 @@ public class CardsService(
 
         var nickname = ResolveNickname(request);
         if (await cardRepository.NicknameExistsAsync(userId, nickname, null, cancellationToken))
-            throw new AppProblemException("Cartão já existe", "Já existe um cartão com esse nome/apelido.", StatusCodes.Status409Conflict);
+            throw NicknameConflict();
+
+        if (await cardRepository.BrandAndLast4ExistsAsync(userId, request.BrandId, request.Last4, null, cancellationToken))
+            throw SameCardConflict(request.Last4);
 
         var card = new Card(
             userId,
@@ -55,9 +58,9 @@ public class CardsService(
         {
             await cardRepository.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException exception)
         {
-            throw new AppProblemException("Cartão já existe", "Já existe um cartão com esse nome/apelido.", StatusCodes.Status409Conflict);
+            throw ConflictFromDatabase(exception, request.Last4);
         }
 
         _logger.LogInformation("Card created {UserId} {CardId}", userId, card.Id);
@@ -74,7 +77,10 @@ public class CardsService(
 
         var nickname = ResolveNickname(request);
         if (await cardRepository.NicknameExistsAsync(userId, nickname, id, cancellationToken))
-            throw new AppProblemException("Cartão já existe", "Já existe um cartão com esse nome/apelido.", StatusCodes.Status409Conflict);
+            throw NicknameConflict();
+
+        if (await cardRepository.BrandAndLast4ExistsAsync(userId, request.BrandId, request.Last4, id, cancellationToken))
+            throw SameCardConflict(request.Last4);
 
         card.Update(
             request.BrandId,
@@ -90,9 +96,9 @@ public class CardsService(
         {
             await cardRepository.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException exception)
         {
-            throw new AppProblemException("Cartão já existe", "Já existe um cartão com esse nome/apelido.", StatusCodes.Status409Conflict);
+            throw ConflictFromDatabase(exception, request.Last4);
         }
 
         _logger.LogInformation("Card updated {UserId} {CardId}", userId, card.Id);
@@ -219,6 +225,48 @@ public class CardsService(
             c.DueDay,
             c.CreatedAt,
             c.UpdatedAt);
+
+    private static AppProblemException NicknameConflict() =>
+        new("Cartão já existe", "Já existe um cartão com esse nome/apelido.", StatusCodes.Status409Conflict);
+
+    /// <summary>
+    /// Recusa do índice único (UserId, BrandId, Last4): é o mesmo cartão, não um
+    /// apelido repetido. Dizer "escolha outro apelido" aqui mandava a pessoa
+    /// tentar de novo o que nunca ia funcionar.
+    /// </summary>
+    private static AppProblemException SameCardConflict(string? last4)
+    {
+        var final = string.IsNullOrWhiteSpace(last4) ? string.Empty : $" terminando em {last4.Trim()}";
+        return new AppProblemException(
+            "Cartão já cadastrado",
+            $"Você já tem um cartão dessa bandeira{final}. Confira a lista de cartões antes de cadastrar outro.",
+            StatusCodes.Status409Conflict);
+    }
+
+    /// <summary>
+    /// Última linha: o insert/update estourou no banco. Traduz a constraint quando dá
+    /// para reconhecê-la e, quando não dá, evita afirmar um motivo que pode não ser o real.
+    /// </summary>
+    private static AppProblemException ConflictFromDatabase(DbUpdateException exception, string? last4)
+    {
+        var detalhe = $"{exception.InnerException?.Message} {exception.Message}";
+
+        if (detalhe.Contains("Last4", StringComparison.OrdinalIgnoreCase)
+            || detalhe.Contains("BrandId", StringComparison.OrdinalIgnoreCase))
+        {
+            return SameCardConflict(last4);
+        }
+
+        if (detalhe.Contains("Nickname", StringComparison.OrdinalIgnoreCase))
+        {
+            return NicknameConflict();
+        }
+
+        return new AppProblemException(
+            "Não foi possível salvar o cartão",
+            "Os dados enviados conflitam com um cartão já cadastrado. Confira bandeira, número e apelido.",
+            StatusCodes.Status409Conflict);
+    }
 
     private static string ResolveNickname(CardRequest request) =>
         string.IsNullOrWhiteSpace(request.Nickname)
