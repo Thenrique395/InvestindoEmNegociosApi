@@ -2,7 +2,7 @@ namespace InvestindoEmNegocio.Application.DTOs;
 
 public record CardRequest(
     int BrandId,
-    string HolderName,
+    string? HolderName,
     string Last4,
     string? Nickname,
     string? Bank,

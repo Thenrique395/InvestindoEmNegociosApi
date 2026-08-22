@@ -10,9 +10,15 @@ public sealed class CardRequestValidator : AbstractValidator<CardRequest>
         RuleFor(x => x.BrandId)
             .GreaterThan(0).WithMessage("Bandeira do cartão é obrigatória.");
 
+        // Titular é opcional: o formulário pede só o nome do cartão (apelido). Mantemos o
+        // campo no contrato para quem já gravou o titular, mas ao menos um dos dois precisa vir.
         RuleFor(x => x.HolderName)
-            .NotEmpty().WithMessage("Nome do titular é obrigatório.")
-            .MaximumLength(120).WithMessage("Nome do titular deve ter no máximo 120 caracteres.");
+            .MaximumLength(120).WithMessage("Nome do titular deve ter no máximo 120 caracteres.")
+            .When(x => !string.IsNullOrWhiteSpace(x.HolderName));
+
+        RuleFor(x => x.Nickname)
+            .NotEmpty().WithMessage("Nome do cartão é obrigatório.")
+            .When(x => string.IsNullOrWhiteSpace(x.HolderName));
 
         RuleFor(x => x.Last4)
             .NotEmpty().WithMessage("Últimos 4 dígitos são obrigatórios.")

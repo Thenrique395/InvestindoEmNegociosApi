@@ -21,7 +21,7 @@ public class Card : ISoftDeletable
 
     private Card() { }
 
-    public Card(Guid userId, Guid spaceId, int brandId, string holderName, string nickname, string last4, string? bank, decimal creditLimit, int statementCloseDay, int dueDay)
+    public Card(Guid userId, Guid spaceId, int brandId, string? holderName, string nickname, string last4, string? bank, decimal creditLimit, int statementCloseDay, int dueDay)
     {
         UserId = userId;
         SpaceId = spaceId;
@@ -30,19 +30,19 @@ public class Card : ISoftDeletable
         CreditLimit = NormalizeCreditLimit(creditLimit);
         StatementCloseDay = NormalizeDay(statementCloseDay, nameof(statementCloseDay));
         DueDay = NormalizeDay(dueDay, nameof(dueDay));
-        HolderName = holderName.Trim();
+        HolderName = holderName?.Trim() ?? string.Empty;
         Nickname = string.IsNullOrWhiteSpace(nickname) ? HolderName : nickname.Trim();
         Last4 = NormalizeLast4(last4);
     }
 
-    public void Update(int brandId, string holderName, string nickname, string last4, string? bank, decimal creditLimit, int statementCloseDay, int dueDay)
+    public void Update(int brandId, string? holderName, string nickname, string last4, string? bank, decimal creditLimit, int statementCloseDay, int dueDay)
     {
         BrandId = brandId;
         Bank = NormalizeOptional(bank);
         CreditLimit = NormalizeCreditLimit(creditLimit);
         StatementCloseDay = NormalizeDay(statementCloseDay, nameof(statementCloseDay));
         DueDay = NormalizeDay(dueDay, nameof(dueDay));
-        HolderName = holderName.Trim();
+        HolderName = holderName?.Trim() ?? string.Empty;
         Nickname = string.IsNullOrWhiteSpace(nickname) ? HolderName : nickname.Trim();
         Last4 = NormalizeLast4(last4);
         UpdatedAt = DateTime.UtcNow;

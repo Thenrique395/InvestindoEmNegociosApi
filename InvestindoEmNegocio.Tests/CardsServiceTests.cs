@@ -52,6 +52,31 @@ public class CardsServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_Should_Accept_Card_Without_Holder_Name()
+    {
+        // O formulário novo pede só o nome do cartão: o titular deixou de ser obrigatório.
+        var userId = Guid.NewGuid();
+        var brandRepository = new Mock<ICardBrandRepository>();
+        brandRepository
+            .Setup(x => x.ExistsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        var cardRepository = new Mock<ICardRepository>();
+        Card? persisted = null;
+        cardRepository
+            .Setup(x => x.AddAsync(It.IsAny<Card>(), It.IsAny<CancellationToken>()))
+            .Callback<Card, CancellationToken>((card, _) => persisted = card)
+            .Returns(Task.CompletedTask);
+        var sut = BuildSut(cardRepository, brandRepository);
+
+        var result = await sut.CreateAsync(userId, NewRequest() with { HolderName = null });
+
+        result.Nickname.Should().Be("Principal");
+        persisted.Should().NotBeNull();
+        persisted!.HolderName.Should().BeEmpty();
+        persisted.Nickname.Should().Be("Principal");
+    }
+
+    [Fact]
     public async Task CreateAsync_Should_Throw_Conflict_When_Nickname_Already_Exists()
     {
         var userId = Guid.NewGuid();

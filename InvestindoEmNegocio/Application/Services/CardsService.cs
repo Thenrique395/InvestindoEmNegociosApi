@@ -270,6 +270,6 @@ public class CardsService(
 
     private static string ResolveNickname(CardRequest request) =>
         string.IsNullOrWhiteSpace(request.Nickname)
-            ? request.HolderName.Trim()
+            ? request.HolderName?.Trim() ?? string.Empty
             : request.Nickname.Trim();
 }
