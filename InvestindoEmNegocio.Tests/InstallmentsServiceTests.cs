@@ -428,6 +428,78 @@ public class InstallmentsServiceTests
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*antecipada*");
     }
 
+
+    [Fact]
+    public async Task UpdateAsync_Should_Reverse_Payments_When_Amount_Changes()
+    {
+        // Caso real de produção: salário cadastrado como 12.700, recebido na conta, e depois
+        // corrigido para 12.263. Antes, a parcela continuava "Paid" e sobravam R$ 437 na conta
+        // que ninguém conseguia explicar.
+        var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
+        var accountId = Guid.NewGuid();
+        var installment = new MoneyInstallment(Guid.NewGuid(), userId, spaceId, 2, new DateOnly(2026, 8, 1), 12700m);
+        var pagamento = new MoneyPayment(installment.Id, userId, spaceId, new DateTime(2026, 7, 30, 0, 0, 0, DateTimeKind.Utc), 12700m, null, null, accountId);
+
+        var installmentRepository = new Mock<IMoneyInstallmentRepository>();
+        installmentRepository.Setup(x => x.GetByIdAsync(installment.Id, It.IsAny<CancellationToken>())).ReturnsAsync(installment);
+
+        var paymentRepository = new Mock<IMoneyPaymentRepository>();
+        var registrados = new List<MoneyPayment> { pagamento };
+        paymentRepository.Setup(x => x.ListByInstallmentIdAsync(installment.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => registrados.ToList());
+        paymentRepository.Setup(x => x.AddAsync(It.IsAny<MoneyPayment>(), It.IsAny<CancellationToken>()))
+            .Callback<MoneyPayment, CancellationToken>((p, _) => registrados.Add(p))
+            .Returns(Task.CompletedTask);
+
+        var accountRepository = new Mock<IAccountRepository>();
+        accountRepository.Setup(x => x.GetByIdAsync(accountId, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Account(userId, spaceId, "Conta principal", AccountType.Checking, 0m));
+
+        var accountTransactionRepository = new Mock<IAccountTransactionRepository>();
+        var transacoes = new List<AccountTransaction>();
+        accountTransactionRepository.Setup(x => x.AddAsync(It.IsAny<AccountTransaction>(), It.IsAny<CancellationToken>()))
+            .Callback<AccountTransaction, CancellationToken>((t, _) => transacoes.Add(t))
+            .Returns(Task.CompletedTask);
+
+        var sut = BuildSut(installmentRepository, paymentRepository, accountRepository: accountRepository,
+            accountTransactionRepository: accountTransactionRepository);
+
+        var ok = await sut.UpdateAsync(userId, installment.Id, new UpdateInstallmentRequest(12263m, new DateOnly(2026, 8, 1)));
+
+        ok.Should().BeTrue();
+        installment.Amount.Should().Be(12263m);
+        installment.Status.Should().Be(InstallmentStatus.Open, "estornar devolve a parcela para em aberto");
+        registrados.Should().ContainSingle(p => p.PaidAmount == -12700m, "o estorno é um pagamento negativo espelhando o original");
+        transacoes.Should().ContainSingle(t => t.SourceType == AccountTransactionSourceTypes.InstallmentPaymentReversal,
+            "a conta precisa receber o lançamento compensatório");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_Should_Not_Reverse_When_Only_DueDate_Changes()
+    {
+        // Mudar só o vencimento não desencaixa nada: o valor continua batendo com o pago.
+        var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
+        var installment = new MoneyInstallment(Guid.NewGuid(), userId, spaceId, 1, new DateOnly(2026, 8, 1), 500m);
+        var pagamento = new MoneyPayment(installment.Id, userId, spaceId, DateTime.UtcNow, 500m, null, null, Guid.NewGuid());
+
+        var installmentRepository = new Mock<IMoneyInstallmentRepository>();
+        installmentRepository.Setup(x => x.GetByIdAsync(installment.Id, It.IsAny<CancellationToken>())).ReturnsAsync(installment);
+
+        var paymentRepository = new Mock<IMoneyPaymentRepository>();
+        paymentRepository.Setup(x => x.ListByInstallmentIdAsync(installment.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([pagamento]);
+
+        var sut = BuildSut(installmentRepository, paymentRepository);
+
+        await sut.UpdateAsync(userId, installment.Id, new UpdateInstallmentRequest(500m, new DateOnly(2026, 8, 15)));
+
+        installment.DueDate.Should().Be(new DateOnly(2026, 8, 15));
+        installment.Status.Should().Be(InstallmentStatus.Paid, "o pagamento segue válido");
+        paymentRepository.Verify(x => x.AddAsync(It.IsAny<MoneyPayment>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     private static InstallmentsService BuildSut(
         Mock<IMoneyInstallmentRepository>? installmentRepository = null,
         Mock<IMoneyPaymentRepository>? paymentRepository = null,

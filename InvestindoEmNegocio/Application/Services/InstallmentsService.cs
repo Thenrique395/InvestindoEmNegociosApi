@@ -170,44 +170,7 @@ public class InstallmentsService(
             ? $"Estorno do pagamento {paymentId}"
             : request.Note.Trim();
 
-        var reversalPayment = new MoneyPayment(
-            installmentId,
-            userId,
-            installment.SpaceId,
-            reversedAt,
-            -payment.PaidAmount,
-            payment.MethodId,
-            reversalNote,
-            payment.AccountId);
-        await paymentRepository.AddAsync(reversalPayment, cancellationToken);
-
-        if (payment.AccountId.HasValue)
-        {
-            var account = await accountRepository.GetByIdAsync(payment.AccountId.Value, userId, cancellationToken);
-            if (account is not null)
-            {
-                var plan = await planRepository.GetByIdAsync(installment.PlanId, userId, cancellationToken);
-                if (plan is null)
-                    throw new AppProblemException("Plano inválido", "Plano parcelado não encontrado.", StatusCodes.Status400BadRequest);
-
-                var reversalKind = plan.Type == MoneyType.Income
-                    ? AccountTransactionKind.Debit
-                    : AccountTransactionKind.Credit;
-
-                var reversalTransaction = new AccountTransaction(
-                    account.Id,
-                    userId,
-                    account.SpaceId,
-                    reversedAt,
-                    reversalKind,
-                    payment.PaidAmount,
-                    $"Estorno pagamento parcela {installment.InstallmentNo} - {plan.Title}",
-                    AccountTransactionSourceTypes.InstallmentPaymentReversal,
-                    paymentId);
-
-                await accountTransactionRepository.AddAsync(reversalTransaction, cancellationToken);
-            }
-        }
+        await RegistrarEstornoAsync(installment, payment, reversedAt, reversalNote, userId, cancellationToken);
 
         await paymentRepository.SaveChangesAsync(cancellationToken);
         await UpdateInstallmentStatusAsync(installment, cancellationToken);
@@ -225,6 +188,57 @@ public class InstallmentsService(
             cancellationToken: cancellationToken);
 
         return true;
+    }
+
+    /// <summary>
+    /// Registra o estorno de um pagamento — pagamento negativo espelhando o original e, quando
+    /// havia conta vinculada, a transação compensatória. NÃO salva: quem chama decide o momento,
+    /// para que estorno, edição e status caiam numa transação só.
+    /// </summary>
+    private async Task RegistrarEstornoAsync(
+        MoneyInstallment installment,
+        MoneyPayment payment,
+        DateTime reversedAt,
+        string note,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var reversalPayment = new MoneyPayment(
+            installment.Id,
+            userId,
+            installment.SpaceId,
+            reversedAt,
+            -payment.PaidAmount,
+            payment.MethodId,
+            note,
+            payment.AccountId);
+        await paymentRepository.AddAsync(reversalPayment, cancellationToken);
+
+        if (!payment.AccountId.HasValue) return;
+
+        var account = await accountRepository.GetByIdAsync(payment.AccountId.Value, userId, cancellationToken);
+        if (account is null) return;
+
+        var plan = await planRepository.GetByIdAsync(installment.PlanId, userId, cancellationToken);
+        if (plan is null)
+            throw new AppProblemException("Plano inválido", "Plano parcelado não encontrado.", StatusCodes.Status400BadRequest);
+
+        var reversalKind = plan.Type == MoneyType.Income
+            ? AccountTransactionKind.Debit
+            : AccountTransactionKind.Credit;
+
+        var reversalTransaction = new AccountTransaction(
+            account.Id,
+            userId,
+            account.SpaceId,
+            reversedAt,
+            reversalKind,
+            payment.PaidAmount,
+            $"Estorno pagamento parcela {installment.InstallmentNo} - {plan.Title}",
+            AccountTransactionSourceTypes.InstallmentPaymentReversal,
+            payment.Id);
+
+        await accountTransactionRepository.AddAsync(reversalTransaction, cancellationToken);
     }
 
     private async Task<Account?> ResolveAccountForPaymentAsync(Guid userId, Guid? requestedAccountId, CancellationToken cancellationToken)
@@ -325,12 +339,63 @@ public class InstallmentsService(
         var valorAnterior = installment.Amount;
         var vencimentoAnterior = installment.DueDate;
 
+        /*
+         * Mudar o VALOR de uma parcela já paga estorna os pagamentos dela.
+         *
+         * Antes, a edição preservava os pagamentos e só rederivava o status. Com valor novo
+         * MENOR que o pago, `RefreshPaymentStatus` caía no ramo `totalPaid >= Amount` e
+         * mantinha `Paid` — a parcela dizia "quitada", a conta tinha o valor antigo, e a
+         * diferença ficava invisível. Um caso real em produção: salário cadastrado como
+         * 12.700, recebido, depois corrigido para 12.263. Sobraram R$ 437 na conta que
+         * ninguém conseguia explicar.
+         *
+         * Estornar devolve a parcela para "em aberto" e desfaz a transação na conta, então o
+         * pagamento certo pode ser registrado. Só o valor dispara isso: mudar apenas o
+         * vencimento não desencaixa nada.
+         *
+         * A tela CONFIRMA antes — isto mexe em dinheiro e não pode ser silencioso.
+         */
+        var pagamentos = await paymentRepository.ListByInstallmentIdAsync(installmentId, cancellationToken);
+        var mudouValor = request.Amount != valorAnterior;
+
+        if (mudouValor)
+        {
+            // Mesmo critério do ListPaymentsAsync: o que marca um pagamento como já
+            // estornado é existir transação de estorno apontando para ele.
+            var idsPositivos = pagamentos.Where(x => x.PaidAmount > 0).Select(x => x.Id).ToList();
+            var estornosExistentes = await accountTransactionRepository.ListBySourceAsync(
+                userId,
+                AccountTransactionSourceTypes.InstallmentPaymentReversal,
+                idsPositivos,
+                cancellationToken) ?? [];
+            var jaEstornados = estornosExistentes.Select(x => x.SourceId).Distinct().ToHashSet();
+
+            var aEstornar = pagamentos
+                .Where(x => x.PaidAmount > 0 && !jaEstornados.Contains(x.Id))
+                .ToList();
+
+            var agoraUtc = DateTime.UtcNow;
+            foreach (var pagamento in aEstornar)
+            {
+                await RegistrarEstornoAsync(
+                    installment, pagamento, agoraUtc,
+                    $"Estorno automático: valor da parcela alterado de {valorAnterior:0.00} para {request.Amount:0.00}",
+                    userId, cancellationToken);
+            }
+
+            if (aEstornar.Count > 0)
+            {
+                pagamentos = await paymentRepository.ListByInstallmentIdAsync(installmentId, cancellationToken);
+                _logger.LogInformation(
+                    "Installment edit reversed {Count} payment(s) {UserId} {InstallmentId}",
+                    aEstornar.Count, userId, installmentId);
+            }
+        }
+
         installment.Edit(request.Amount, request.DueDate);
 
-        // Preserva os pagamentos e rederiva o status a partir do total líquido pago
-        // (estornos são registrados como pagamentos negativos).
-        var payments = await paymentRepository.ListByInstallmentIdAsync(installmentId, cancellationToken);
-        installment.RefreshPaymentStatus(payments.Sum(p => p.PaidAmount));
+        // Rederiva o status a partir do total líquido (estorno é pagamento negativo).
+        installment.RefreshPaymentStatus(pagamentos.Sum(p => p.PaidAmount));
 
         await installmentRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Installment updated {UserId} {InstallmentId} {Amount} {DueDate}", userId, installmentId, request.Amount, request.DueDate);
