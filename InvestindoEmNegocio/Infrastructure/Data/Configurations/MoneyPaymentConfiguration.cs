@@ -45,7 +45,17 @@ public class MoneyPaymentConfiguration : IEntityTypeConfiguration<MoneyPayment>
             .HasForeignKey(p => p.AccountId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        builder.HasCheckConstraint("ck_payment_amount_positive", "\"PaidAmount\" > 0");
+        /*
+         * Estorno é modelado como pagamento NEGATIVO espelhando o original — é assim que
+         * `RefreshPaymentStatus` soma o líquido e que `ListPaymentsAsync` marca
+         * `isReversal = PaidAmount < 0`. A constraint antiga exigia `> 0` e derrubava todo
+         * estorno com CHECK violation, virando 500 na API. O endpoint nunca funcionou desde
+         * que ela entrou.
+         *
+         * O que precisa continuar valendo é que pagamento não pode ser ZERO — isso sim não
+         * significa nada.
+         */
+        builder.HasCheckConstraint("ck_payment_amount_nonzero", "\"PaidAmount\" <> 0");
 
         builder.HasQueryFilter(p => p.DeletedAt == null);
     }
