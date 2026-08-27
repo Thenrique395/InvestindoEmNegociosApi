@@ -1,3 +1,4 @@
+using InvestindoEmNegocio.Application.Interfaces;
 using FluentAssertions;
 using InvestindoEmNegocio.Application.Services;
 using InvestindoEmNegocio.Domain.Entities;
@@ -17,6 +18,13 @@ namespace InvestindoEmNegocio.Tests;
 /// </summary>
 public class LoanDeleteSqliteIntegrationTests
 {
+    /// <summary>Sem área ativa os repositórios não filtram — é o caso de job/teste.</summary>
+    private sealed class SemEspacoAtivo : ICurrentSpaceAccessor
+    {
+        public Guid? SpaceId => null;
+        public Guid RequireSpaceId() => Guid.NewGuid();
+    }
+
     [Fact]
     public async Task DeleteLoan_Should_Cascade_Delete_Installments_Without_Error()
     {
@@ -49,7 +57,8 @@ public class LoanDeleteSqliteIntegrationTests
 
         await using (var db = new InvestDbContext(options))
         {
-            var service = new LoansService(new LoanContractRepository(db), new LoanInstallmentRepository(db), new SpaceRepository(db));
+            var acessor = new SemEspacoAtivo();
+            var service = new LoansService(new LoanContractRepository(db, acessor), new LoanInstallmentRepository(db, acessor), acessor);
             // Antes do fix, isto lançava DbUpdateConcurrencyException → 500.
             await service.DeleteAsync(userId, contractId);
         }

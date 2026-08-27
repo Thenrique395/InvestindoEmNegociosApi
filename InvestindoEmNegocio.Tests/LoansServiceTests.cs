@@ -1,3 +1,4 @@
+using InvestindoEmNegocio.Application.Interfaces;
 using FluentAssertions;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Exceptions;
@@ -18,7 +19,7 @@ public class LoansServiceTests
         var sut = new LoansService(
             Mock.Of<ILoanContractRepository>(),
             Mock.Of<ILoanInstallmentRepository>(),
-            Mock.Of<ISpaceRepository>());
+            Mock.Of<ICurrentSpaceAccessor>());
 
         var result = await sut.SimulateAsync(
             Guid.NewGuid(),
@@ -44,10 +45,10 @@ public class LoansServiceTests
         var userId = Guid.NewGuid();
         var contractRepository = new Mock<ILoanContractRepository>();
         var installmentRepository = new Mock<ILoanInstallmentRepository>();
-        var spaceRepository = new Mock<ISpaceRepository>();
-        spaceRepository.Setup(x => x.GetDefaultByUserAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Space(userId, "Pessoal", isDefault: true));
-        var sut = new LoansService(contractRepository.Object, installmentRepository.Object, spaceRepository.Object);
+        // O contrato nasce na área ATIVA da sessão, não no espaço padrão do usuário.
+        var spaceAccessor = new Mock<ICurrentSpaceAccessor>();
+        spaceAccessor.Setup(x => x.RequireSpaceId()).Returns(Guid.NewGuid());
+        var sut = new LoansService(contractRepository.Object, installmentRepository.Object, spaceAccessor.Object);
 
         var result = await sut.CreateAsync(
             userId,
@@ -91,7 +92,7 @@ public class LoansServiceTests
         installmentRepository.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new DbUpdateConcurrencyException());
 
-        var sut = new LoansService(contractRepository.Object, installmentRepository.Object, Mock.Of<ISpaceRepository>());
+        var sut = new LoansService(contractRepository.Object, installmentRepository.Object, Mock.Of<ICurrentSpaceAccessor>());
 
         await sut.Invoking(x => x.PayInstallmentAsync(userId, contract.Id, installment.Id))
             .Should().ThrowAsync<InvalidOperationException>()
@@ -127,7 +128,7 @@ public class LoansServiceTests
         var installmentRepository = new Mock<ILoanInstallmentRepository>();
         installmentRepository.Setup(x => x.ListByUserAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync([paid, open]);
 
-        var sut = new LoansService(contractRepository.Object, installmentRepository.Object, Mock.Of<ISpaceRepository>());
+        var sut = new LoansService(contractRepository.Object, installmentRepository.Object, Mock.Of<ICurrentSpaceAccessor>());
 
         var result = await sut.ListAsync(userId);
 
@@ -157,7 +158,7 @@ public class LoansServiceTests
         installmentRepository.Setup(x => x.ListByContractAsync(contract.Id, userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync([alreadyPaid, last]);
 
-        var sut = new LoansService(contractRepository.Object, installmentRepository.Object, Mock.Of<ISpaceRepository>());
+        var sut = new LoansService(contractRepository.Object, installmentRepository.Object, Mock.Of<ICurrentSpaceAccessor>());
 
         await sut.PayInstallmentAsync(userId, contract.Id, last.Id);
 
@@ -181,7 +182,7 @@ public class LoansServiceTests
         var installmentRepository = new Mock<ILoanInstallmentRepository>();
         installmentRepository.Setup(x => x.GetByIdAsync(installment.Id, userId, It.IsAny<CancellationToken>())).ReturnsAsync(installment);
 
-        var sut = new LoansService(contractRepository.Object, installmentRepository.Object, Mock.Of<ISpaceRepository>());
+        var sut = new LoansService(contractRepository.Object, installmentRepository.Object, Mock.Of<ICurrentSpaceAccessor>());
 
         await sut.Invoking(x => x.PayInstallmentAsync(userId, contract.Id, installment.Id))
             .Should().ThrowAsync<InvalidOperationException>();
@@ -200,7 +201,7 @@ public class LoansServiceTests
         var installmentRepository = new Mock<ILoanInstallmentRepository>();
         installmentRepository.Setup(x => x.ListByContractAsync(contract.Id, userId, It.IsAny<CancellationToken>())).ReturnsAsync([paid]);
 
-        var sut = new LoansService(contractRepository.Object, installmentRepository.Object, Mock.Of<ISpaceRepository>());
+        var sut = new LoansService(contractRepository.Object, installmentRepository.Object, Mock.Of<ICurrentSpaceAccessor>());
 
         (await sut.Invoking(x => x.DeleteAsync(userId, contract.Id))
             .Should().ThrowAsync<AppProblemException>())
@@ -220,7 +221,7 @@ public class LoansServiceTests
         var installmentRepository = new Mock<ILoanInstallmentRepository>();
         installmentRepository.Setup(x => x.ListByContractAsync(contract.Id, userId, It.IsAny<CancellationToken>())).ReturnsAsync([open]);
 
-        var sut = new LoansService(contractRepository.Object, installmentRepository.Object, Mock.Of<ISpaceRepository>());
+        var sut = new LoansService(contractRepository.Object, installmentRepository.Object, Mock.Of<ICurrentSpaceAccessor>());
 
         await sut.DeleteAsync(userId, contract.Id);
 
@@ -241,7 +242,7 @@ public class LoansServiceTests
         var installmentRepository = new Mock<ILoanInstallmentRepository>();
         installmentRepository.Setup(x => x.ListByContractAsync(contract.Id, userId, It.IsAny<CancellationToken>())).ReturnsAsync([paid]);
 
-        var sut = new LoansService(contractRepository.Object, installmentRepository.Object, Mock.Of<ISpaceRepository>());
+        var sut = new LoansService(contractRepository.Object, installmentRepository.Object, Mock.Of<ICurrentSpaceAccessor>());
 
         var result = await sut.ArchiveAsync(userId, contract.Id);
 
@@ -254,7 +255,7 @@ public class LoansServiceTests
     [Fact]
     public async Task CompareAsync_Returns_Both_Price_And_Sac_For_Same_Inputs()
     {
-        var sut = new LoansService(Mock.Of<ILoanContractRepository>(), Mock.Of<ILoanInstallmentRepository>(), Mock.Of<ISpaceRepository>());
+        var sut = new LoansService(Mock.Of<ILoanContractRepository>(), Mock.Of<ILoanInstallmentRepository>(), Mock.Of<ICurrentSpaceAccessor>());
 
         var result = await sut.CompareAsync(Guid.NewGuid(),
             new LoanContractRequest("Comparação", 12000m, 12m, 12, LoanAmortizationType.Price, new DateOnly(2026, 1, 10), 10));

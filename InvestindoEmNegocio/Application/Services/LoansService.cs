@@ -12,7 +12,7 @@ namespace InvestindoEmNegocio.Application.Services;
 public class LoansService(
     ILoanContractRepository loanContractRepository,
     ILoanInstallmentRepository loanInstallmentRepository,
-    ISpaceRepository spaceRepository) : ILoansService
+    ICurrentSpaceAccessor currentSpaceAccessor) : ILoansService
 {
     public async Task<IReadOnlyList<LoanContractResponse>> ListAsync(Guid userId, CancellationToken cancellationToken = default)
     {
@@ -36,16 +36,16 @@ public class LoansService(
     {
         Validate(request);
 
-        // Isolamento por espaço: usa o espaço default (individual) do usuário, alinhado ao
-        // restante da plataforma. Família/CNPJ (espaços compartilhados) seguem adiados.
-        var space = await spaceRepository.GetDefaultByUserAsync(userId, cancellationToken)
-            ?? throw new AppProblemException("Espaço não encontrado", "O espaço padrão do usuário não foi localizado.", StatusCodes.Status404NotFound);
+        // Entidade "dona": recebe o espaço ATIVO da sessão, como as demais entidades
+        // financeiras (BACKEND_PADROES_IMPLEMENTACAO.md, Multi-tenancy). Antes usava o espaço
+        // padrão do usuário — o contrato criado dentro de uma área nascia marcado com outra.
+        var spaceId = currentSpaceAccessor.RequireSpaceId();
 
         var simulation = BuildSimulation(request);
         var openBalance = simulation.Installments.Sum(x => x.TotalAmount);
         var contract = new LoanContract(
             userId,
-            space.Id,
+            spaceId,
             request.Title.Trim(),
             request.PrincipalAmount,
             request.AnnualInterestRate,
