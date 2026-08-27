@@ -73,7 +73,7 @@ Usar estes pontos de referencia para navegar mais rapido:
 - servicos de aplicacao: `InvestindoEmNegociosApi/InvestindoEmNegocio/Application/Services/`
 - contratos e interfaces de aplicacao: `InvestindoEmNegociosApi/InvestindoEmNegocio/Application/Interfaces/`
 - persistencia e bootstrap de banco: `InvestindoEmNegociosApi/InvestindoEmNegocio/Infrastructure/Data/`
-- schema inicial do banco: `InvestindoEmNegociosApi/InvestindoEmNegocio/Infrastructure/Data/schema.sql`
+- schema do banco: migrations EF em `InvestindoEmNegociosApi/InvestindoEmNegocio/Migrations/` (aplicadas por `Migrate()` no boot)
 - testes backend: `InvestindoEmNegociosApi/InvestindoEmNegocio.Tests/`
 - documentacao normativa local da API: `InvestindoEmNegociosApi/docs/`
 
@@ -191,7 +191,7 @@ O Codex nao deve seguir adiante sem registrar o problema quando houver:
 ### Banco, schema, query ou persistencia
 
 - revisar entidade, repositorio, query e fluxo de bootstrap
-- revisar `schema.sql` quando houver impacto persistente
+- gerar a migration correspondente quando houver impacto persistente
 - validar compatibilidade com compose, ambiente local e inicializacao limpa
 
 ### Billing, Stripe, assinatura ou acesso pago

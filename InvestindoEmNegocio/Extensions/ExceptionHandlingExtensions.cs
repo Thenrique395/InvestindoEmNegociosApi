@@ -26,6 +26,19 @@ public static class ExceptionHandlingExtensions
                     detail = appProblem.Detail;
                     code = appProblem.Code;
                 }
+                else if (exception is UnauthorizedAccessException)
+                {
+                    // Rede de segurança: antes, só quem passasse `unauthorizedAccessTitle` em
+                    // ExecuteWithProblemMappingAsync tinha o mapeamento — 3 controllers de 24.
+                    // Nos outros, "usuário não encontrado" ou "recurso de outro usuário" saía
+                    // como 500 "Erro interno do servidor", com log de Error e alerta falso.
+                    // 403: o usuário ESTÁ autenticado (o pipeline já validou o token); o que
+                    // falta é acesso ao recurso. Quem precisa de 401 continua mapeando no
+                    // controller, que converte antes de chegar aqui.
+                    statusCode = StatusCodes.Status403Forbidden;
+                    title = "Acesso negado";
+                    detail = exception.Message;
+                }
 
                 var problemDetails = new ProblemDetails
                 {
@@ -55,6 +68,15 @@ public static class ExceptionHandlingExtensions
     }
 
     /// <summary>
+    /// Erro de negócio conhecido: responde 4xx sem stack trace nem log de Error.
+    /// <see cref="UnauthorizedAccessException"/> entra aqui pelo mesmo motivo — não é falha
+    /// de servidor, é o dono do recurso sendo outro.
+    /// </summary>
+    private static bool EhErroDeNegocio(Exception ex) =>
+        ex is UnauthorizedAccessException
+        || (ex is AppProblemException problem && problem.StatusCode < StatusCodes.Status500InternalServerError);
+
+    /// <summary>
     /// Responde os erros de negócio (<see cref="AppProblemException"/> com status
     /// abaixo de 500) antes que eles cheguem ao handler global.
     ///
@@ -75,9 +97,11 @@ public static class ExceptionHandlingExtensions
             {
                 await next();
             }
-            catch (AppProblemException exception)
-                when (exception.StatusCode < StatusCodes.Status500InternalServerError)
+            catch (Exception capturada) when (EhErroDeNegocio(capturada))
             {
+                var exception = capturada as AppProblemException
+                    ?? new AppProblemException("Acesso negado", capturada.Message, StatusCodes.Status403Forbidden);
+
                 // Resposta já iniciada: não há como trocar o status, e insistir
                 // corromperia o corpo. Deixa subir para o handler global.
                 if (context.Response.HasStarted) throw;

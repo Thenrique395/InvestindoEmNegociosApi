@@ -123,9 +123,9 @@ Regra:
 
 ### Schema e persistência versionada
 
-- o SQL versionado do backend fica em `InvestindoEmNegocio/Infrastructure/Data/schema.sql`
+- o schema versionado do backend são as migrations EF em `InvestindoEmNegocio/Migrations/`
 - esse arquivo é a referência SQL única para evolução persistente do banco neste repositório
-- no fluxo Docker, o banco deve ficar saudável primeiro, depois um bootstrap SQL via `psql` aplica o `schema.sql` e só então a API principal sobe
+- no fluxo Docker, o banco deve ficar saudável primeiro; a própria API aplica as migrations no boot (`Migrate()`), sem bootstrap SQL separado
 - nesse fluxo, a API principal sobe com bootstrap de schema desabilitado
 
 ## Como validar

@@ -1,3 +1,4 @@
+using InvestindoEmNegocio.Application.Exceptions;
 using InvestindoEmNegocio.Application.DTOs;
 using InvestindoEmNegocio.Application.Interfaces;
 using InvestindoEmNegocio.Infrastructure.Auth;
@@ -41,7 +42,10 @@ public class AdminRobotsController(
     {
         var result = await adminRobotExecutionService.RunAsync(robotName, force, cooldownMinutes, GetUserIdOrNull(), cancellationToken);
         if (result is null)
-            return NotFound(new { detail = $"Robô '{robotName}' não encontrado." });
+            throw new AppProblemException(
+                "Robô não encontrado",
+                $"Robô '{robotName}' não encontrado.",
+                StatusCodes.Status404NotFound);
 
         return Ok(result);
     }

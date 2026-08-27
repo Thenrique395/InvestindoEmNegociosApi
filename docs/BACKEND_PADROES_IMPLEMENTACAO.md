@@ -135,17 +135,23 @@ Regras:
 
 ## Regras obrigatórias de persistência e schema
 
+> **O schema é EF Migrations, não SQL escrito à mão.** O `Infrastructure/Data/schema.sql` que
+> as versões anteriores deste documento exigiam **não existe mais**: o schema virou migrations
+> versionadas em `InvestindoEmNegocio/Migrations/`, aplicadas por `Migrate()` no boot.
+> Corrigido em 2026-08-27, depois de a doc ficar apontando para um arquivo inexistente — e
+> ainda como critério de bloqueio.
+
 Toda mudança persistente exige revisão explícita de:
 
-- `InvestindoEmNegocio/Infrastructure/Data/schema.sql`
+- a migration correspondente em `InvestindoEmNegocio/Migrations/` (EF Core)
 - impacto em dados existentes
 - impacto em bootstrap local e Docker
 - impacto em testes de integração
 
 Regras:
 
-- mudança de modelo não pode ficar só em configuração local ou código sem refletir no SQL versionado
-- o `schema.sql` deve continuar suficiente para criar a base do zero no fluxo suportado do projeto
+- mudança de modelo não pode ficar só em configuração local: precisa de migration gerada e versionada
+- as migrations devem continuar suficientes para criar a base do zero (`Migrate()` roda no boot da API)
 - inserts de parâmetros e dados-base devem permanecer idempotentes
 - mudança destrutiva ou sensível exige estratégia explícita, não edição silenciosa
 - se o dado já existir, o script deve inserir apenas o que ainda não existe ou complementar com segurança
@@ -205,12 +211,12 @@ Mudanças nesses domínios exigem cuidado adicional.
 
 O usuário pode ter mais de uma área/`Space` (ex.: finanças pessoais separadas de um negócio), cada uma opcionalmente protegida por senha. A área ativa da sessão viaja como claim `space_id` no JWT (mesma mecânica do `token_version`, ver `JwtTokenGenerator`), nunca como parâmetro de request — `RefreshToken` também guarda `SpaceId` para que um refresh silencioso preserve a área daquele dispositivo/sessão.
 
-- 9 entidades financeiras centrais têm `SpaceId`: `Account`, `Card`, `MoneyPlan`, `MoneyInstallment`, `MoneyPayment`, `AccountTransaction`, `InvestmentPosition`, `Goal`, `GoalContribution`. As demais ~17 entidades de configuração/usuário (perfil, preferências, assinatura etc.) permanecem globais por usuário, sem `SpaceId` — não adicionar `SpaceId` a uma entidade nova sem decidir explicitamente se ela é "por área" ou "por usuário"
+- 13 entidades financeiras têm `SpaceId` (as 9 originais + `LoanContract`, `LoanPayment`, `LoanAmortization` e `PlanHistoryEntry`, acrescentadas depois): `Account`, `Card`, `MoneyPlan`, `MoneyInstallment`, `MoneyPayment`, `AccountTransaction`, `InvestmentPosition`, `Goal`, `GoalContribution`. As demais ~17 entidades de configuração/usuário (perfil, preferências, assinatura etc.) permanecem globais por usuário, sem `SpaceId` — não adicionar `SpaceId` a uma entidade nova sem decidir explicitamente se ela é "por área" ou "por usuário"
 - entidades "donas" (criadas diretamente por ação do usuário com uma área ativa: as 5 listadas no parágrafo anterior, exceto `MoneyInstallment`/`MoneyPayment`/`AccountTransaction`/`GoalContribution`) recebem o `SpaceId` via `ICurrentSpaceAccessor.RequireSpaceId()` no serviço de comando, no momento da criação
 - entidades "derivadas" (`MoneyInstallment` nasce de `MoneyPlan`, `MoneyPayment` de `MoneyInstallment`, `AccountTransaction` de `Account`, `GoalContribution` de `Goal`) **herdam o `SpaceId` do pai já carregado** no construtor — nunca recebem um valor independente do contexto de request, mesmo tendo a própria coluna `SpaceId` para leitura/índice
 - o isolamento por área é feito injetando `ICurrentSpaceAccessor` (`Application/Interfaces/ICurrentSpaceAccessor.cs`, registrado `Scoped`, lê a claim via `IHttpContextAccessor`) diretamente nos **repositórios** das 9 entidades — eles filtram `&& x.SpaceId == accessor.SpaceId` internamente nos métodos de listagem/busca, sem expor `spaceId` na assinatura pública da interface. Não threadar `spaceId` como parâmetro explícito por controllers/serviços consumidores — isso já foi tentado e descartado por multiplicar o raio de mudança em serviços que nada têm a ver com a entidade afetada (analytics, projeção de fluxo de caixa, importação, etc.)
 - `ICurrentSpaceAccessor.SpaceId` é `Guid?` (nullable) e **nunca lança exceção** — fora de uma requisição HTTP autenticada (jobs em segundo plano como `MonthlySnapshotRobotTask`, ou o fluxo de login/registro antes do token existir) não há claim disponível, e o repositório trata `null` como "não filtrar por área" em vez de quebrar. Use `RequireSpaceId()` (lança `UnauthorizedAccessException` se ausente) só no ponto de criação de uma entidade "dona" dentro de uma requisição autenticada, nunca em código que também pode rodar fora de uma requisição
-- toda entidade nova com `SpaceId` precisa: (1) coluna `NOT NULL` com backfill idempotente no `schema.sql` (ver bloco de `spaces` como referência), (2) `ICurrentSpaceAccessor` injetado no repositório, (3) se for unique index por `(UserId, X)`, avaliar se deve virar `(UserId, SpaceId, X)` — depende se a unicidade deveria valer por área ou globalmente por usuário (decisão de produto, não default automático)
+- toda entidade nova com `SpaceId` precisa: (1) coluna `NOT NULL` com backfill idempotente na migration, (2) `ICurrentSpaceAccessor` injetado no repositório, (3) se for unique index por `(UserId, X)`, avaliar se deve virar `(UserId, SpaceId, X)` — depende se a unicidade deveria valer por área ou globalmente por usuário (decisão de produto, não default automático)
 
 ## Regras mínimas de testes por tipo de mudança
 
@@ -240,7 +246,7 @@ A mudança deve ser considerada incompleta quando ocorrer qualquer um destes cas
 
 - mudança de contrato sem revisão de consumidores ou docs normativas
 - mudança de autorização sem revisão da matriz
-- mudança persistente sem atualização de `schema.sql`
+- mudança persistente sem a migration correspondente
 - mudança de billing sem revisão dos estados e impactos operacionais
 - fluxo crítico alterado sem testes proporcionais
 - controller recebendo regra de negócio relevante ou acesso direto indevido a banco
@@ -252,7 +258,7 @@ A mudança deve ser considerada incompleta quando ocorrer qualquer um destes cas
 - [ ] Sem dependência indevida para detalhe concreto de `Infrastructure`.
 - [ ] Contrato HTTP revisado quando a mudança tocar endpoint, DTO, status ou erro.
 - [ ] Matriz de autorização revisada quando a mudança tocar policy, role ou feature.
-- [ ] `schema.sql` atualizado quando houver mudança persistente.
+- [ ] Migration gerada e versionada quando houver mudança persistente.
 - [ ] Inserts idempotentes revisados para tabelas de parâmetros e dados-base.
 - [ ] Testes adicionados ou atualizados de forma proporcional ao risco.
 - [ ] Logs e segredos revisados.
