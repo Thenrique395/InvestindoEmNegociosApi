@@ -19,6 +19,11 @@ namespace InvestindoEmNegocio.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // Só Postgres: SQLite não suporta ALTER TABLE ... ADD CONSTRAINT, e os testes de
+            // migration rodam em SQLite. Lá a constraint já nasce certa pelo EnsureCreated,
+            // a partir da configuração do modelo.
+            if (!migrationBuilder.ActiveProvider!.Contains("Npgsql")) return;
+
             migrationBuilder.Sql(
                 "ALTER TABLE money_payments DROP CONSTRAINT IF EXISTS ck_payment_amount_positive;");
             migrationBuilder.Sql(
@@ -30,6 +35,8 @@ namespace InvestindoEmNegocio.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            if (!migrationBuilder.ActiveProvider!.Contains("Npgsql")) return;
+
             migrationBuilder.Sql(
                 "ALTER TABLE money_payments DROP CONSTRAINT IF EXISTS ck_payment_amount_nonzero;");
             migrationBuilder.Sql(
