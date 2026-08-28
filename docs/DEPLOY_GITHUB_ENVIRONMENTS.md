@@ -19,7 +19,7 @@ Segredos nao devem ser commitados nem enviados em arquivo `.env` para o servidor
 
 ## Estado atual do ambiente PRD
 
-- o ambiente `production` (`invest-prd`, porta `5060`) esta pausado desde 2026-06-15 — ver [../../docs/DECISIONS/2026-06-15-pausar-ambiente-prd-focar-dev.md](../../docs/DECISIONS/2026-06-15-pausar-ambiente-prd-focar-dev.md)
+- o ambiente `production` esta **NO AR desde 2026-08**, em VPS Lightsail dedicada (`http://44.222.213.37`), servindo tudo por Caddy na porta `80`. A pausa de 2026-06-15 esta ⛔ superada (ver [../../docs/DECISIONS/2026-06-15-pausar-ambiente-prd-focar-dev.md](../../docs/DECISIONS/2026-06-15-pausar-ambiente-prd-focar-dev.md)) e a stack `invest-prd` na porta `5060` na mesma VPS do DEV **nao existe mais**. Deploy continua manual, com o input `confirm == 'DEPLOY'`
 - testes manuais e automatizados devem usar exclusivamente `development` (`invest-dev`, porta `5059`) até que o ambiente esteja estavel e o PRD seja recriado/validado
 - o workflow `Deploy Backend Production` exige digitar `DEPLOY` no input `confirm` para liberar o job, justamente para evitar disparo acidental enquanto o PRD estiver pausado
 - a pendencia de inversao dos bancos `meu_mentor_db`/`meu_mentor_prd` (ver "Pendencia conhecida" abaixo) deve ser corrigida antes ou durante a recriacao do PRD
