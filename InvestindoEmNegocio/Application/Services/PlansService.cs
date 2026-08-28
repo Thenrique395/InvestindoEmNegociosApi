@@ -93,12 +93,39 @@ public class PlansService(
         var plan = await planRepository.GetByIdAsync(id, userId, cancellationToken);
         if (plan is null) return null;
 
+        /*
+         * Editar a recorrência inteira PRESERVA o que já foi pago.
+         *
+         * Antes, esta operação apagava TODAS as parcelas e TODOS os pagamentos do plano e
+         * regerava do zero. Mudar a data de vencimento das parcelas futuras destruía o
+         * histórico financeiro do passado junto — inclusive a transação na conta.
+         *
+         * E ela nem chegava a funcionar: o delete das antigas e o insert das novas iam na
+         * MESMA `SaveChangesAsync`, o EF não garante que o DELETE preceda o INSERT na mesma
+         * tabela, e o índice único `(PlanId, InstallmentNo)` era violado — 500 para quem
+         * tentasse. Por isso o salvamento agora acontece em DUAS fases.
+         */
         var installments = await installmentRepository.ListByPlanAsync(id, userId, cancellationToken) ?? [];
-        var installmentIds = installments.Select(i => i.Id).ToList();
-        var payments = await paymentRepository.ListByInstallmentIdsAsync(installmentIds, cancellationToken) ?? [];
-        await CleanupLedgerFromPaymentsAsync(userId, payments, cancellationToken);
-        paymentRepository.RemoveRange(payments);
-        installmentRepository.RemoveRange(installments);
+
+        var preservadas = installments
+            .Where(i => i.Status is InstallmentStatus.Paid
+                     or InstallmentStatus.PartiallyPaid
+                     or InstallmentStatus.Anticipated)
+            .ToList();
+        var descartaveis = installments.Except(preservadas).ToList();
+
+        var idsDescartaveis = descartaveis.Select(i => i.Id).ToList();
+        var pagamentosDescartaveis = idsDescartaveis.Count > 0
+            ? await paymentRepository.ListByInstallmentIdsAsync(idsDescartaveis, cancellationToken) ?? []
+            : [];
+
+        await CleanupLedgerFromPaymentsAsync(userId, pagamentosDescartaveis, cancellationToken);
+        paymentRepository.RemoveRange(pagamentosDescartaveis);
+        installmentRepository.RemoveRange(descartaveis);
+
+        // FASE 1: remove antes de inserir. Sem isto, o insert pode chegar primeiro no banco
+        // e colidir com a parcela antiga de mesmo `InstallmentNo`.
+        await installmentRepository.SaveChangesAsync(cancellationToken);
 
         // Capturado antes do Update: depois disso o "de" já virou o "para".
         var valorAnterior = plan.Amount;
@@ -117,9 +144,14 @@ public class PlansService(
             request.CategoryId,
             request.CardId);
 
-        await GenerateInstallmentsAsync(plan, cancellationToken);
+        // FASE 2: as novas continuam a numeração das preservadas, para não reusar um
+        // `InstallmentNo` que ainda existe.
+        var proximoNumero = preservadas.Count > 0 ? preservadas.Max(i => i.InstallmentNo) + 1 : 1;
+        await GenerateInstallmentsAsync(plan, cancellationToken, proximoNumero);
         await planRepository.SaveChangesAsync(cancellationToken);
-        _logger.LogInformation("Plan updated {UserId} {PlanId} {Schedule}", userId, plan.Id, plan.Schedule);
+        _logger.LogInformation(
+            "Plan updated {UserId} {PlanId} {Schedule} preservadas={Preservadas} regeradas={Regeradas}",
+            userId, plan.Id, plan.Schedule, preservadas.Count, descartaveis.Count);
 
         await RecordChangesAsync(userId, plan, valorAnterior, categoriaAnterior, tituloAnterior, cancellationToken);
 
@@ -242,7 +274,11 @@ public class PlansService(
         accountTransactionRepository.RemoveRange(transactions);
     }
 
-    private async Task GenerateInstallmentsAsync(MoneyPlan plan, CancellationToken cancellationToken)
+    /// <param name="numeroInicial">
+    /// Primeiro `InstallmentNo` a usar. Quando a edição preserva parcelas pagas, a numeração
+    /// continua depois delas — reusar um número existente viola o índice único do plano.
+    /// </param>
+    private async Task GenerateInstallmentsAsync(MoneyPlan plan, CancellationToken cancellationToken, int numeroInicial = 1)
     {
         var card = plan.CardId.HasValue
             ? await cardRepository.GetByIdAsync(plan.CardId.Value, plan.UserId, cancellationToken)
@@ -255,7 +291,7 @@ public class PlansService(
         switch (plan.Schedule)
         {
             case ScheduleType.OneTime:
-                await installmentRepository.AddAsync(BuildInstallment(plan, 1, plan.StartDate, card), cancellationToken);
+                await installmentRepository.AddAsync(BuildInstallment(plan, numeroInicial, plan.StartDate, card), cancellationToken);
                 return;
             case ScheduleType.Installments when plan.InstallmentsCount.HasValue:
             {
@@ -263,7 +299,7 @@ public class PlansService(
                 for (var i = 1; i <= plan.InstallmentsCount.Value; i++)
                 {
                     var purchaseDate = plan.StartDate.AddMonths(i - 1);
-                    list.Add(BuildInstallment(plan, i, purchaseDate, card));
+                    list.Add(BuildInstallment(plan, numeroInicial + i - 1, purchaseDate, card));
                 }
                 await installmentRepository.AddRangeAsync(list, cancellationToken);
                 return;
@@ -274,7 +310,7 @@ public class PlansService(
                 for (var i = 1; i <= RecurringHorizonMonths; i++)
                 {
                     var purchaseDate = plan.StartDate.AddMonths(i - 1);
-                    list.Add(BuildInstallment(plan, i, purchaseDate, card));
+                    list.Add(BuildInstallment(plan, numeroInicial + i - 1, purchaseDate, card));
                 }
                 await installmentRepository.AddRangeAsync(list, cancellationToken);
                 break;
