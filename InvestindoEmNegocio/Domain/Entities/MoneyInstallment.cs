@@ -62,6 +62,20 @@ public class MoneyInstallment : ISoftDeletable
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Preenche o ciclo de fatura de uma parcela que nasceu sem cartão.
+    /// Não mexe em vencimento nem em valor: a parcela paga fica como está, só
+    /// passa a saber a qual fatura pertence.
+    /// </summary>
+    public void AssignStatementCycle(int year, int month, DateOnly closeDate, DateOnly dueDate)
+    {
+        StatementYear = year;
+        StatementMonth = month;
+        StatementCloseDate = closeDate;
+        StatementDueDate = dueDate;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void Anticipate(DateOnly dueDate, DateOnly today)
     {
         if (DueDate.Year == today.Year && DueDate.Month == today.Month)

@@ -345,6 +345,57 @@ public class CardsServiceTests
         result[0].TotalOpen.Should().Be(100m);
     }
 
+    [Fact]
+    public async Task ListStatementCyclesAsync_Should_Calculate_Cycle_When_Installment_Has_No_Statement_Fields()
+    {
+        // Parcela que nasceu sem cartão (campos de fatura nulos) e só depois foi
+        // vinculada: antes ela era descartada em silêncio e a fatura sumia da tela.
+        var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
+        var card = new Card(userId, spaceId, 1, "Nome", "Principal", "9391", "Banco", 5000m, 10, 20);
+        var cardId = card.Id;
+
+        var cardRepository = new Mock<ICardRepository>();
+        cardRepository
+            .Setup(x => x.GetByIdAsync(cardId, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(card);
+
+        var plan = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Compras", 200m, ScheduleType.OneTime, new DateOnly(2026, 8, 5), null, 1, null, null, cardId);
+        var planRepository = new Mock<IMoneyPlanRepository>();
+        planRepository
+            .Setup(x => x.ListByUserAsync(userId, MoneyType.Expense, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([plan]);
+
+        var installment = new MoneyInstallment(plan.Id, userId, spaceId, 1, new DateOnly(2026, 8, 5), 200m);
+        var installmentRepository = new Mock<IMoneyInstallmentRepository>();
+        installmentRepository
+            .Setup(x => x.ListByUserAsync(userId, null, null, null, MoneyType.Expense, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([installment]);
+
+        var paymentRepository = new Mock<IMoneyPaymentRepository>();
+        paymentRepository
+            .Setup(x => x.ListByInstallmentIdsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        var sut = BuildSut(
+            cardRepository: cardRepository,
+            installmentRepository: installmentRepository,
+            paymentRepository: paymentRepository,
+            planRepository: planRepository);
+
+        var result = await sut.ListStatementCyclesAsync(userId, cardId, 2026, 8);
+
+        result.Should().NotBeNull();
+        result.Should().HaveCount(1);
+        // Compra em 05/08 num cartão que fecha dia 10: cai na fatura de agosto.
+        result![0].StatementYear.Should().Be(2026);
+        result[0].StatementMonth.Should().Be(8);
+        result[0].StatementCloseDate.Should().Be(new DateOnly(2026, 8, 10));
+        result[0].StatementDueDate.Should().Be(new DateOnly(2026, 8, 20));
+        result[0].TotalAmount.Should().Be(200m);
+        result[0].ItemsCount.Should().Be(1);
+    }
+
     private static CardRequest NewRequest() =>
         new(
             BrandId: 1,

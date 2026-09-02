@@ -144,6 +144,11 @@ public class PlansService(
             request.CategoryId,
             request.CardId);
 
+        // As preservadas não são regeradas, então nasceram sem os campos de fatura se o
+        // cartão só entrou nesta edição. Sem isto, uma parcela paga fica presa fora de
+        // qualquer fatura — visível em Despesas com o cartão, ausente em Faturas.
+        await AtribuirFaturaAsPreservadasAsync(plan, preservadas, cancellationToken);
+
         // FASE 2: as novas continuam a numeração das preservadas, para não reusar um
         // `InstallmentNo` que ainda existe.
         var proximoNumero = preservadas.Count > 0 ? preservadas.Max(i => i.InstallmentNo) + 1 : 1;
@@ -317,6 +322,39 @@ public class PlansService(
             }
             default:
                 throw new ArgumentOutOfRangeException();
+        }
+    }
+
+    private async Task AtribuirFaturaAsPreservadasAsync(
+        MoneyPlan plan,
+        IReadOnlyCollection<MoneyInstallment> preservadas,
+        CancellationToken cancellationToken)
+    {
+        if (!plan.CardId.HasValue || preservadas.Count == 0) return;
+
+        var pendentes = preservadas
+            .Where(i => !i.StatementYear.HasValue
+                     || !i.StatementMonth.HasValue
+                     || !i.StatementCloseDate.HasValue
+                     || !i.StatementDueDate.HasValue)
+            .ToList();
+        if (pendentes.Count == 0) return;
+
+        var card = await cardRepository.GetByIdAsync(plan.CardId.Value, plan.UserId, cancellationToken);
+        if (card is null) return;
+
+        foreach (var parcela in pendentes)
+        {
+            var cycle = CardStatementCycleCalculator.Calculate(
+                parcela.DueDate,
+                card.StatementCloseDay,
+                card.DueDay);
+
+            parcela.AssignStatementCycle(
+                cycle.StatementYear,
+                cycle.StatementMonth,
+                cycle.StatementCloseDate,
+                cycle.StatementDueDate);
         }
     }
 

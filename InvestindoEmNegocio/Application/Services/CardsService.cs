@@ -143,15 +143,50 @@ public class CardsService(
         if (cardPlans.Count == 0) return [];
 
         var installments = await installmentRepository.ListByUserAsync(userId, null, null, null, MoneyType.Expense, cancellationToken);
-        var filteredInstallments = installments
-            .Where(i =>
-                i.StatementYear.HasValue &&
+
+        /*
+         * Parcela de plano com cartão que esteja sem os campos de fatura tem o ciclo
+         * calculado aqui, na leitura.
+         *
+         * Antes, o filtro exigia os quatro campos e descartava o resto em silêncio: a
+         * compra existia, aparecia em Despesas com o cartão certo, e mesmo assim a tela
+         * de faturas dizia "nenhuma fatura encontrada". Os campos só são gravados na
+         * criação (PlansService.BuildInstallment) e só quando o plano já tem CardId —
+         * então quem vinculou o cartão depois, ou cadastrou antes destes campos
+         * existirem, ficava invisível para sempre.
+         *
+         * O cálculo é o mesmo da criação, com o dia de fechamento do cartão. Nada é
+         * gravado: é uma projeção de leitura, e a parcela continua como está no banco.
+         */
+        var cycleByInstallment = new Dictionary<Guid, CardStatementCycle>();
+        foreach (var i in installments)
+        {
+            if (!cardPlans.ContainsKey(i.PlanId)) continue;
+
+            if (i.StatementYear.HasValue &&
                 i.StatementMonth.HasValue &&
                 i.StatementCloseDate.HasValue &&
-                i.StatementDueDate.HasValue &&
-                cardPlans.ContainsKey(i.PlanId) &&
-                (!year.HasValue || i.StatementYear == year.Value) &&
-                (!month.HasValue || i.StatementMonth == month.Value))
+                i.StatementDueDate.HasValue)
+            {
+                cycleByInstallment[i.Id] = new CardStatementCycle(
+                    i.StatementYear.Value,
+                    i.StatementMonth.Value,
+                    i.StatementCloseDate.Value,
+                    i.StatementDueDate.Value);
+                continue;
+            }
+
+            cycleByInstallment[i.Id] = CardStatementCycleCalculator.Calculate(
+                i.DueDate,
+                card.StatementCloseDay,
+                card.DueDay);
+        }
+
+        var filteredInstallments = installments
+            .Where(i =>
+                cycleByInstallment.ContainsKey(i.Id) &&
+                (!year.HasValue || cycleByInstallment[i.Id].StatementYear == year.Value) &&
+                (!month.HasValue || cycleByInstallment[i.Id].StatementMonth == month.Value))
             .ToList();
         if (filteredInstallments.Count == 0) return [];
 
@@ -163,10 +198,10 @@ public class CardsService(
         var cycles = filteredInstallments
             .GroupBy(i => new
             {
-                Year = i.StatementYear!.Value,
-                Month = i.StatementMonth!.Value,
-                CloseDate = i.StatementCloseDate!.Value,
-                DueDate = i.StatementDueDate!.Value
+                Year = cycleByInstallment[i.Id].StatementYear,
+                Month = cycleByInstallment[i.Id].StatementMonth,
+                CloseDate = cycleByInstallment[i.Id].StatementCloseDate,
+                DueDate = cycleByInstallment[i.Id].StatementDueDate
             })
             .OrderByDescending(g => g.Key.Year)
             .ThenByDescending(g => g.Key.Month)
@@ -178,9 +213,7 @@ public class CardsService(
                     {
                         var paid = paidByInstallment.GetValueOrDefault(i.Id, 0m);
                         var open = CardStatementConsolidationEngine.NormalizeOpenAmount(i.Amount, paid);
-                        var purchaseDate = i.StatementCloseDate.HasValue
-                            ? i.StatementCloseDate.Value.AddMonths(-1)
-                            : i.DueDate;
+                        var purchaseDate = cycleByInstallment[i.Id].StatementCloseDate.AddMonths(-1);
 
                         return new CardStatementInstallmentResponse(
                             i.Id,
