@@ -65,4 +65,52 @@ public class ReportServiceExpenseIntegrationTests
             report.TotalExpenses.Should().Be(100m);
         }
     }
+
+    [Fact]
+    public async Task GetMonthlySummary_Should_Include_Anticipated_Expense_In_Total()
+    {
+        // Antecipada é dinheiro que saiu de verdade, só que antes do vencimento.
+        // O resumo somava apenas Paid e deixava essas de fora.
+        await using var connection = new SqliteConnection("DataSource=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<InvestDbContext>().UseSqlite(connection).Options;
+
+        var userId = Guid.NewGuid();
+        var spaceId = Guid.NewGuid();
+
+        await using (var db = new InvestDbContext(options))
+        {
+            await db.Database.EnsureCreatedAsync();
+
+            var plan = new MoneyPlan(userId, spaceId, MoneyType.Expense, "Internet", 100m, ScheduleType.OneTime, new DateOnly(2026, 7, 1));
+            db.MoneyPlans.Add(plan);
+
+            var paga = new MoneyInstallment(plan.Id, userId, spaceId, 1, new DateOnly(2026, 7, 10), 100m);
+            paga.RefreshPaymentStatus(100m);
+            db.MoneyInstallments.Add(paga);
+
+            var antecipada = new MoneyInstallment(plan.Id, userId, spaceId, 2, new DateOnly(2026, 7, 20), 94.80m);
+            antecipada.Anticipate(new DateOnly(2026, 7, 15), new DateOnly(2026, 6, 30));
+            db.MoneyInstallments.Add(antecipada);
+
+            var emAberto = new MoneyInstallment(plan.Id, userId, spaceId, 3, new DateOnly(2026, 7, 25), 50m);
+            db.MoneyInstallments.Add(emAberto);
+
+            await db.SaveChangesAsync();
+        }
+
+        await using (var db = new InvestDbContext(options))
+        {
+            var spaceAccessor = Mock.Of<ICurrentSpaceAccessor>();
+            var service = new ReportService(
+                new MoneyInstallmentRepository(db, spaceAccessor),
+                new MoneyPlanRepository(db, spaceAccessor),
+                new CategoryRepository(db));
+
+            var report = await service.GetMonthlySummaryAsync(userId, 2026, 7);
+
+            // 100 paga + 94,80 antecipada. A em aberto continua fora do realizado.
+            report.TotalExpenses.Should().Be(194.80m);
+        }
+    }
 }

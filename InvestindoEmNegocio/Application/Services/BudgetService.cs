@@ -64,13 +64,21 @@ public class BudgetService(
         await budgetRepository.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Realizado do mês = pago + antecipado. A parcela antecipada saiu da conta
+    /// de verdade, só que antes do vencimento — deixá-la de fora subestimava o
+    /// total. É a mesma definição do GoalRealizedReader.
+    /// </summary>
+    private static readonly InstallmentStatus[] StatusRealizados =
+        [InstallmentStatus.Paid, InstallmentStatus.Anticipated];
+
     private async Task<Dictionary<string, decimal>> GetRealizedByCategory(Guid userId, int year, int month, CancellationToken cancellationToken)
     {
         var periodStart = new DateOnly(year, month, 1);
         var periodEnd = new DateOnly(year, month, DateTime.DaysInMonth(year, month));
 
-        var installments = await installmentRepository.ListByUserAsync(
-            userId, InstallmentStatus.Paid, periodStart, periodEnd, MoneyType.Expense, cancellationToken);
+        var installments = await installmentRepository.ListByUserStatusesAsync(
+            userId, StatusRealizados, periodStart, periodEnd, MoneyType.Expense, cancellationToken);
 
         var plans = await moneyPlanRepository.ListByUserAsync(userId, MoneyType.Expense, cancellationToken);
         var planMap = plans.ToDictionary(p => p.Id);
