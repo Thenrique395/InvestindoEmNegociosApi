@@ -23,20 +23,6 @@ public class MoneyInstallmentRepository(InvestDbContext context, ICurrentSpaceAc
         return await query.OrderBy(i => i.DueDate).ThenBy(i => i.InstallmentNo).ToListAsync(cancellationToken);
     }
 
-    public async Task<List<MoneyInstallment>> ListByUserStatusesAsync(Guid userId, IReadOnlyCollection<InstallmentStatus> statuses, DateOnly? from, DateOnly? to, MoneyType? type, CancellationToken cancellationToken = default)
-    {
-        var spaceId = currentSpaceAccessor.SpaceId;
-        var query = context.MoneyInstallments.AsNoTracking().Where(i => i.UserId == userId && (!spaceId.HasValue || i.SpaceId == spaceId.Value));
-
-        if (statuses is { Count: > 0 }) query = query.Where(i => statuses.Contains(i.Status));
-        if (from.HasValue) query = query.Where(i => i.DueDate >= from.Value);
-        if (to.HasValue) query = query.Where(i => i.DueDate <= to.Value);
-        if (type.HasValue)
-            query = query.Join(context.MoneyPlans.Where(p => p.Type == type.Value), i => i.PlanId, p => p.Id, (i, _) => i);
-
-        return await query.OrderBy(i => i.DueDate).ThenBy(i => i.InstallmentNo).ToListAsync(cancellationToken);
-    }
-
     public async Task<List<MoneyInstallment>> ListByPlanAsync(Guid planId, Guid userId, CancellationToken cancellationToken = default, bool track = false)
     {
         var spaceId = currentSpaceAccessor.SpaceId;
