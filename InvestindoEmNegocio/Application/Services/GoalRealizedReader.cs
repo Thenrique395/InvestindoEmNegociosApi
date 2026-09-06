@@ -16,8 +16,12 @@ namespace InvestindoEmNegocio.Application.Services;
 /// </summary>
 public sealed class GoalRealizedReader(IInvestDbContext db) : IGoalRealizedReader
 {
-    private static readonly InstallmentStatus[] Effected = [InstallmentStatus.Paid, InstallmentStatus.Anticipated];
-    private static readonly InstallmentStatus[] PendingStatuses = [InstallmentStatus.Open, InstallmentStatus.PartiallyPaid];
+    /* Antecipada NÃO é efetivada: antecipar só muda o vencimento de mês, sem
+       registrar pagamento (MoneyInstallment.Anticipate), e a parcela continua
+       podendo ser paga depois. Ela conta como pendente, junto com as abertas. */
+    private static readonly InstallmentStatus[] Effected = [InstallmentStatus.Paid];
+    private static readonly InstallmentStatus[] PendingStatuses =
+        [InstallmentStatus.Open, InstallmentStatus.PartiallyPaid, InstallmentStatus.Anticipated];
 
     public async Task<(decimal Realized, decimal Pending)> ReadAsync(Goal goal, DateOnly start, DateOnly end, CancellationToken ct = default)
     {

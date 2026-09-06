@@ -14,7 +14,7 @@ namespace InvestindoEmNegocio.Tests;
 public class AccountAnalyticsServiceTests
 {
     [Fact]
-    public async Task GetRealAvailableBalanceAsync_Should_Use_Active_Accounts_And_Open_Items()
+    public async Task GetRealAvailableBalanceAsync_Should_Count_Anticipated_As_Pending()
     {
         var userId = Guid.NewGuid();
         var spaceId = Guid.NewGuid();
@@ -42,7 +42,7 @@ public class AccountAnalyticsServiceTests
                 new MoneyInstallment(Guid.NewGuid(), userId, spaceId, 2, today.AddDays(2), 200m),
                 BuildInstallment(userId, Guid.NewGuid(), today.AddDays(10), 50m, InstallmentStatus.Anticipated)
             ]);
-        installmentRepository.Setup(x => x.ListByUserAsync(userId, InstallmentStatus.Open, It.IsAny<DateOnly?>(), It.IsAny<DateOnly?>(), MoneyType.Income, It.IsAny<CancellationToken>()))
+        installmentRepository.Setup(x => x.ListByUserAsync(userId, null, It.IsAny<DateOnly?>(), It.IsAny<DateOnly?>(), MoneyType.Income, It.IsAny<CancellationToken>()))
             .ReturnsAsync([
                 new MoneyInstallment(Guid.NewGuid(), userId, spaceId, 1, today.AddDays(3), 400m)
             ]);
@@ -52,13 +52,16 @@ public class AccountAnalyticsServiceTests
         var result = await sut.GetRealAvailableBalanceAsync(userId, "month", today);
 
         result.ActiveAccountsBalance.Should().Be(1650m);
-        result.PendingExpensesAmount.Should().Be(500m);
-        result.PendingExpensesCount.Should().Be(2);
+        // 300 vencida + 200 a vencer + 50 ANTECIPADA: antecipar não paga, só muda
+        // o vencimento de mês, então a parcela segue comprometida.
+        result.PendingExpensesAmount.Should().Be(550m);
+        result.PendingExpensesCount.Should().Be(3);
         result.PendingIncomesAmount.Should().Be(400m);
-        result.RealAvailableBalance.Should().Be(1150m);
-        result.ProjectedAvailableBalance.Should().Be(1550m);
+        result.RealAvailableBalance.Should().Be(1100m);
+        result.ProjectedAvailableBalance.Should().Be(1500m);
         result.OverdueExpensesAmount.Should().Be(300m);
         result.OverdueExpensesCount.Should().Be(1);
+        // A antecipada vence em +10 dias, fora da janela de 5 dias.
         result.DueSoonExpensesAmount.Should().Be(200m);
     }
 

@@ -306,10 +306,11 @@ public sealed class NotificationGenerationService(
 
         if (monthInstallments.Count == 0) return null;
 
+        // Antecipada não é recebida nem paga: só mudou de mês, ainda em aberto.
         static bool IsReceivedStatus(InstallmentStatus status) =>
-            status is InstallmentStatus.Paid or InstallmentStatus.PartiallyPaid or InstallmentStatus.Anticipated;
+            status is InstallmentStatus.Paid or InstallmentStatus.PartiallyPaid;
         static bool IsOpenStatus(InstallmentStatus status) =>
-            status is InstallmentStatus.Open or InstallmentStatus.PartiallyPaid;
+            status is InstallmentStatus.Open or InstallmentStatus.PartiallyPaid or InstallmentStatus.Anticipated;
 
         var incomeReceived = monthInstallments
             .Where(i => planLookup[i.PlanId].Type == MoneyType.Income &&

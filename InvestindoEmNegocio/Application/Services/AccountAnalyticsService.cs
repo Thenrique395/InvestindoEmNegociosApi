@@ -66,17 +66,35 @@ public class AccountAnalyticsService(
             periodEnd,
             Domain.Enums.MoneyType.Expense,
             cancellationToken);
-        var pendingIncomes = await moneyInstallmentRepository.ListByUserAsync(
+        var allIncomes = await moneyInstallmentRepository.ListByUserAsync(
             userId,
-            InstallmentStatus.Open,
+            null,
             periodStart,
             periodEnd,
             Domain.Enums.MoneyType.Income,
             cancellationToken);
         var pendingLoanInstallments = await loanInstallmentRepository.ListByUserAsync(userId, cancellationToken) ?? [];
 
+        /*
+         * Antecipada entra no comprometido.
+         *
+         * Antecipar só puxa a parcela para um mês anterior — não registra
+         * pagamento (MoneyInstallment.Anticipate) e ela continua podendo ser
+         * marcada como paga. Ou seja, o dinheiro ainda vai sair. Deixá-la de
+         * fora fazia o "Comprometido" e o "Saldo disponível" do dashboard
+         * mostrarem menos do que o usuário realmente deve no período.
+         */
         var openExpenseItems = pendingExpenses
-            .Where(i => i.Status == InstallmentStatus.Open || i.Status == InstallmentStatus.PartiallyPaid)
+            .Where(i => i.Status is InstallmentStatus.Open
+                     or InstallmentStatus.PartiallyPaid
+                     or InstallmentStatus.Anticipated)
+            .ToList();
+
+        // Mesma regra do outro lado: receita antecipada ainda não entrou.
+        var pendingIncomes = allIncomes
+            .Where(i => i.Status is InstallmentStatus.Open
+                     or InstallmentStatus.PartiallyPaid
+                     or InstallmentStatus.Anticipated)
             .ToList();
         var openLoanItems = pendingLoanInstallments
             .Where(i => i.Status == LoanInstallmentStatus.Open && i.DueDate >= periodStart && i.DueDate <= periodEnd)
