@@ -271,3 +271,12 @@ A mudança deve ser considerada incompleta quando ocorrer qualquer um destes cas
 - falta de teste em fluxo crítico alterado
 - mudança persistente sem atualização do SQL versionado ou sem considerar impacto em dados
 - mudança de contrato ou autorização sem revisão documental correspondente
+
+## Persistência e segurança: complemento de 2026-11-15
+
+- Runtime e SDK do projeto: .NET 10; respeitar `global.json`. Para migrations usar a factory de design time, com `IEN_MIGRATIONS_CONNECTION` explícita quando necessário.
+- Dados financeiros por espaço incluem `MonthlyBudgetItem` e `MonthlyFinancialSnapshot`. Toda leitura/escrita usa o espaço ativo; tarefas agendadas percorrem os espaços com `ISpaceExecutionScope`, restaurando o contexto ao sair.
+- Atualizações EF usam entidades rastreadas; consultas somente leitura usam `AsNoTracking`. Status derivados não devem depender de reconsulta que ignore alterações ainda não salvas. Exclusão de lançamentos inclui pagamentos e seus estornos.
+- Comprovantes ficam em armazenamento privado persistido em `/app/storage`; acesso via controller autorizado e escopo do pagamento. Arquivos legados exigem backup e migração de volume antes de substituir containers antigos.
+- Executar autenticação antes do rate limiter. Cabeçalhos encaminhados só são aceitos dos proxies/redes explicitamente confiáveis; não ler IP diretamente de cabeçalhos enviados pelo cliente.
+- Testes de migrations PostgreSQL exigem `IEN_TEST_POSTGRES` apontando para banco descartável. Não executar contra bases reais. CI configura o serviço isolado.

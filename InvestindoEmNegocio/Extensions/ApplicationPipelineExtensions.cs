@@ -33,6 +33,7 @@ public static class ApplicationPipelineExtensions
         // log — com stack trace de "unhandled exception" — enquanto o cliente
         // recebia o status certo. Isso mandava quem investigava atrás de uma
         // falha de servidor que nunca existiu.
+        app.UseForwardedHeaders();
         app.UseMiddleware<CorrelationIdMiddleware>();
         app.UseSerilogRequestLogging(options =>
         {
@@ -65,12 +66,13 @@ public static class ApplicationPipelineExtensions
         app.UseHttpsRedirection();
         app.UseSecurityHeaders();
         app.UseResponseCompression();
-        app.UseStaticFiles();
+        app.UseWhen(context => !context.Request.Path.StartsWithSegments("/uploads/receipts"),
+            branch => branch.UseStaticFiles());
 
         app.UseRouting();
         app.UseCors(corsPolicy);
-        app.UseRateLimiter();
         app.UseAuthentication();
+        app.UseRateLimiter();
         app.UseMiddleware<CsrfValidationMiddleware>();
         app.UseAuthorization();
 

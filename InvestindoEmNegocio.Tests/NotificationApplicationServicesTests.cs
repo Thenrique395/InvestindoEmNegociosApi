@@ -729,7 +729,7 @@ public class NotificationApplicationServicesTests
 
         var recommendations = root.GetProperty("recommendations").EnumerateArray().ToList();
         recommendations.Should().NotBeEmpty();
-        recommendations[0].GetProperty("route").GetString().Should().Be("/expenses");
+        recommendations[0].GetProperty("route").GetString().Should().Be("/despesas");
         recommendations[0].GetProperty("actionLabel").GetString().Should().NotBeNullOrWhiteSpace();
     }
 

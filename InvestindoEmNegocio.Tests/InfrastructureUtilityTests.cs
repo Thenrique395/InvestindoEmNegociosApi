@@ -181,7 +181,7 @@ public class InfrastructureUtilityTests
     }
 
     [Fact]
-    public async Task ReceiptStorageService_Should_Save_File_And_Return_Public_Url()
+    public async Task ReceiptStorageService_Should_Save_Private_File_And_Return_Authenticated_Url()
     {
         using var dir = new TempDir();
         var env = new MockWebHostEnvironment
@@ -201,8 +201,8 @@ public class InfrastructureUtilityTests
             "https://cdn.test",
             CancellationToken.None);
 
-        url.Should().StartWith("https://cdn.test/uploads/receipts/");
-        Directory.Exists(System.IO.Path.Combine(dir.Path, "wwwroot", "uploads", "receipts")).Should().BeTrue();
+        url.Should().StartWith("https://cdn.test/api/v1/receipts/");
+        Directory.Exists(System.IO.Path.Combine(dir.Path, "storage", "receipts")).Should().BeTrue();
     }
 
     [Fact]

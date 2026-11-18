@@ -5,3 +5,9 @@
 **/bin
 **/obj
 **/obj2
+
+# Configuração e histórico locais não pertencem à imagem.
+.git
+.env
+.env.*
+!.env.example

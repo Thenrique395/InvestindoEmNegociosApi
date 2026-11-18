@@ -387,7 +387,7 @@ public class InstallmentsServiceTests
     }
 
     [Fact]
-    public async Task UpdateAsync_Should_Edit_Amount_And_DueDate_Preserving_Payments()
+    public async Task UpdateAsync_Should_Reverse_Partial_Payment_When_Amount_Changes()
     {
         var userId = Guid.NewGuid();
         var installment = new MoneyInstallment(Guid.NewGuid(), userId, Guid.NewGuid(), 1, new DateOnly(2026, 7, 10), 100m);
@@ -407,7 +407,7 @@ public class InstallmentsServiceTests
         result.Should().BeTrue();
         installment.Amount.Should().Be(150m);
         installment.DueDate.Should().Be(newDue);
-        installment.Status.Should().Be(InstallmentStatus.PartiallyPaid);
+        installment.Status.Should().Be(InstallmentStatus.Open);
         installmentRepository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 

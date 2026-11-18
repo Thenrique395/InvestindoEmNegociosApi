@@ -38,7 +38,7 @@ public sealed class ProfileCommandService(
                 return ProfileDtoFactory.CreateDto(profile, user);
             }
 
-            existing.UpdateProfileData(request.Language, existing.Currency, request.CarryOverDay, request.FinancialGoal, request.IntelligenceMode);
+            existing.UpdateProfileData(request.Language, existing.Currency, request.CarryOverDay, request.FinancialGoal ?? existing.FinancialGoal, request.IntelligenceMode);
             await profileRepository.SaveChangesAsync(cancellationToken);
             cache.Remove(ProfileQueryService.CacheKey(userId));
             logger.LogInformation("User profile updated {UserId}", userId);

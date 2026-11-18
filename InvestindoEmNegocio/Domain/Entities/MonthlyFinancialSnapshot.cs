@@ -4,6 +4,7 @@ public class MonthlyFinancialSnapshot
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid UserId { get; private set; }
+    public Guid SpaceId { get; private set; }
     public int Year { get; private set; }
     public int Month { get; private set; }
     public string SnapshotLabel { get; private set; } = string.Empty;
@@ -23,6 +24,7 @@ public class MonthlyFinancialSnapshot
 
     public MonthlyFinancialSnapshot(
         Guid userId,
+        Guid spaceId,
         int year,
         int month,
         decimal realAvailableBalance,
@@ -37,6 +39,7 @@ public class MonthlyFinancialSnapshot
         string recommendationsJson)
     {
         UserId = userId;
+        SpaceId = spaceId;
         Year = year;
         Month = month;
         SnapshotLabel = $"{month:00}/{year:0000}";

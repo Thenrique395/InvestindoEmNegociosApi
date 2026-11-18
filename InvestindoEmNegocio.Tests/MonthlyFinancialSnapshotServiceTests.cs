@@ -16,6 +16,7 @@ public class MonthlyFinancialSnapshotServiceTests
         var userId = Guid.NewGuid();
         var existing = new MonthlyFinancialSnapshot(
             userId,
+            Guid.NewGuid(),
             2026,
             3,
             1000m,
@@ -32,7 +33,7 @@ public class MonthlyFinancialSnapshotServiceTests
         var repository = new Mock<IMonthlyFinancialSnapshotRepository>();
         repository.Setup(x => x.GetByMonthAsync(userId, 2026, 3, It.IsAny<CancellationToken>())).ReturnsAsync(existing);
         var accountAnalyticsService = new Mock<IAccountAnalyticsService>(MockBehavior.Strict);
-        var sut = new MonthlyFinancialSnapshotService(repository.Object, accountAnalyticsService.Object);
+        var sut = new MonthlyFinancialSnapshotService(repository.Object, accountAnalyticsService.Object, Mock.Of<ICurrentSpaceAccessor>(x => x.RequireSpaceId() == Guid.NewGuid()));
 
         var result = await sut.GenerateAsync(userId, 2026, 3);
 
@@ -72,7 +73,7 @@ public class MonthlyFinancialSnapshotServiceTests
             .Setup(x => x.GetRecommendationsAsync(userId, "month", It.IsAny<DateOnly?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new RecommendationEngineResponse("month", new DateOnly(2026, 4, 30), 60, [new RecommendationItemResponse("r1", 90, "info", "risk", "Renegociar", "Texto", "Abrir", "/debts", new Dictionary<string, string>(), [], null, null)]));
 
-        var sut = new MonthlyFinancialSnapshotService(repository.Object, accountAnalyticsService.Object);
+        var sut = new MonthlyFinancialSnapshotService(repository.Object, accountAnalyticsService.Object, Mock.Of<ICurrentSpaceAccessor>(x => x.RequireSpaceId() == Guid.NewGuid()));
 
         var result = await sut.GenerateAsync(userId, 2026, 4);
 

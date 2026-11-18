@@ -49,6 +49,7 @@ services:
       Smtp__FromEmail: ${SMTP_FROM_EMAIL:-}
       Smtp__FromName: ${SMTP_FROM_NAME:-Investindo em Negócios}
       DataProtection__KeysPath: /keys
+      ReverseProxy__KnownNetworks__0: ${APP_NETWORK_SUBNET:-172.29.18.0/24}
       AllowedHosts: ${ALLOWED_HOSTS:-*}
       # Mesmo origin do frontend (via Caddy na 80) — cookie seguro off enquanto for HTTP.
       Auth__RequireSecureCookie: ${AUTH_REQUIRE_SECURE_COOKIE:-false}
@@ -60,6 +61,7 @@ services:
         condition: service_started
     volumes:
       - dataprotection_keys_prd:/keys
+      - private_uploads_prd:/app/storage
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:5059/health/ready"]
       interval: 10s
@@ -73,6 +75,11 @@ services:
     environment:
       PORT: "4000"
       NODE_ENV: production
+      APP_ENVIRONMENT: production
+      LEGAL_NAME: ${LEGAL_NAME:?Configure LEGAL_NAME com os dados oficiais do responsavel}
+      LEGAL_TAX_ID: ${LEGAL_TAX_ID:?Configure LEGAL_TAX_ID com os dados oficiais do responsavel}
+      LEGAL_ADDRESS: ${LEGAL_ADDRESS:?Configure LEGAL_ADDRESS com os dados oficiais do responsavel}
+      LEGAL_CONTACT_EMAIL: ${LEGAL_CONTACT_EMAIL:?Configure LEGAL_CONTACT_EMAIL com os dados oficiais do responsavel}
       # URL pública da API (via Caddy, mesmo host:80). Usada tanto no SSR quanto no browser.
       API_BASE_URL: ${API_BASE_URL:-http://44.222.213.37/api/v1}
       ANGULAR_ALLOWED_HOSTS: ${ANGULAR_ALLOWED_HOSTS:-44.222.213.37,localhost}
@@ -116,3 +123,10 @@ volumes:
   dataprotection_keys_prd:
   caddy_data_prd:
   caddy_config_prd:
+  private_uploads_prd:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${APP_NETWORK_SUBNET:-172.29.18.0/24}

@@ -30,7 +30,7 @@ public class AiFinancialHealthServiceTests
         assistant.Setup(x => x.BuildContextAsync(It.IsAny<Guid>(), It.IsAny<DateOnly?>(), It.IsAny<CancellationToken>())).ReturnsAsync(context);
         var anthropicClient = new Mock<IAnthropicClient>();
         var cache = new MemoryCache(new MemoryCacheOptions());
-        var sut = new AiFinancialHealthService(assistant.Object, anthropicClient.Object, cache);
+        var sut = new AiFinancialHealthService(assistant.Object, anthropicClient.Object, cache, Mock.Of<ICurrentSpaceAccessor>());
         return (sut, anthropicClient, assistant);
     }
 
@@ -137,4 +137,28 @@ public class AiFinancialHealthServiceTests
         anthropicClient.Verify(x => x.CompleteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
         assistant.Verify(x => x.BuildContextAsync(userId, referenceDate, It.IsAny<CancellationToken>()), Times.Once);
     }
+    [Fact]
+    public async Task Health_Cache_Should_Not_Cross_Spaces_Or_The_Background_Context()
+    {
+        var user = Guid.NewGuid(); var areaA = Guid.NewGuid(); var areaB = Guid.NewGuid();
+        Guid? active = areaA;
+        var accessor = new Mock<ICurrentSpaceAccessor>(); accessor.SetupGet(x => x.SpaceId).Returns(() => active);
+        var assistant = new Mock<IFinancialAssistantService>();
+        assistant.Setup(x => x.BuildContextAsync(user, It.IsAny<DateOnly?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => BuildContext(overdueDebt: active == areaA ? 100m : 0m));
+        var anthropic = new Mock<IAnthropicClient>();
+        anthropic.Setup(x => x.CompleteAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>())).ThrowsAsync(new HttpRequestException());
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var sut = new AiFinancialHealthService(assistant.Object, anthropic.Object, cache, accessor.Object);
+        var date = new DateOnly(2026, 11, 15);
+        (await sut.GetHealthAsync(user, date)).OverallStatus.Should().Be("critical");
+        active = areaB;
+        (await sut.GetHealthAsync(user, date)).OverallStatus.Should().Be("ok");
+        active = null;
+        await sut.GetHealthAsync(user, date);
+        active = areaA;
+        (await sut.GetHealthAsync(user, date)).OverallStatus.Should().Be("critical");
+        assistant.Verify(x => x.BuildContextAsync(user, date, It.IsAny<CancellationToken>()), Times.Exactly(3));
+    }
+
 }

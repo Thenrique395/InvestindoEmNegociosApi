@@ -10,4 +10,5 @@ public interface ICurrentSpaceAccessor
     Guid? SpaceId { get; }
 
     Guid RequireSpaceId();
+
 }

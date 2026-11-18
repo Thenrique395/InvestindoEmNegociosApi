@@ -11,7 +11,8 @@ public class BudgetService(
     IMonthlyBudgetRepository budgetRepository,
     IMoneyInstallmentRepository installmentRepository,
     IMoneyPlanRepository moneyPlanRepository,
-    ICategoryRepository categoryRepository) : IBudgetService
+    ICategoryRepository categoryRepository,
+    ICurrentSpaceAccessor currentSpaceAccessor) : IBudgetService
 {
     public async Task<BudgetResponse> GetAsync(Guid userId, int year, int month, CancellationToken cancellationToken = default)
     {
@@ -31,7 +32,7 @@ public class BudgetService(
 
     public async Task<BudgetResponse> UpsertItemsAsync(Guid userId, int year, int month, IReadOnlyList<BudgetItemRequest> items, CancellationToken cancellationToken = default)
     {
-        var existing = await budgetRepository.ListByMonthAsync(userId, year, month, cancellationToken);
+        var existing = await budgetRepository.ListForUpdateByMonthAsync(userId, year, month, cancellationToken);
         var existingByCategory = existing.ToDictionary(x => x.CategoryName, StringComparer.OrdinalIgnoreCase);
 
         foreach (var req in items)
@@ -45,7 +46,7 @@ public class BudgetService(
             }
             else
             {
-                var newItem = new MonthlyBudgetItem(userId, year, month, name, req.PlannedAmount);
+                var newItem = new MonthlyBudgetItem(userId, currentSpaceAccessor.RequireSpaceId(), year, month, name, req.PlannedAmount);
                 await budgetRepository.AddAsync(newItem, cancellationToken);
             }
         }

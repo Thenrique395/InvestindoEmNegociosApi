@@ -81,10 +81,6 @@ public abstract class AuthenticatedControllerBase : ControllerBase
 
     protected string? GetIpAddress()
     {
-        var forwarded = Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(forwarded))
-            return forwarded.Split(',')[0].Trim();
-
         return HttpContext.Connection.RemoteIpAddress?.ToString();
     }
 

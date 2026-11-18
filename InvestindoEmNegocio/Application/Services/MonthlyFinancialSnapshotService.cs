@@ -8,7 +8,8 @@ namespace InvestindoEmNegocio.Application.Services;
 
 public class MonthlyFinancialSnapshotService(
     IMonthlyFinancialSnapshotRepository snapshotRepository,
-    IAccountAnalyticsService accountAnalyticsService) : IMonthlyFinancialSnapshotService
+    IAccountAnalyticsService accountAnalyticsService,
+    ICurrentSpaceAccessor currentSpaceAccessor) : IMonthlyFinancialSnapshotService
 {
     public async Task<IReadOnlyList<MonthlyFinancialSnapshotResponse>> ListAsync(Guid userId, CancellationToken cancellationToken = default)
     {
@@ -36,6 +37,7 @@ public class MonthlyFinancialSnapshotService(
 
         var snapshot = new MonthlyFinancialSnapshot(
             userId,
+            currentSpaceAccessor.RequireSpaceId(),
             year,
             month,
             realBalance.RealAvailableBalance,

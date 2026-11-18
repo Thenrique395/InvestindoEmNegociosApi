@@ -247,7 +247,9 @@ public class PlansService(
                     AccountTransactionSourceTypes.InstallmentPayment,
                     paymentIds,
                     cancellationToken) ?? [];
-                foreach (var transaction in transactions)
+                var reversals = await accountTransactionRepository.ListBySourceAsync(
+                    userId, AccountTransactionSourceTypes.InstallmentPaymentReversal, paymentIds, cancellationToken) ?? [];
+                foreach (var transaction in transactions.Concat(reversals))
                     transaction.MarkDeleted(now);
             }
 
@@ -275,6 +277,9 @@ public class PlansService(
             paymentIds,
             cancellationToken) ?? [];
 
+        var reversals = await accountTransactionRepository.ListBySourceAsync(
+            userId, AccountTransactionSourceTypes.InstallmentPaymentReversal, paymentIds, cancellationToken) ?? [];
+        transactions.AddRange(reversals);
         if (transactions.Count == 0) return;
         accountTransactionRepository.RemoveRange(transactions);
     }

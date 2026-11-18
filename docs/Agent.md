@@ -53,10 +53,10 @@ Consultar sempre:
 - `../../Agent.md`
 - `./BACKEND_PADROES_IMPLEMENTACAO.md`
 - `./README.md`
-- `../../docs/README.md`
-- `../../docs/ARCHITECTURE.md`
-- `../../docs/BUSINESS_RULES.md`
-- `../../docs/ROADMAP.md`
+- `/Users/henriquesantos/Documents/my second brain/Investindo em Negocio/Documentacao/README.md`
+- `/Users/henriquesantos/Documents/my second brain/Investindo em Negocio/Documentacao/02-arquitetura/arquitetura.md`
+- `/Users/henriquesantos/Documents/my second brain/Investindo em Negocio/Documentacao/01-produto/regras/regras-de-negocio.md`
+- `/Users/henriquesantos/Documents/my second brain/Investindo em Negocio/Documentacao/08-backlog/roadmap.md`
 
 Consultar quando aplicavel:
 
@@ -97,7 +97,7 @@ Ler nesta ordem:
 2. `./Agent.md`
 3. `./BACKEND_PADROES_IMPLEMENTACAO.md`
 4. `./AUTHORIZATION_MATRIX.md`
-5. `../../docs/BUSINESS_RULES.md`
+5. `/Users/henriquesantos/Documents/my second brain/Investindo em Negocio/Documentacao/01-produto/regras/regras-de-negocio.md`
 
 ### Mudanca de banco, schema, query, persistencia ou bootstrap
 
@@ -106,7 +106,7 @@ Ler nesta ordem:
 1. `../../Agent.md`
 2. `./Agent.md`
 3. `./BACKEND_PADROES_IMPLEMENTACAO.md`
-4. `../../docs/ARCHITECTURE.md`
+4. `/Users/henriquesantos/Documents/my second brain/Investindo em Negocio/Documentacao/02-arquitetura/arquitetura.md`
 5. `./README.md`
 
 ### Mudanca de billing, assinatura, Stripe, portal ou webhook
@@ -118,8 +118,8 @@ Ler nesta ordem:
 3. `./BACKEND_PADROES_IMPLEMENTACAO.md`
 4. `./API_CONTRATO_ERROS.md`
 5. `./AUTHORIZATION_MATRIX.md`
-6. `../../docs/BUSINESS_RULES.md`
-7. `../../docs/ROADMAP.md`
+6. `/Users/henriquesantos/Documents/my second brain/Investindo em Negocio/Documentacao/01-produto/regras/regras-de-negocio.md`
+7. `/Users/henriquesantos/Documents/my second brain/Investindo em Negocio/Documentacao/08-backlog/roadmap.md`
 
 ### Mudanca de pipeline, deploy, compose ou ambiente
 
@@ -129,7 +129,7 @@ Ler nesta ordem:
 2. `./Agent.md`
 3. `./README.md`
 4. `./DEPLOY_GITHUB_ENVIRONMENTS.md`
-5. `../../docs/RUNBOOK.md`
+5. `/Users/henriquesantos/Documents/my second brain/Investindo em Negocio/Documentacao/05-operacao/runbook.md`
 
 ## Regras obrigatorias
 

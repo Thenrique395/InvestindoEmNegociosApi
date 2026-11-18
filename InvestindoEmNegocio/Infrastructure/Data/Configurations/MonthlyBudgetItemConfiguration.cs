@@ -24,7 +24,7 @@ public class MonthlyBudgetItemConfiguration : IEntityTypeConfiguration<MonthlyBu
         builder.Property(b => b.CreatedAt).IsRequired();
         builder.Property(b => b.UpdatedAt).IsRequired();
 
-        builder.HasIndex(b => new { b.UserId, b.Year, b.Month });
-        builder.HasIndex(b => new { b.UserId, b.Year, b.Month, b.CategoryName }).IsUnique();
+        builder.HasIndex(b => new { b.UserId, b.SpaceId, b.Year, b.Month });
+        builder.HasIndex(b => new { b.UserId, b.SpaceId, b.Year, b.Month, b.CategoryName }).IsUnique();
     }
 }

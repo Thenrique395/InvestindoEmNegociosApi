@@ -23,6 +23,6 @@ public class MonthlyFinancialSnapshotConfiguration : IEntityTypeConfiguration<Mo
         builder.Property(x => x.RecommendationsJson).IsRequired().HasMaxLength(4000);
         builder.Property(x => x.CreatedAt).IsRequired();
 
-        builder.HasIndex(x => new { x.UserId, x.Year, x.Month }).IsUnique();
+        builder.HasIndex(x => new { x.UserId, x.SpaceId, x.Year, x.Month }).IsUnique();
     }
 }

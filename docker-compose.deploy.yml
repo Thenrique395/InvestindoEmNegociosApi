@@ -52,6 +52,7 @@ services:
     volumes:
       # Chaves de DataProtection persistidas fora do container (sobrevivem a deploy).
       - dataprotection-keys:/keys
+      - private-uploads:/app/storage
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:5059/health/ready"]
       interval: 10s
@@ -83,4 +84,5 @@ services:
 
 volumes:
   dataprotection-keys:
+  private-uploads:
 

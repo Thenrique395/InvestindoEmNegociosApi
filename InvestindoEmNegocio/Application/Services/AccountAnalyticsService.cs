@@ -23,13 +23,15 @@ public class AccountAnalyticsService(
     IRiskBotService riskBotService,
     IInsightEngineService insightEngineService,
     IRecommendationEngineService recommendationEngineService,
-    IMemoryCache cache) : IAccountAnalyticsService
+    IMemoryCache cache,
+    ICurrentSpaceAccessor currentSpaceAccessor) : IAccountAnalyticsService
 {
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(5);
 
-    private static string CacheKey(Guid userId, string method, string? period = null, DateOnly? date = null, int? months = null)
+    private string CacheKey(Guid userId, string method, string? period = null, DateOnly? date = null, int? months = null)
     {
-        var key = $"analytics:{userId}:{method}";
+        var spaceKey = currentSpaceAccessor.SpaceId?.ToString("N") ?? "all-spaces";
+        var key = $"analytics:{userId}:{spaceKey}:{method}";
         if (period is not null) key += $":{period}";
         if (date is not null) key += $":{date:yyyy-MM-dd}";
         if (months is not null) key += $":{months}";
@@ -577,7 +579,6 @@ public class AccountAnalyticsService(
         var openInstallments = installments
             .Where(i => i.Status is InstallmentStatus.Open or InstallmentStatus.PartiallyPaid)
             .ToList();
-        if (openInstallments.Count == 0) return [];
 
         var plans = await moneyPlanRepository.ListByUserAsync(userId, Domain.Enums.MoneyType.Expense, cancellationToken);
         var cards = await cardRepository.ListByUserAsync(userId, cancellationToken);

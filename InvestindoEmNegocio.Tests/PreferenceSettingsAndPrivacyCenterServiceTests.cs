@@ -82,7 +82,7 @@ public class PreferenceSettingsAndPrivacyCenterServiceTests
         await dbContext.AuditLogs.AddAsync(new AuditLog(userId, "account.delete.requested", "User", userId.ToString(), null, null, null));
         await dbContext.SaveChangesAsync();
 
-        var sut = new UserPrivacyCenterService(userRepository, new RefreshTokenRepository(dbContext), Mock.Of<IAuditService>(), dbContext);
+        var sut = new UserPrivacyCenterService(userRepository, new RefreshTokenRepository(dbContext), Mock.Of<IAuditService>(), dbContext, Mock.Of<IUserFileCleanupService>());
         var request = new DeleteOwnAccountRequest("Senha@123", "EXCLUIR");
 
         await sut.DeleteOwnAccountAsync(userId, request);
@@ -119,7 +119,7 @@ public class PreferenceSettingsAndPrivacyCenterServiceTests
         await dbContext.UserProfiles.AddAsync(new UserProfile(userId));
         await dbContext.SaveChangesAsync();
 
-        var sut = new UserPrivacyCenterService(userRepository, new RefreshTokenRepository(dbContext), Mock.Of<IAuditService>(), dbContext);
+        var sut = new UserPrivacyCenterService(userRepository, new RefreshTokenRepository(dbContext), Mock.Of<IAuditService>(), dbContext, Mock.Of<IUserFileCleanupService>());
         var request = new DeleteOwnAccountRequest("SenhaErrada", "EXCLUIR");
 
         var act = async () => await sut.DeleteOwnAccountAsync(userId, request);
@@ -148,7 +148,7 @@ public class PreferenceSettingsAndPrivacyCenterServiceTests
             new AuditLog(userId, "export", "DataPortability", null, null, null, null));
         await dbContext.SaveChangesAsync();
 
-        var sut = new UserPrivacyCenterService(userRepository, new RefreshTokenRepository(dbContext), Mock.Of<IAuditService>(), dbContext);
+        var sut = new UserPrivacyCenterService(userRepository, new RefreshTokenRepository(dbContext), Mock.Of<IAuditService>(), dbContext, Mock.Of<IUserFileCleanupService>());
 
         var result = await sut.GetPrivacySummaryAsync(userId);
 
@@ -156,7 +156,7 @@ public class PreferenceSettingsAndPrivacyCenterServiceTests
         result.PendingPasswordResetRequests.Should().Be(1);
         result.AuditEntries.Should().Be(2);
         result.SelfServiceDeletionEnabled.Should().BeTrue();
-        result.DeletionScope.Should().Contain("tokens de sessão, reset de senha e trilha de auditoria");
+        result.DeletionScope.Should().Contain("tokens de sessão, reset de senha e confirmação de e-mail");
     }
 
     [Fact]
@@ -176,7 +176,7 @@ public class PreferenceSettingsAndPrivacyCenterServiceTests
             new RefreshToken(userId, Guid.NewGuid(), "refresh-3", DateTime.UtcNow.AddHours(-2)));
         await dbContext.SaveChangesAsync();
 
-        var sut = new UserPrivacyCenterService(userRepository, refreshTokenRepository, Mock.Of<IAuditService>(), dbContext);
+        var sut = new UserPrivacyCenterService(userRepository, refreshTokenRepository, Mock.Of<IAuditService>(), dbContext, Mock.Of<IUserFileCleanupService>());
 
         var result = await sut.RevokeOwnSessionsAsync(userId);
 
@@ -200,7 +200,7 @@ public class PreferenceSettingsAndPrivacyCenterServiceTests
         await dbContext.RefreshTokens.AddAsync(new RefreshToken(userId, Guid.NewGuid(), "refresh-1", DateTime.UtcNow.AddHours(2)));
         await dbContext.SaveChangesAsync();
 
-        var sut = new UserPrivacyCenterService(userRepository, refreshTokenRepository, Mock.Of<IAuditService>(), dbContext);
+        var sut = new UserPrivacyCenterService(userRepository, refreshTokenRepository, Mock.Of<IAuditService>(), dbContext, Mock.Of<IUserFileCleanupService>());
 
         var result = await sut.GetSecuritySummaryAsync(userId);
 
