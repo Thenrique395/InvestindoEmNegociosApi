@@ -62,7 +62,7 @@ public class SoftDeleteMigrationTests
             new UserRepository(dbContext),
             new RefreshTokenRepository(dbContext),
             Mock.Of<IAuditService>(),
-            dbContext);
+            dbContext, Mock.Of<IUserFileCleanupService>());
 
         await sut.DeleteOwnAccountAsync(user.Id, new DeleteOwnAccountRequest("Senha123!", "EXCLUIR"));
 

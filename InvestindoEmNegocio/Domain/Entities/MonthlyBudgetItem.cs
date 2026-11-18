@@ -4,6 +4,7 @@ public class MonthlyBudgetItem
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid UserId { get; private set; }
+    public Guid SpaceId { get; private set; }
     public int Year { get; private set; }
     public int Month { get; private set; }
     public string CategoryName { get; private set; } = string.Empty;
@@ -13,9 +14,10 @@ public class MonthlyBudgetItem
 
     private MonthlyBudgetItem() { }
 
-    public MonthlyBudgetItem(Guid userId, int year, int month, string categoryName, decimal plannedAmount)
+    public MonthlyBudgetItem(Guid userId, Guid spaceId, int year, int month, string categoryName, decimal plannedAmount)
     {
         UserId = userId;
+        SpaceId = spaceId;
         Year = year;
         Month = month;
         CategoryName = categoryName;

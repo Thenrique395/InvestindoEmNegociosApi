@@ -2,7 +2,7 @@
 
 > **Referência da copy aprovada dos e-mails de billing.** As 6 comunicações estão implementadas.
 > O status geral e as pendências (retry automático + validação em sandbox) estão consolidados no
-> roadmap único do monorepo: [`../../docs/ROADMAP.md`](../../docs/ROADMAP.md). Este arquivo permanece
+> roadmap do Obsidian: [roadmap.md](</Users/henriquesantos/Documents/my second brain/Investindo em Negocio/Documentacao/08-backlog/roadmap.md>). Este arquivo permanece
 > como referência dos textos finais aprovados.
 
 Backlog técnico para implementar as comunicações de billing (e-mail e in-app) por evento de
@@ -10,8 +10,8 @@ assinatura.
 
 A direção de produto (recorrência, janela de recuperação de 7 dias, downgrade, reativação e
 tom acolhedor/comercial) já está consolidada e não deve ser repetida aqui — ver
-[../../docs/DECISIONS/2026-03-24-commercial-offer-and-billing-rules.md](../../docs/DECISIONS/2026-03-24-commercial-offer-and-billing-rules.md)
-(seção "Comunicação") e [../../docs/BUSINESS_RULES.md](../../docs/BUSINESS_RULES.md).
+[2026-03-24-commercial-offer-and-billing-rules.md](</Users/henriquesantos/Documents/my second brain/Investindo em Negocio/Documentacao/03-decisoes/2026-03-24-commercial-offer-and-billing-rules.md>)
+(seção "Comunicação") e [regras-de-negocio.md](</Users/henriquesantos/Documents/my second brain/Investindo em Negocio/Documentacao/01-produto/regras/regras-de-negocio.md>).
 
 Este documento cobre o estado de implementação das comunicações e os textos finais aprovados.
 

@@ -356,9 +356,10 @@ public class InstallmentsService(
          * A tela CONFIRMA antes — isto mexe em dinheiro e não pode ser silencioso.
          */
         var pagamentos = await paymentRepository.ListByInstallmentIdAsync(installmentId, cancellationToken);
+        var totalLiquido = pagamentos.Sum(p => p.PaidAmount);
         var mudouValor = request.Amount != valorAnterior;
 
-        if (mudouValor)
+        if (mudouValor && totalLiquido > 0)
         {
             // Mesmo critério do ListPaymentsAsync: o que marca um pagamento como já
             // estornado é existir transação de estorno apontando para ele.
@@ -381,11 +382,11 @@ public class InstallmentsService(
                     installment, pagamento, agoraUtc,
                     $"Estorno automático: valor da parcela alterado de {valorAnterior:0.00} para {request.Amount:0.00}",
                     userId, cancellationToken);
+                totalLiquido -= pagamento.PaidAmount;
             }
 
             if (aEstornar.Count > 0)
             {
-                pagamentos = await paymentRepository.ListByInstallmentIdAsync(installmentId, cancellationToken);
                 _logger.LogInformation(
                     "Installment edit reversed {Count} payment(s) {UserId} {InstallmentId}",
                     aEstornar.Count, userId, installmentId);
@@ -395,7 +396,7 @@ public class InstallmentsService(
         installment.Edit(request.Amount, request.DueDate);
 
         // Rederiva o status a partir do total líquido (estorno é pagamento negativo).
-        installment.RefreshPaymentStatus(pagamentos.Sum(p => p.PaidAmount));
+        installment.RefreshPaymentStatus(totalLiquido);
 
         await installmentRepository.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Installment updated {UserId} {InstallmentId} {Amount} {DueDate}", userId, installmentId, request.Amount, request.DueDate);
@@ -445,7 +446,9 @@ public class InstallmentsService(
                 "InstallmentPayment",
                 paymentIds,
                 cancellationToken) ?? [];
-            foreach (var transaction in transactions)
+            var reversals = await accountTransactionRepository.ListBySourceAsync(
+                userId, AccountTransactionSourceTypes.InstallmentPaymentReversal, paymentIds, cancellationToken) ?? [];
+            foreach (var transaction in transactions.Concat(reversals))
                 transaction.MarkDeleted(now);
         }
 

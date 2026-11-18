@@ -7,6 +7,16 @@ namespace InvestindoEmNegocio.Application.Interfaces;
 public interface IInvestDbContext
 {
     DbSet<User> Users { get; }
+    DbSet<EmailConfirmationToken> EmailConfirmationTokens { get; }
+    DbSet<UserFeatureOverride> UserFeatureOverrides { get; }
+    DbSet<MonthlyBudgetItem> MonthlyBudgetItems { get; }
+    DbSet<MonthlyFinancialSnapshot> MonthlyFinancialSnapshots { get; }
+    DbSet<LoanContract> LoanContracts { get; }
+    DbSet<LoanPayment> LoanPayments { get; }
+    DbSet<LoanAmortization> LoanAmortizations { get; }
+    DbSet<PlanHistoryEntry> PlanHistoryEntries { get; }
+    DbSet<Space> Spaces { get; }
+
     DbSet<BillingCheckout> BillingCheckouts { get; }
     DbSet<BillingWebhookEvent> BillingWebhookEvents { get; }
     DbSet<UserProfile> UserProfiles { get; }

@@ -142,6 +142,21 @@ public class ProfileQueryAndCommandServicesTests
         repository.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact]
+    public async Task UpsertAsync_Should_Preserve_FinancialGoal_When_Omitted()
+    {
+        var userId = Guid.NewGuid();
+        var profile = new UserProfile(userId, financialGoal: "comecar-investir");
+        var repository = new Mock<IUserProfileRepository>();
+        repository.Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(profile);
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var sut = new ProfileCommandService(repository.Object, Mock.Of<IUserRepository>(), cache, NullLogger<ProfileCommandService>.Instance);
+
+        var result = await sut.UpsertAsync(userId, NewRequest() with { FinancialGoal = null });
+
+        result.FinancialGoal.Should().Be("comecar-investir");
+    }
+
     private static UpsertUserProfileRequest NewRequest() =>
         new(
             "Henrique Santos",

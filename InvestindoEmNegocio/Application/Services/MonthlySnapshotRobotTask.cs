@@ -10,7 +10,9 @@ public sealed class MonthlySnapshotRobotTask(
     IUserRepository userRepository,
     IMonthlyFinancialSnapshotRepository snapshotRepository,
     IMonthlyFinancialSnapshotService snapshotService,
-    ILogger<MonthlySnapshotRobotTask> logger) : IRobotTask
+    ILogger<MonthlySnapshotRobotTask> logger,
+    ISpaceRepository spaceRepository,
+    ISpaceExecutionScope executionScope) : IRobotTask
 {
     public string Name => "RoboSnapshotMensal";
 
@@ -37,21 +39,26 @@ public sealed class MonthlySnapshotRobotTask(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var existing = await snapshotRepository.GetByMonthAsync(user.Id, prevYear, prevMonth, cancellationToken);
-            if (existing is not null)
-                continue;
+            var spaces = await spaceRepository.ListByUserAsync(user.Id, cancellationToken);
+            foreach (var space in spaces)
+            {
+                using var scope = executionScope.BeginScope(space.Id);
+                var existing = await snapshotRepository.GetByMonthAsync(user.Id, prevYear, prevMonth, cancellationToken);
+                if (existing is not null)
+                    continue;
 
-            try
-            {
-                await snapshotService.GenerateAsync(user.Id, prevYear, prevMonth, cancellationToken);
-                generated++;
-                logger.LogInformation("{Name}: snapshot gerado para usuário {UserId} ({Year}-{Month:D2})",
-                    Name, user.Id, prevYear, prevMonth);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "{Name}: falha ao gerar snapshot para usuário {UserId} ({Year}-{Month:D2})",
-                    Name, user.Id, prevYear, prevMonth);
+                try
+                {
+                    await snapshotService.GenerateAsync(user.Id, prevYear, prevMonth, cancellationToken);
+                    generated++;
+                    logger.LogInformation("{Name}: snapshot gerado para usuário {UserId} ({Year}-{Month:D2})",
+                        Name, user.Id, prevYear, prevMonth);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    logger.LogWarning(ex, "{Name}: falha ao gerar snapshot para usuário {UserId} ({Year}-{Month:D2})",
+                        Name, user.Id, prevYear, prevMonth);
+                }
             }
         }
 

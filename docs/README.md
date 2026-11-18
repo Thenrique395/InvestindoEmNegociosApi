@@ -68,14 +68,14 @@ Fluxo principal:
 
 ## Relação com a documentação central
 
-- o mapa principal da documentação compartilhada desta pasta de trabalho está em [../../docs/README.md](../../docs/README.md)
-- estratégia de produto, oferta, planos e regras comerciais vivem no `docs/` da raiz
+- o mapa principal da documentação compartilhada desta pasta de trabalho está em [Documentacao/README.md](</Users/henriquesantos/Documents/my second brain/Investindo em Negocio/Documentacao/README.md>)
+- estratégia de produto, oferta, planos e regras comerciais vivem no Obsidian em [01-produto/](</Users/henriquesantos/Documents/my second brain/Investindo em Negocio/Documentacao/01-produto>)
 - este diretório deve conter apenas documentação técnica e operacional específica da API
 - quando houver conflito, contratos e padrões do backend continuam sendo fonte final para comportamento técnico da API
 
 Regra prática:
 
-- use o `docs/README.md` da raiz para descobrir qual documento consultar
+- use o mapa do Obsidian para descobrir qual documento humano consultar
 - use este diretório quando a dúvida for específica da API
 - se a dúvida for de produto ou oferta, volte para a documentação central
 
@@ -119,7 +119,7 @@ Regra:
 
 - [BILLING_COMMUNICATION_BACKLOG.md](./BILLING_COMMUNICATION_BACKLOG.md)
   - usar para backlog de e-mails/notificações de billing por evento de assinatura, com status atual de implementação
-  - direção de produto (tom, janela de recuperação, downgrade) continua em `../../docs/BUSINESS_RULES.md` e `../../docs/DECISIONS/`
+  - direção de produto (tom, janela de recuperação, downgrade) continua em [regras-de-negocio.md](</Users/henriquesantos/Documents/my second brain/Investindo em Negocio/Documentacao/01-produto/regras/regras-de-negocio.md>) e [03-decisoes/](</Users/henriquesantos/Documents/my second brain/Investindo em Negocio/Documentacao/03-decisoes>)
 
 ### Schema e persistência versionada
 
@@ -143,7 +143,7 @@ Use:
 - `appsettings` e variáveis de ambiente para configuração
 - `docker-compose.yml` para bootstrap local
 - health checks e OpenAPI do ambiente ativo para validação operacional
-- documentação central em `../../docs/` para direção de produto e regras transversais
+- documentação central no Obsidian para direção de produto e regras transversais
 
 ## Pipeline de deploy
 
@@ -173,8 +173,8 @@ Use:
 
 Regra prática:
 
-- se a dúvida for sobre comportamento do produto como oferta, comece no `../../docs/PRODUCT.md`
-- se a dúvida for sobre regra funcional transversal, comece no `../../docs/BUSINESS_RULES.md`
+- se a dúvida for sobre comportamento do produto como oferta, comece em [visao-e-oferta-do-produto.md](</Users/henriquesantos/Documents/my second brain/Investindo em Negocio/Documentacao/01-produto/estrategia/visao-e-oferta-do-produto.md>)
+- se a dúvida for sobre regra funcional transversal, comece em [regras-de-negocio.md](</Users/henriquesantos/Documents/my second brain/Investindo em Negocio/Documentacao/01-produto/regras/regras-de-negocio.md>)
 - se a dúvida for sobre estrutura técnica da API, contratos ou operação backend, use este diretório
 
 ## Regra de manutenção

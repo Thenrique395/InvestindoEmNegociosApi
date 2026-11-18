@@ -16,6 +16,7 @@ namespace InvestindoEmNegocio.Tests;
 
 public class B3ImportServiceTests
 {
+    private static readonly Guid TestSpaceId = Guid.NewGuid();
     [Fact]
     public async Task ConfirmAsync_Should_Throw_When_Token_Does_Not_Exist()
     {
@@ -80,7 +81,7 @@ public class B3ImportServiceTests
         var sut = new B3ImportService(dbContext, CreateSpaceAccessor(), new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
         var userId = Guid.NewGuid();
 
-        var spaceId = Guid.NewGuid();
+        var spaceId = TestSpaceId;
         var oldImported = new InvestmentPosition(
             userId,
             spaceId,
@@ -132,7 +133,7 @@ public class B3ImportServiceTests
 
         var position = new InvestmentPosition(
             userId,
-            Guid.NewGuid(),
+            TestSpaceId,
             InvestmentType.ACOES,
             "PETR4",
             10m,
@@ -209,7 +210,7 @@ public class B3ImportServiceTests
         var userId = Guid.NewGuid();
         var position = new InvestmentPosition(
             userId,
-            Guid.NewGuid(),
+            TestSpaceId,
             InvestmentType.ACOES,
             "PETR4",
             10m,
@@ -271,7 +272,7 @@ public class B3ImportServiceTests
 
         var position = new InvestmentPosition(
             userId,
-            Guid.NewGuid(),
+            TestSpaceId,
             InvestmentType.ACOES,
             "PETR4",
             10m,
@@ -308,7 +309,7 @@ public class B3ImportServiceTests
 
         var existing = new InvestmentPosition(
             userId,
-            Guid.NewGuid(),
+            TestSpaceId,
             InvestmentType.ACOES,
             "PETR4",
             1m,
@@ -342,9 +343,32 @@ public class B3ImportServiceTests
         created.AvgPrice.Should().Be(35m);
     }
 
+    [Theory]
+    [InlineData("merge")]
+    [InlineData("replace")]
+    public async Task Import_Should_Not_Change_Matching_Asset_In_Another_Space(string strategy)
+    {
+        await using var db = CreateDbContext();
+        var userId = Guid.NewGuid();
+        var otherSpace = Guid.NewGuid();
+        var other = new InvestmentPosition(userId, otherSpace, InvestmentType.ACOES, "PETR4", 5m, 20m, new DateOnly(2026, 1, 1), "BANCO TESTE S/A", "B3");
+        db.InvestmentPositions.Add(other);
+        await db.SaveChangesAsync();
+        var sut = new B3ImportService(db, CreateSpaceAccessor(), new MemoryCache(new MemoryCacheOptions()), NullLogger<B3ImportService>.Instance);
+        var snapshot = new B3ImportSnapshot("02/2026", "Holder", "00000000000", [new B3ExtractPosition("PETR4 - PETROBRAS", "ON", "BANCO TESTE S/A", 10m, 30m, 300m)], [], []);
+
+        await sut.ImportSnapshotAsync(userId, snapshot, strategy, CancellationToken.None);
+        db.ChangeTracker.Clear();
+
+        var retained = await db.InvestmentPositions.SingleAsync(x => x.Id == other.Id);
+        retained.Quantity.Should().Be(5m);
+        retained.AvgPrice.Should().Be(20m);
+        (await db.InvestmentPositions.CountAsync(x => x.SpaceId == TestSpaceId)).Should().Be(1);
+    }
+
     private static ICurrentSpaceAccessor CreateSpaceAccessor()
     {
-        var spaceId = Guid.NewGuid();
+        var spaceId = TestSpaceId;
         var spaceAccessor = new Mock<ICurrentSpaceAccessor>();
         spaceAccessor.Setup(x => x.SpaceId).Returns(spaceId);
         spaceAccessor.Setup(x => x.RequireSpaceId()).Returns(spaceId);

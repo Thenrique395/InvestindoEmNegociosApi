@@ -405,6 +405,46 @@ public class AccountAnalyticsServiceTests
         result.Points[2].NetWorth.Should().Be(1170m);
     }
 
+    [Fact]
+    public async Task DebtSummary_Should_Include_Loans_When_No_Common_Expense_Exists()
+    {
+        var userId = Guid.NewGuid();
+        var loan = new LoanInstallment(Guid.NewGuid(), userId, 1, new DateOnly(2026, 10, 1), 1000m, 100m, 10m, 110m, 900m);
+        var loans = new Mock<ILoanInstallmentRepository>();
+        loans.Setup(x => x.ListByUserAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync([loan]);
+        var sut = BuildSut(loanInstallmentRepository: loans);
+
+        var result = await sut.GetDebtSummaryAsync(userId);
+
+        result.TotalDebt.Should().Be(110m);
+        result.OpenItemsCount.Should().Be(1);
+        result.NextItems.Should().ContainSingle(x => x.InstallmentId == loan.Id);
+    }
+
+    [Fact]
+    public async Task BalanceCache_Should_Isolate_Spaces_And_Background_Context()
+    {
+        var userId = Guid.NewGuid();
+        var spaceA = Guid.NewGuid();
+        var spaceB = Guid.NewGuid();
+        Guid? activeSpace = spaceA;
+        var accessor = new Mock<ICurrentSpaceAccessor>();
+        accessor.SetupGet(x => x.SpaceId).Returns(() => activeSpace);
+        var accounts = new Mock<IAccountRepository>();
+        accounts.Setup(x => x.ListByUserAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => new List<Account> { new(userId, activeSpace ?? spaceA, "Conta", AccountType.Checking, activeSpace == spaceA ? 100m : activeSpace == spaceB ? 900m : 1000m) });
+        var sut = BuildSut(accountRepository: accounts, currentSpace: accessor);
+
+        (await sut.GetRealAvailableBalanceAsync(userId)).ActiveAccountsBalance.Should().Be(100m);
+        activeSpace = spaceB;
+        (await sut.GetRealAvailableBalanceAsync(userId)).ActiveAccountsBalance.Should().Be(900m);
+        activeSpace = null;
+        (await sut.GetRealAvailableBalanceAsync(userId)).ActiveAccountsBalance.Should().Be(1000m);
+        activeSpace = spaceA;
+        (await sut.GetRealAvailableBalanceAsync(userId)).ActiveAccountsBalance.Should().Be(100m);
+        accounts.Verify(x => x.ListByUserAsync(userId, It.IsAny<CancellationToken>()), Times.Exactly(3));
+    }
+
     private static AccountAnalyticsService BuildSut(
         Mock<IAccountRepository>? accountRepository = null,
         Mock<IAccountTransactionRepository>? transactionRepository = null,
@@ -419,8 +459,29 @@ public class AccountAnalyticsServiceTests
         Mock<ICashflowProjectionEngine>? projectionEngine = null,
         Mock<IRiskBotService>? riskBotService = null,
         Mock<IInsightEngineService>? insightEngineService = null,
-        Mock<IRecommendationEngineService>? recommendationEngineService = null)
+        Mock<IRecommendationEngineService>? recommendationEngineService = null,
+        Mock<ICurrentSpaceAccessor>? currentSpace = null)
     {
+        if (installmentRepository is null)
+        {
+            installmentRepository = new Mock<IMoneyInstallmentRepository>();
+            installmentRepository.Setup(x => x.ListByUserAsync(It.IsAny<Guid>(), It.IsAny<InstallmentStatus?>(), It.IsAny<DateOnly?>(), It.IsAny<DateOnly?>(), It.IsAny<MoneyType?>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        }
+        if (paymentRepository is null)
+        {
+            paymentRepository = new Mock<IMoneyPaymentRepository>();
+            paymentRepository.Setup(x => x.ListByInstallmentIdsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        }
+        if (planRepository is null)
+        {
+            planRepository = new Mock<IMoneyPlanRepository>();
+            planRepository.Setup(x => x.ListByUserAsync(It.IsAny<Guid>(), It.IsAny<MoneyType?>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        }
+        if (cardRepository is null)
+        {
+            cardRepository = new Mock<ICardRepository>();
+            cardRepository.Setup(x => x.ListByUserAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        }
         var aggregate = investmentsService?.Object ?? Mock.Of<IInvestmentsService>();
         return new AccountAnalyticsService(
             accountRepository?.Object ?? Mock.Of<IAccountRepository>(),
@@ -438,7 +499,8 @@ public class AccountAnalyticsServiceTests
             riskBotService?.Object ?? Mock.Of<IRiskBotService>(),
             insightEngineService?.Object ?? Mock.Of<IInsightEngineService>(),
             recommendationEngineService?.Object ?? Mock.Of<IRecommendationEngineService>(),
-            new MemoryCache(new MemoryCacheOptions()));
+            new MemoryCache(new MemoryCacheOptions()),
+            currentSpace?.Object ?? Mock.Of<ICurrentSpaceAccessor>());
     }
 
     private static MoneyInstallment BuildInstallment(Guid userId, Guid planId, DateOnly dueDate, decimal amount, InstallmentStatus status)

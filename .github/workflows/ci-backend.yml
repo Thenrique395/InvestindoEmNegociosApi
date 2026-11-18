@@ -22,7 +22,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "9.0.x"
+          dotnet-version: "10.0.x"
 
       - name: Restore
         run: dotnet restore InvestindoEmNegocio.sln
@@ -34,6 +34,21 @@ jobs:
     name: Unit and Integration Tests
     runs-on: ubuntu-latest
     needs: smoke
+    env:
+      IEN_TEST_POSTGRES: Host=localhost;Port=5432;Database=ien_validation;Username=postgres;Password=local-validation
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: local-validation
+          POSTGRES_DB: ien_validation
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,7 +56,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "9.0.x"
+          dotnet-version: "10.0.x"
 
       - name: Backend quality gate
         run: bash ./scripts/quality-backend.sh

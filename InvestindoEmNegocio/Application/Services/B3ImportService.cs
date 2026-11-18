@@ -94,6 +94,7 @@ public sealed class B3ImportService(
 
     public async Task<B3ConfirmImportResponse> ImportSnapshotAsync(Guid userId, B3ImportSnapshot snapshot, string strategy, CancellationToken cancellationToken)
     {
+        var spaceId = currentSpaceAccessor.RequireSpaceId();
         var importStrategy = ParseStrategy(strategy);
         var imported = 0;
 
@@ -101,7 +102,7 @@ public sealed class B3ImportService(
 
         var userPositions = await dbContext.InvestmentPositions
             .Include(x => x.Movements)
-            .Where(x => x.UserId == userId)
+            .Where(x => x.UserId == userId && x.SpaceId == spaceId)
             .ToListAsync(cancellationToken);
 
         if (importStrategy == ImportStrategy.Replace)
@@ -139,7 +140,7 @@ public sealed class B3ImportService(
             {
                 var created = new InvestmentPosition(
                     userId,
-                    currentSpaceAccessor.RequireSpaceId(),
+                    spaceId,
                     ResolveInvestmentType(assetCode),
                     assetCode,
                     parsedPosition.Quantity,

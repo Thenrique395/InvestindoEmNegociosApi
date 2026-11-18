@@ -1,77 +1,75 @@
 using FluentAssertions;
 using InvestindoEmNegocio.Infrastructure.Data;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+using Npgsql;
 
 namespace InvestindoEmNegocio.Tests;
 
 public class DbMigrationExtensionsTests
 {
     [Fact]
-    public async Task ApplyDatabaseSchemaAsync_Should_Return_When_Schema_File_Does_Not_Exist()
+    public void Migration_Model_Should_Match_The_Npgsql_Snapshot()
     {
-        var tempRoot = Path.Combine(Path.GetTempPath(), "invest-tests-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tempRoot);
-
-        try
-        {
-            var app = BuildApp(tempRoot);
-
-            var act = async () => await app.ApplyDatabaseSchemaAsync();
-
-            await act.Should().NotThrowAsync();
-        }
-        finally
-        {
-            Directory.Delete(tempRoot, recursive: true);
-        }
+        using var db = new InvestDbContextFactory().CreateDbContext([]);
+        db.Database.HasPendingModelChanges().Should().BeFalse();
     }
 
     [Fact]
-    public async Task ApplyDatabaseSchemaAsync_Should_Apply_Schema_When_File_Exists()
+    public void Idempotent_Migration_Script_Should_Include_Space_Backfill()
     {
-        var tempRoot = Path.Combine(Path.GetTempPath(), "invest-tests-" + Guid.NewGuid().ToString("N"));
-        var schemaDir = Path.Combine(tempRoot, "Infrastructure", "Data");
-        Directory.CreateDirectory(schemaDir);
-        var schemaPath = Path.Combine(schemaDir, "schema.sql");
-        await File.WriteAllTextAsync(schemaPath, "CREATE TABLE IF NOT EXISTS test_probe (id INTEGER PRIMARY KEY);");
+        using var db = new InvestDbContextFactory().CreateDbContext([]);
+        var script = db.GetService<IMigrator>().GenerateScript(options: MigrationsSqlGenerationOptions.Idempotent);
+        script.Should().Contain("__EFMigrationsHistory").And.Contain("IsolateBudgetsAndSnapshotsBySpace");
+        script.Should().Contain("UPDATE monthly_budget_items").And.Contain("UPDATE monthly_financial_snapshots");
+    }
 
+    [PostgresFact]
+    public async Task Postgres_Bootstrap_Should_Be_Idempotent_And_Preserve_Legacy_Rows()
+    {
+        var connection = Environment.GetEnvironmentVariable("IEN_TEST_POSTGRES")!;
+        var schema = "ien_test_" + Guid.NewGuid().ToString("N");
+        await using var admin = new NpgsqlConnection(connection); await admin.OpenAsync();
+        await using (var command = new NpgsqlCommand($"CREATE SCHEMA {schema}", admin)) await command.ExecuteNonQueryAsync();
         try
         {
-            var app = BuildApp(tempRoot);
-
-            var act = async () => await app.ApplyDatabaseSchemaAsync();
-
-            await act.Should().NotThrowAsync();
+            var isolated = new NpgsqlConnectionStringBuilder(connection) { SearchPath = schema }.ConnectionString;
+            var options = new DbContextOptionsBuilder<InvestDbContext>().UseNpgsql(isolated).Options;
+            var user = Guid.NewGuid(); var budget = Guid.NewGuid(); var snapshot = Guid.NewGuid();
+            await using (var db = new InvestDbContext(options))
+            {
+                await db.GetService<IMigrator>().MigrateAsync("20260827205714_PermitirEstornoComoPagamentoNegativo");
+                await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO monthly_budget_items (\"Id\", \"UserId\", \"Year\", \"Month\", \"CategoryName\", \"PlannedAmount\", \"CreatedAt\", \"UpdatedAt\") VALUES ({budget}, {user}, 2026, 11, 'Mercado', 123, NOW(), NOW())");
+                await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO monthly_financial_snapshots (\"Id\", \"UserId\", \"Year\", \"Month\", \"SnapshotLabel\", \"RealAvailableBalance\", \"ProjectedBalance\", \"PendingExpenses\", \"PendingIncomes\", \"TotalDebt\", \"NetWorth\", \"RiskScore\", \"RiskClassification\", \"PrimaryInsight\", \"RecommendationsJson\", \"CreatedAt\") VALUES ({snapshot}, {user}, 2026, 11, '11/2026', 0, 0, 0, 0, 0, 321, 0, 'ok', 'Teste', '[]', NOW())");
+            }
+            await using var services = new ServiceCollection().AddLogging().AddDbContext<InvestDbContext>(o => o.UseNpgsql(isolated)).BuildServiceProvider();
+            var app = new ApplicationBuilder(services);
+            await app.ApplyDatabaseSchemaAsync();
+            await app.ApplyDatabaseSchemaAsync();
+            await using var verified = new InvestDbContext(options);
+            var space = await verified.Spaces.SingleAsync(x => x.UserId == user && x.IsDefault);
+            (await verified.MonthlyBudgetItems.SingleAsync()).SpaceId.Should().Be(space.Id);
+            (await verified.MonthlyBudgetItems.SingleAsync()).PlannedAmount.Should().Be(123m);
+            (await verified.MonthlyFinancialSnapshots.SingleAsync()).SpaceId.Should().Be(space.Id);
+            (await verified.MonthlyFinancialSnapshots.SingleAsync()).NetWorth.Should().Be(321m);
+            (await verified.Database.GetPendingMigrationsAsync()).Should().BeEmpty();
         }
         finally
         {
-            Directory.Delete(tempRoot, recursive: true);
+            await using var command = new NpgsqlCommand($"DROP SCHEMA {schema} CASCADE", admin);
+            await command.ExecuteNonQueryAsync();
         }
     }
+}
 
-    private static WebApplication BuildApp(string contentRoot)
+public sealed class PostgresFactAttribute : FactAttribute
+{
+    public PostgresFactAttribute()
     {
-        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
-        {
-            ContentRootPath = contentRoot,
-            EnvironmentName = Environments.Development
-        });
-
-        var connection = new SqliteConnection("DataSource=:memory:");
-        connection.Open();
-
-        builder.Services.AddSingleton(connection);
-        builder.Services.AddDbContext<InvestDbContext>((sp, options) =>
-        {
-            options.UseSqlite(sp.GetRequiredService<SqliteConnection>());
-        });
-        builder.Services.AddLogging(config => config.AddDebug().SetMinimumLevel(LogLevel.Debug));
-
-        return builder.Build();
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("IEN_TEST_POSTGRES")))
+            Skip = "Configure IEN_TEST_POSTGRES para validar migrations em PostgreSQL isolado.";
     }
 }

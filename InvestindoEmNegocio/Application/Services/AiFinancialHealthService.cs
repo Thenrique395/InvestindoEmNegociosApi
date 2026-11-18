@@ -17,7 +17,8 @@ namespace InvestindoEmNegocio.Application.Services;
 public sealed class AiFinancialHealthService(
     IFinancialAssistantService financialAssistantService,
     IAnthropicClient anthropicClient,
-    IMemoryCache cache) : IAiFinancialHealthService
+    IMemoryCache cache,
+    ICurrentSpaceAccessor currentSpaceAccessor) : IAiFinancialHealthService
 {
     private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(20);
     private static readonly string[] ValidStatuses = ["critical", "warning", "ok"];
@@ -122,7 +123,7 @@ public sealed class AiFinancialHealthService(
         return "ok";
     }
 
-    private static string CacheKey(Guid userId, DateOnly referenceDate) => $"ai-health:{userId}:{referenceDate:yyyy-MM-dd}";
+    private string CacheKey(Guid userId, DateOnly referenceDate) => $"ai-health:{userId}:{currentSpaceAccessor.SpaceId?.ToString("N") ?? "all-spaces"}:{referenceDate:yyyy-MM-dd}";
 
     private sealed class AiHealthJsonShape
     {

@@ -96,8 +96,9 @@ public class User
 
     public void SetRole(UserRole role)
     {
+        if (Role == role) return;
         Role = role;
-        UpdatedAt = DateTime.UtcNow;
+        RevokeSessions();
     }
 
     public void MarkTrialUsed(DateTime nowUtc)

@@ -13,6 +13,25 @@ using BCryptNet = BCrypt.Net.BCrypt;
 
 public class SpaceServiceTests
 {
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task Rename_Should_Preserve_Password_When_No_New_Password_Is_Provided(string? password)
+    {
+        var userId = Guid.NewGuid();
+        var space = new Space(userId, "Antigo", passwordHash: "existing-hash");
+        var repository = new Mock<ISpaceRepository>();
+        repository.Setup(x => x.GetByIdAsync(space.Id, userId, It.IsAny<CancellationToken>())).ReturnsAsync(space);
+        var sut = BuildSut(spaceRepository: repository);
+
+        var result = await sut.UpdateAsync(userId, space.Id, new SpaceRequest("Novo", password));
+
+        result!.Name.Should().Be("Novo");
+        result.HasPassword.Should().BeTrue();
+        space.PasswordHash.Should().Be("existing-hash");
+    }
+
     [Fact]
     public async Task ListAsync_Should_Return_Mapped_Spaces()
     {

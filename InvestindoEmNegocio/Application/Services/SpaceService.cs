@@ -40,7 +40,8 @@ public class SpaceService(
         if (space is null) return null;
 
         space.Rename(request.Name);
-        space.SetPasswordHash(HashOrNull(request.Password));
+        if (!string.IsNullOrWhiteSpace(request.Password))
+            space.SetPasswordHash(HashOrNull(request.Password));
         await spaceRepository.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Space updated {UserId} {SpaceId}", userId, space.Id);

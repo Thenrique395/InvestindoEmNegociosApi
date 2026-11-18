@@ -531,7 +531,7 @@ public sealed class NotificationGenerationService(
                         ? $"Você tem {overdueExpenses.Count} despesa(s) vencida(s) desde {firstDue} e o caixa não cobre o total atrasado."
                         : $"Você tem {overdueExpenses.Count} despesa(s) vencida(s) desde {firstDue}, com caixa para quitar.",
                     actionLabel = hasCriticalOverdueExpenses ? "Quitar despesas" : "Quitar e dar baixa",
-                    route = "/expenses",
+                    route = "/despesas",
                     queryParams = new { focus = "overdue" },
                     amount,
                     dueDate = firstDue
@@ -549,7 +549,7 @@ public sealed class NotificationGenerationService(
                     severity = "warn",
                     text = $"Você tem {overdueIncomes.Count} receita(s) em atraso (mais antiga em {firstDue}).",
                     actionLabel = "Confirmar recebimentos",
-                    route = "/incomes",
+                    route = "/receitas",
                     queryParams = new { focus = "pending" },
                     amount = overdueIncomes.Sum(i => i.Amount),
                     dueDate = firstDue
@@ -567,7 +567,7 @@ public sealed class NotificationGenerationService(
                     severity = "warn",
                     text = $"Há {dueSoonExpenses.Count} despesa(s) vencendo nos próximos 5 dias (primeira em {firstDue}).",
                     actionLabel = "Ver próximas despesas",
-                    route = "/expenses",
+                    route = "/despesas",
                     queryParams = new { focus = "upcoming" },
                     amount = dueSoonExpenses.Sum(i => i.Amount),
                     dueDate = firstDue
@@ -590,7 +590,7 @@ public sealed class NotificationGenerationService(
                         severity = "info",
                         text = $"Próxima receita pendente em {nearest.DueDate:dd/MM/yyyy}.",
                         actionLabel = "Abrir receitas",
-                        route = "/incomes",
+                        route = "/receitas",
                         queryParams = new { focus = "pending" },
                         amount = nearest.Amount,
                         dueDate = nearest.DueDate.ToString("dd/MM/yyyy")

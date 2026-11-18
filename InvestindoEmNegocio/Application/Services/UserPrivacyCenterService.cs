@@ -11,7 +11,8 @@ public sealed class UserPrivacyCenterService(
     IUserRepository userRepository,
     IRefreshTokenRepository refreshTokenRepository,
     IAuditService auditService,
-    IInvestDbContext dbContext) : IUserPrivacyCenterService
+    IInvestDbContext dbContext,
+    IUserFileCleanupService fileCleanup) : IUserPrivacyCenterService
 {
     public async Task<PrivacySummaryDto> GetPrivacySummaryAsync(Guid userId, CancellationToken cancellationToken = default)
     {
@@ -35,7 +36,7 @@ public sealed class UserPrivacyCenterService(
                 "cartões, parcelas e pagamentos",
                 "metas, categorias e notificações",
                 "investimentos, movimentos e onboarding",
-                "tokens de sessão, reset de senha e trilha de auditoria"
+                "tokens de sessão, reset de senha e confirmação de e-mail"
             ],
             ProductionControls:
             [
@@ -48,7 +49,7 @@ public sealed class UserPrivacyCenterService(
                 "compressão de resposta",
                 "resiliência HTTP com retry"
             ],
-            RetentionPolicy: "A exclusão self-service remove os dados operacionais da conta e revoga artefatos de autenticação imediatamente.");
+            RetentionPolicy: "A exclusão remove os dados operacionais e revoga a autenticação. Registros de cobrança e auditoria são retidos separadamente conforme a política aplicável.");
     }
 
     public async Task<SecuritySummaryDto> GetSecuritySummaryAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -90,6 +91,9 @@ public sealed class UserPrivacyCenterService(
 
         foreach (var token in activeSessions)
             token.Revoke(now);
+        var user = await userRepository.GetByIdAsync(userId, cancellationToken)
+            ?? throw new AppProblemException("Usuário não encontrado", "Usuário não encontrado.", StatusCodes.Status404NotFound);
+        user.RevokeSessions();
 
         await refreshTokenRepository.SaveChangesAsync(cancellationToken);
         await auditService.LogAsync(userId, "REVOKE_OWN_SESSIONS", "RefreshToken", userId.ToString(), null, null, $"count={activeSessions.Count}", cancellationToken);
@@ -132,6 +136,7 @@ public sealed class UserPrivacyCenterService(
         user.Anonymize(now);
         await userRepository.SaveChangesAsync(cancellationToken);
         await auditService.LogAsync(userId, "ACCOUNT_ANONYMIZED", "User", userId.ToString(), null, null, $"deletedAt={now:u}", cancellationToken);
+        await fileCleanup.DeleteUserFilesAsync(userId, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 
@@ -150,6 +155,16 @@ public sealed class UserPrivacyCenterService(
         // Artefatos de autenticação — removidos imediatamente
         dbContext.RefreshTokens.RemoveRange(dbContext.RefreshTokens.Where(x => x.UserId == userId));
         dbContext.PasswordResetTokens.RemoveRange(dbContext.PasswordResetTokens.Where(x => x.UserId == userId));
+
+        dbContext.EmailConfirmationTokens.RemoveRange(dbContext.EmailConfirmationTokens.Where(x => x.UserId == userId));
+        dbContext.UserFeatureOverrides.RemoveRange(dbContext.UserFeatureOverrides.Where(x => x.UserId == userId));
+        dbContext.MonthlyBudgetItems.RemoveRange(dbContext.MonthlyBudgetItems.Where(x => x.UserId == userId));
+        dbContext.MonthlyFinancialSnapshots.RemoveRange(dbContext.MonthlyFinancialSnapshots.Where(x => x.UserId == userId));
+        dbContext.LoanAmortizations.RemoveRange(dbContext.LoanAmortizations.Where(x => x.UserId == userId));
+        dbContext.LoanPayments.RemoveRange(dbContext.LoanPayments.Where(x => x.UserId == userId));
+        dbContext.LoanContracts.RemoveRange(dbContext.LoanContracts.Where(x => x.UserId == userId));
+        dbContext.PlanHistoryEntries.RemoveRange(dbContext.PlanHistoryEntries.Where(x => x.UserId == userId));
+        dbContext.Spaces.RemoveRange(dbContext.Spaces.IgnoreQueryFilters().Where(x => x.UserId == userId));
 
         // Dados operacionais — removidos (direito ao esquecimento LGPD)
         dbContext.MoneyPayments.RemoveRange(dbContext.MoneyPayments.IgnoreQueryFilters().Where(x => x.UserId == userId));
@@ -171,8 +186,8 @@ public sealed class UserPrivacyCenterService(
         dbContext.UserOnboardings.RemoveRange(dbContext.UserOnboardings.Where(x => x.UserId == userId));
         dbContext.UserProfiles.RemoveRange(dbContext.UserProfiles.Where(x => x.UserId == userId));
 
-        // UserSubscriptions e BillingCheckouts são retidos anonimizados — necessário para
-        // conformidade fiscal/tributária (retenção mínima de 5 anos).
+        // UserSubscriptions e BillingCheckouts permanecem vinculados ao usuário anonimizado.
+        // Finalidade e prazo de retenção devem seguir a política aprovada para cada registro.
         // AuditLogs são retidos como trilha de auditoria de segurança.
         await dbContext.SaveChangesAsync(cancellationToken);
     }

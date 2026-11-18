@@ -5,6 +5,9 @@
 	handle /api/* {
 		reverse_proxy backend:5059
 	}
+	handle /uploads/receipts/* {
+		reverse_proxy backend:5059
+	}
 	handle /health* {
 		reverse_proxy backend:5059
 	}

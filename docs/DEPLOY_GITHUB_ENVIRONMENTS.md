@@ -3,7 +3,7 @@
 Este documento define como configurar os environments `development` e `production` usados pelos workflows de deploy da API:
 
 - [../.github/workflows/dotnet-desktop.yml](../.github/workflows/dotnet-desktop.yml): entrega automatica em `development` a partir da `main`.
-- [../.github/workflows/deploy-backend-production.yml](../.github/workflows/deploy-backend-production.yml): promocao manual para `production`.
+- [</Users/henriquesantos/Desktop/Codes/InvestindoEmNegocios/InvestindoEmNegociosApi/.github/workflows/deploy-prd.yml>](</Users/henriquesantos/Desktop/Codes/InvestindoEmNegocios/InvestindoEmNegociosApi/.github/workflows/deploy-prd.yml>): promocao manual para `production`.
 
 ## Objetivo
 
@@ -12,17 +12,18 @@ O fluxo esperado da API e:
 1. gerar uma imagem Docker imutavel no GHCR com tag igual ao `SHA` do commit
 2. subir essa imagem em `development`
 3. validar o ambiente
-4. executar manualmente o workflow `Deploy Backend Production`
+4. executar manualmente o workflow `Deploy Production`
 5. promover a imagem escolhida para `production`
 
 Segredos nao devem ser commitados nem enviados em arquivo `.env` para o servidor.
 
-## Estado atual do ambiente PRD
+## Estado e validação dos ambientes
 
-- o ambiente `production` esta **NO AR desde 2026-08**, em VPS Lightsail dedicada (`http://44.222.213.37`), servindo tudo por Caddy na porta `80`. A pausa de 2026-06-15 esta ⛔ superada (ver [../../docs/DECISIONS/2026-06-15-pausar-ambiente-prd-focar-dev.md](../../docs/DECISIONS/2026-06-15-pausar-ambiente-prd-focar-dev.md)) e a stack `invest-prd` na porta `5060` na mesma VPS do DEV **nao existe mais**. Deploy continua manual, com o input `confirm == 'DEPLOY'`
-- testes manuais e automatizados devem usar exclusivamente `development` (`invest-dev`, porta `5059`) até que o ambiente esteja estavel e o PRD seja recriado/validado
-- o workflow `Deploy Backend Production` exige digitar `DEPLOY` no input `confirm` para liberar o job, justamente para evitar disparo acidental enquanto o PRD estiver pausado
-- a pendencia de inversao dos bancos `meu_mentor_db`/`meu_mentor_prd` (ver "Pendencia conhecida" abaixo) deve ser corrigida antes ou durante a recriacao do PRD
+A topologia de produção versionada está em `docker-compose.prd.yml` e no workflow `deploy-prd.yml`: Caddy como entrada pública, API e PostgreSQL na rede interna. O deploy é manual pelo workflow `Deploy Production`, que recebe `image_tag`; não há campo adicional de confirmação `DEPLOY`.
+
+O registro de pausa de junho de 2026 é histórico e não define sozinho o estado atual da infraestrutura. Este documento descreve a configuração versionada; disponibilidade, imagem publicada e situação do banco devem ser conferidas no ambiente antes de uma operação. A revisão local de 2026-11-15 não realizou deploy nem validou o servidor publicado.
+
+Testes que escrevem dados e validações de cobrança devem usar desenvolvimento ou sandbox. Não usar produção para regressão automatizada.
 
 ## Environments obrigatorios
 
@@ -31,7 +32,7 @@ Crie estes GitHub Environments no repositorio:
 - `development`
 - `production`
 
-Para operador unico, nao use `required reviewers` como bloqueio principal do environment `production`, porque o GitHub pode impedir autoaprovacao. A aprovacao de PRD acontece pelo acionamento manual do workflow `Deploy Backend Production`.
+Para operador unico, nao use `required reviewers` como bloqueio principal do environment `production`, porque o GitHub pode impedir autoaprovacao. A aprovacao de PRD acontece pelo acionamento manual do workflow `Deploy Production`.
 
 Se o time crescer, `required reviewers` pode ser reativado para exigir aprovacao de outra pessoa antes do deploy.
 
@@ -190,7 +191,7 @@ Alguns valores nao sao configurados no GitHub Environment porque ja estao fixos 
 5. Aplicar a mudanca escolhida primeiro em `development`, validar a aplicacao subindo normalmente e respondendo health check.
 6. Aplicar a mesma mudanca em `production` em janela de baixo uso, com plano de rollback pronto.
 7. Validar `production` com smoke test (login, leitura de dados existentes) antes de considerar concluido.
-8. Atualizar este documento e `../../docs/ROADMAP.md` (secao 2.3) removendo a pendencia apos a correcao confirmada.
+8. Atualizar este documento e [roadmap.md](</Users/henriquesantos/Documents/my second brain/Investindo em Negocio/Documentacao/08-backlog/roadmap.md>) removendo a pendencia apos a correcao confirmada.
 
 ## Checklist de configuracao
 
@@ -200,4 +201,29 @@ Alguns valores nao sao configurados no GitHub Environment porque ja estao fixos 
 4. Garantir Docker e Docker Compose Plugin instalados no servidor.
 5. Garantir que o usuario remoto tenha permissao para rodar Docker.
 6. Fazer merge em `main` para validar DEV.
-7. Executar manualmente `Deploy Backend Production` para validar PRD.
+7. Executar manualmente `Deploy Production` para validar PRD.
+
+## Correções de infraestrutura de 2026-11-15
+
+- API, imagem e CI usam .NET 10; executar as ferramentas com SDK 10 instalado.
+- `ReverseProxy:KnownNetworks` e `ReverseProxy:KnownProxies` definem somente as origens confiáveis para forwarded headers. Não aceitar cabeçalhos de origem arbitrária. O Compose de produção usa a rede privada explícita em `APP_NETWORK_SUBNET`.
+- Comprovantes novos ficam em `/app/storage/receipts`, com volume `private_uploads_prd`. Acesso é autenticado por proprietário e espaço; a rota antiga também passa pela autorização.
+- Antes de recriar um container de ambiente existente, preservar os arquivos de `/app/wwwroot/uploads` e disponibilizá-los no novo ambiente para a leitura compatível das URLs anteriores. A revisão não move arquivos no servidor.
+- A migration de orçamento e snapshots atribui registros antigos ao espaço padrão e mantém valores e identificadores. Fazer backup do banco antes de promover a migration para um ambiente com dados reais.
+- PostgreSQL de regressão é isolado. `IEN_TEST_POSTGRES` habilita os testes de migração e preservação de dados; `IEN_MIGRATIONS_CONNECTION` seleciona explicitamente a conexão das ferramentas de schema, sem carregar segredos da aplicação.
+
+### Identificação pública e bloqueio de publicação
+
+Configurar no GitHub Environment `production` as variables `LEGAL_NAME` (razão social/nome do responsável), `LEGAL_TAX_ID` (CPF/CNPJ válido), `LEGAL_ADDRESS` (endereço completo) e `LEGAL_CONTACT_EMAIL` (contato oficial). Não preencher com fixtures de teste. O workflow repassa esses campos ao Compose e executa a validação da imagem frontend antes do `up`. O SSR também rejeita inicialização de produção sem esses dados.
+
+Esses campos são públicos em termos/privacidade e `/config.js`; não colocar credenciais ou outras informações secretas neles. A validação técnica de formato não comprova titularidade nem substitui revisão jurídica. Dados reais continuam pendentes do responsável.
+
+## Preparação da entrega — 2026-11-18
+
+PR em rascunho: [API #56](https://github.com/Thenrique395/InvestindoEmNegociosApi/pull/56). O workflow `Deliver Backend` usa `docker-compose.deploy.yml` também nas consultas de saúde/logs, igual ao arquivo usado no `up`.
+
+Antes de merge na `main` (que dispara DEV), confirmar banco DEV isolado, preservar comprovantes legados e aguardar CI do SHA final. Validar migrations, readiness, login e regressão financeira em DEV. Produção só depois da validação de API e frontend, com backup/restore verificável, arquivos preservados e imagem imutável por SHA. O frontend relacionado segue bloqueado na auditoria de desenvolvimento; não considerar a entrega conjunta liberada.
+
+### Resultado remoto da preparação de 2026-11-18
+
+[CI Backend 44311077325](https://github.com/Thenrique395/InvestindoEmNegociosApi/actions/runs/44311077325), código `285119d`: 55 smoke e 684 testes aprovados, nenhum ignorado; PostgreSQL incluído e NuGet sem alertas. [API #56](https://github.com/Thenrique395/InvestindoEmNegociosApi/pull/56) e [Web #26](https://github.com/Thenrique395/InvestindoEmNegociosWeb/pull/26) continuam em rascunho. O frontend falhou na auditoria completa no código `c85d963`; nenhum merge/deploy executado. [Estado conjunto da entrega](https://github.com/Thenrique395/InvestindoEmNegociosWeb/blob/chore/consolidacao-validacao-2026-11-18/docs/ai-reports/preparacao-entrega-2026-11-18.md). Estes resultados referem-se aos SHAs citados, anteriores a atualizações exclusivamente documentais.

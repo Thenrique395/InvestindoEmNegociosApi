@@ -34,12 +34,12 @@ public class RiskBotServiceTests
             .ReturnsAsync(projection);
 
         var installmentRepository = new Mock<IMoneyInstallmentRepository>();
-        installmentRepository.Setup(x => x.ListByUserAsync(userId, null, projection.ProjectionStart, projection.ProjectionEnd, MoneyType.Expense, It.IsAny<CancellationToken>()))
+        installmentRepository.Setup(x => x.ListByUserAsync(userId, null, null, projection.ProjectionEnd, MoneyType.Expense, It.IsAny<CancellationToken>()))
             .ReturnsAsync([
                 new MoneyInstallment(Guid.NewGuid(), userId, spaceId, 1, new DateOnly(2026, 3, 8), 300m),
                 new MoneyInstallment(Guid.NewGuid(), userId, spaceId, 2, new DateOnly(2026, 3, 10), 200m)
             ]);
-        installmentRepository.Setup(x => x.ListByUserAsync(userId, InstallmentStatus.Open, projection.ProjectionStart, projection.ProjectionEnd, MoneyType.Income, It.IsAny<CancellationToken>()))
+        installmentRepository.Setup(x => x.ListByUserAsync(userId, InstallmentStatus.Open, null, projection.ProjectionEnd, MoneyType.Income, It.IsAny<CancellationToken>()))
             .ReturnsAsync([
                 new MoneyInstallment(Guid.NewGuid(), userId, spaceId, 1, new DateOnly(2026, 3, 15), 500m)
             ]);
@@ -53,5 +53,7 @@ public class RiskBotServiceTests
         result.Score.Should().BeLessThan(70);
         result.ReasonCodes.Should().Contain(["projected_deficit", "overdue_expenses", "pending_income"]);
         result.Recommendations.Should().NotBeEmpty();
+        result.Recommendations.Should().OnlyContain(x => x.Route == "/despesas" || x.Route == "/receitas");
+        installmentRepository.Verify(x => x.ListByUserAsync(userId, null, null, projection.ProjectionEnd, MoneyType.Expense, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

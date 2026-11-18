@@ -14,7 +14,7 @@ Este documento existe para:
 ## Como ler este arquivo
 
 - este documento descreve o que o backend protege hoje
-- ele nao substitui a direcao de produto em `../../docs/PRODUCT.md`
+- ele nao substitui a direcao de produto em `/Users/henriquesantos/Documents/my second brain/Investindo em Negocio/Documentacao/01-produto/estrategia/visao-e-oferta-do-produto.md`
 - quando houver diferenca entre produto desejado e codigo atual, o desalinhamento deve ser marcado explicitamente aqui
 
 Regra pratica:
@@ -522,3 +522,10 @@ Classificacao:
 - alteracao de role minima efetiva
 - mudanca de endpoint administrativo
 - alinhamento entre produto e backend que altere a protecao real de um modulo
+
+## Garantias de segurança revisadas em 2026-11-15
+
+- Revogar as próprias sessões incrementa a versão de token do usuário e revoga refresh tokens. JWTs anteriores são rejeitados na próxima requisição autenticada. Alterar o papel também invalida sessões; reaplicar o mesmo papel não o faz.
+- Comprovantes são privados: `GET /api/v1/receipts/{fileName}` e a rota legada `/uploads/receipts/{fileName}` exigem autenticação, `feature.installments.read`, proprietário e vínculo do pagamento ao espaço ativo. A rota legada não é servida como arquivo estático. Respostas usam `Cache-Control: private, no-store`.
+- Orçamento, snapshots e cache de saúde financeira respeitam o espaço ativo. O modo global do assistente possui chave de cache distinta.
+- Exclusão de dados operacionais remove também espaços, orçamentos, snapshots, empréstimos, tokens e arquivos do usuário. Registros de cobrança e auditoria retidos seguem sua finalidade e política aplicável; não se promete apagamento irrestrito.

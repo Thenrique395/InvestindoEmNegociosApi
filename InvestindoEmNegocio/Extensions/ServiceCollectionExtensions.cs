@@ -22,7 +22,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 
 namespace InvestindoEmNegocio.Extensions;
 
@@ -47,6 +47,7 @@ public static class ServiceCollectionExtensions
             options.AddDocumentTransformer((document, _, _) =>
             {
                 document.Components ??= new OpenApiComponents();
+                document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
                 document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
                 {
                     Description = "JWT Authorization header usando o esquema Bearer. Exemplo: \"Bearer {token}\"",
@@ -74,14 +75,7 @@ public static class ServiceCollectionExtensions
                 operation.Security ??= [];
                 operation.Security.Add(new OpenApiSecurityRequirement
                 {
-                    [new OpenApiSecurityScheme
-                    {
-                        Reference = new OpenApiReference
-                        {
-                            Type = ReferenceType.SecurityScheme,
-                            Id = "Bearer"
-                        }
-                    }] = []
+                    [new OpenApiSecuritySchemeReference("Bearer")] = []
                 });
 
                 return Task.CompletedTask;
@@ -342,7 +336,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<INotificationSettingsRepository, NotificationSettingsRepository>();
         services.AddScoped<IRobotSettingsRepository, RobotSettingsRepository>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
-        services.AddScoped<ICurrentSpaceAccessor, CurrentSpaceAccessor>();
+        services.AddScoped<CurrentSpaceAccessor>();
+        services.AddScoped<ICurrentSpaceAccessor>(sp => sp.GetRequiredService<CurrentSpaceAccessor>());
+        services.AddScoped<ISpaceExecutionScope>(sp => sp.GetRequiredService<CurrentSpaceAccessor>());
         services.AddScoped<IAuthCookieService, AuthCookieService>();
         services.AddScoped<IAuthRegistrationService, AuthRegistrationService>();
         services.AddScoped<IAuthAvailabilityService, AuthAvailabilityService>();
@@ -473,6 +469,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMarketDataProvider, B3MarketDataProvider>();
         services.AddScoped<IAvatarStorageService, AvatarStorageService>();
         services.AddScoped<IReceiptStorageService, ReceiptStorageService>();
+        services.AddScoped<IReceiptAccessService, ReceiptAccessService>();
+        services.AddScoped<IUserFileCleanupService, UserFileCleanupService>();
 
         services.AddHttpClient<IInvestmentBenchmarksService, InvestmentBenchmarksService>(client =>
         {

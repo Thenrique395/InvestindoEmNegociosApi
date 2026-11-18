@@ -17,7 +17,7 @@ namespace InvestindoEmNegocio.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.10")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -1542,6 +1542,9 @@ namespace InvestindoEmNegocio.Migrations
                     b.Property<decimal>("PlannedAmount")
                         .HasColumnType("numeric(14,2)");
 
+                    b.Property<Guid>("SpaceId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1553,9 +1556,9 @@ namespace InvestindoEmNegocio.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId", "Year", "Month");
+                    b.HasIndex("UserId", "SpaceId", "Year", "Month");
 
-                    b.HasIndex("UserId", "Year", "Month", "CategoryName")
+                    b.HasIndex("UserId", "SpaceId", "Year", "Month", "CategoryName")
                         .IsUnique();
 
                     b.ToTable("monthly_budget_items", (string)null);
@@ -1611,6 +1614,9 @@ namespace InvestindoEmNegocio.Migrations
                         .HasMaxLength(7)
                         .HasColumnType("character varying(7)");
 
+                    b.Property<Guid>("SpaceId")
+                        .HasColumnType("uuid");
+
                     b.Property<decimal>("TotalDebt")
                         .HasColumnType("numeric(14,2)");
 
@@ -1622,7 +1628,7 @@ namespace InvestindoEmNegocio.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId", "Year", "Month")
+                    b.HasIndex("UserId", "SpaceId", "Year", "Month")
                         .IsUnique();
 
                     b.ToTable("monthly_financial_snapshots", (string)null);
