@@ -223,3 +223,7 @@ Esses campos são públicos em termos/privacidade e `/config.js`; não colocar c
 PR em rascunho: [API #56](https://github.com/Thenrique395/InvestindoEmNegociosApi/pull/56). O workflow `Deliver Backend` usa `docker-compose.deploy.yml` também nas consultas de saúde/logs, igual ao arquivo usado no `up`.
 
 Antes de merge na `main` (que dispara DEV), confirmar banco DEV isolado, preservar comprovantes legados e aguardar CI do SHA final. Validar migrations, readiness, login e regressão financeira em DEV. Produção só depois da validação de API e frontend, com backup/restore verificável, arquivos preservados e imagem imutável por SHA. O frontend relacionado segue bloqueado na auditoria de desenvolvimento; não considerar a entrega conjunta liberada.
+
+### Resultado remoto da preparação de 2026-11-18
+
+[CI Backend 44311077325](https://github.com/Thenrique395/InvestindoEmNegociosApi/actions/runs/44311077325), código `285119d`: 55 smoke e 684 testes aprovados, nenhum ignorado; PostgreSQL incluído e NuGet sem alertas. [API #56](https://github.com/Thenrique395/InvestindoEmNegociosApi/pull/56) e [Web #26](https://github.com/Thenrique395/InvestindoEmNegociosWeb/pull/26) continuam em rascunho. O frontend falhou na auditoria completa no código `c85d963`; nenhum merge/deploy executado. [Estado conjunto da entrega](https://github.com/Thenrique395/InvestindoEmNegociosWeb/blob/chore/consolidacao-validacao-2026-11-18/docs/ai-reports/preparacao-entrega-2026-11-18.md). Estes resultados referem-se aos SHAs citados, anteriores a atualizações exclusivamente documentais.
