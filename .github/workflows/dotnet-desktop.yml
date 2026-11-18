@@ -196,10 +196,10 @@ jobs:
               local container_id=""
               local status=""
 
-              container_id="$(docker compose -p "$STACK_NAME" ps -q "$service_name")"
+              container_id="$(docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml ps -q "$service_name")"
               if [ -z "$container_id" ]; then
                 echo "Container for service '$service_name' not found."
-                docker compose -p "$STACK_NAME" ps
+                docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml ps
                 return 1
               fi
 
@@ -212,8 +212,8 @@ jobs:
               done
 
               echo "Service '$service_name' did not become healthy. Current status: $status"
-              docker compose -p "$STACK_NAME" ps
-              docker compose -p "$STACK_NAME" logs --tail=100 "$service_name"
+              docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml ps
+              docker compose -p "$STACK_NAME" -f docker-compose.deploy.yml logs --tail=100 "$service_name"
               return 1
             }
 

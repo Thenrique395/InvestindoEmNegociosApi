@@ -12,14 +12,14 @@ O fluxo esperado da API e:
 1. gerar uma imagem Docker imutavel no GHCR com tag igual ao `SHA` do commit
 2. subir essa imagem em `development`
 3. validar o ambiente
-4. executar manualmente o workflow `Deploy Backend Production`
+4. executar manualmente o workflow `Deploy Production`
 5. promover a imagem escolhida para `production`
 
 Segredos nao devem ser commitados nem enviados em arquivo `.env` para o servidor.
 
 ## Estado e validação dos ambientes
 
-A topologia de produção versionada está em `docker-compose.prd.yml` e no workflow `deploy-prd.yml`: Caddy como entrada pública, API e PostgreSQL na rede interna. O deploy é manual e exige a confirmação `DEPLOY`.
+A topologia de produção versionada está em `docker-compose.prd.yml` e no workflow `deploy-prd.yml`: Caddy como entrada pública, API e PostgreSQL na rede interna. O deploy é manual pelo workflow `Deploy Production`, que recebe `image_tag`; não há campo adicional de confirmação `DEPLOY`.
 
 O registro de pausa de junho de 2026 é histórico e não define sozinho o estado atual da infraestrutura. Este documento descreve a configuração versionada; disponibilidade, imagem publicada e situação do banco devem ser conferidas no ambiente antes de uma operação. A revisão local de 2026-11-15 não realizou deploy nem validou o servidor publicado.
 
@@ -32,7 +32,7 @@ Crie estes GitHub Environments no repositorio:
 - `development`
 - `production`
 
-Para operador unico, nao use `required reviewers` como bloqueio principal do environment `production`, porque o GitHub pode impedir autoaprovacao. A aprovacao de PRD acontece pelo acionamento manual do workflow `Deploy Backend Production`.
+Para operador unico, nao use `required reviewers` como bloqueio principal do environment `production`, porque o GitHub pode impedir autoaprovacao. A aprovacao de PRD acontece pelo acionamento manual do workflow `Deploy Production`.
 
 Se o time crescer, `required reviewers` pode ser reativado para exigir aprovacao de outra pessoa antes do deploy.
 
@@ -201,7 +201,7 @@ Alguns valores nao sao configurados no GitHub Environment porque ja estao fixos 
 4. Garantir Docker e Docker Compose Plugin instalados no servidor.
 5. Garantir que o usuario remoto tenha permissao para rodar Docker.
 6. Fazer merge em `main` para validar DEV.
-7. Executar manualmente `Deploy Backend Production` para validar PRD.
+7. Executar manualmente `Deploy Production` para validar PRD.
 
 ## Correções de infraestrutura de 2026-11-15
 
@@ -217,3 +217,9 @@ Alguns valores nao sao configurados no GitHub Environment porque ja estao fixos 
 Configurar no GitHub Environment `production` as variables `LEGAL_NAME` (razão social/nome do responsável), `LEGAL_TAX_ID` (CPF/CNPJ válido), `LEGAL_ADDRESS` (endereço completo) e `LEGAL_CONTACT_EMAIL` (contato oficial). Não preencher com fixtures de teste. O workflow repassa esses campos ao Compose e executa a validação da imagem frontend antes do `up`. O SSR também rejeita inicialização de produção sem esses dados.
 
 Esses campos são públicos em termos/privacidade e `/config.js`; não colocar credenciais ou outras informações secretas neles. A validação técnica de formato não comprova titularidade nem substitui revisão jurídica. Dados reais continuam pendentes do responsável.
+
+## Preparação da entrega — 2026-11-18
+
+PR em rascunho: [API #56](https://github.com/Thenrique395/InvestindoEmNegociosApi/pull/56). O workflow `Deliver Backend` usa `docker-compose.deploy.yml` também nas consultas de saúde/logs, igual ao arquivo usado no `up`.
+
+Antes de merge na `main` (que dispara DEV), confirmar banco DEV isolado, preservar comprovantes legados e aguardar CI do SHA final. Validar migrations, readiness, login e regressão financeira em DEV. Produção só depois da validação de API e frontend, com backup/restore verificável, arquivos preservados e imagem imutável por SHA. O frontend relacionado segue bloqueado na auditoria de desenvolvimento; não considerar a entrega conjunta liberada.
